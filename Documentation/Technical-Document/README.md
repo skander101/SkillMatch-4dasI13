@@ -43,7 +43,7 @@ Document technique complet du projet, en Word ou LaTeX. Il doit contenir tout le
 
 7. **Technologies**
    - Spring Boot, Spring Cloud, MySQL, RabbitMQ
-   - React, Vite, TypeScript
+   - Angular, TypeScript
    - Docker Compose et CI
 
 8. **Organisation du travail**

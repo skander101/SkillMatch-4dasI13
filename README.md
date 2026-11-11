@@ -58,7 +58,7 @@ Le schéma d'architecture complet et les autres diagrammes se trouvent dans [`Do
 | `api-gateway` | 8080 | — | Routage, sécurité et validation JWT |
 | `discovery-service` | 8761 | — | Serveur Eureka |
 | `config-service` | 8888 | — | Configuration centralisée |
-| `Frontend` | 5173 | — | Interface candidat, recruteur et administrateur |
+| `Frontend` | 4200 | — | Interface candidat, recruteur et administrateur |
 
 Le détail des contrats, des entités, des appels synchrones et des événements est dans [`Backend/README.md`](Backend/README.md).
 
@@ -70,7 +70,7 @@ Le détail des contrats, des entités, des appels synchrones et des événements
 - RabbitMQ
 - API Gateway, Eureka, Spring Cloud Config
 - JWT
-- React, Vite et TypeScript pour le frontend
+- Angular et TypeScript pour le frontend
 - Docker Compose pour RabbitMQ et les outils d'infrastructure
 - Git et GitHub pour la gestion de version
 
@@ -106,6 +106,7 @@ Les dossiers de microservices sont créés par leurs responsables sur leurs bran
 - JDK 17
 - Maven 3.9+
 - Node.js 20+ et npm
+- Angular CLI
 - XAMPP avec MySQL démarré sur le port 3306
 - RabbitMQ (via Docker Compose ou installation locale)
 - Git
@@ -117,7 +118,7 @@ Les dossiers de microservices sont créés par leurs responsables sur leurs bran
 3. Copier `.env.example` vers `.env` et adapter les valeurs locales.
 4. Démarrer RabbitMQ. Le fichier `docker-compose.yml` sera ajouté par le responsable Docker/CI.
 5. Démarrer `discovery-service`, `config-service`, les microservices, puis `api-gateway`.
-6. Démarrer le frontend avec `npm install` puis `npm run dev`.
+6. Démarrer le frontend avec `npm install` puis `npm start` (ou `ng serve`).
 
 Chaque service est un projet Maven indépendant. Depuis son dossier :
 

@@ -6,11 +6,10 @@ Ce dossier est un emplacement réservé. Le responsable du layout commun et du l
 
 ## Stack prévue
 
-- React
-- Vite
+- Angular
 - TypeScript
-- React Router
-- Client HTTP vers l'API Gateway
+- Angular Router
+- `HttpClient` pour les appels vers l'API Gateway
 
 ## Responsabilités
 
@@ -30,19 +29,24 @@ http://localhost:8080
 
 Le frontend ne contacte jamais directement un microservice.
 
+L'API Gateway doit autoriser l'origine `http://localhost:4200` en CORS.
+
 ## Démarrage prévu
 
 ```bash
 npm install
-npm run dev
+npm start
 ```
 
-Le serveur de développement utilise le port `5173`.
+`npm start` exécute `ng serve`. Le serveur de développement utilise le port `4200`.
 
-## Variables d'environnement
+## Configuration de l'API
 
-Créer un fichier `.env.local` non commité :
+L'URL de l'API Gateway est définie dans `src/environments/environment.development.ts` :
 
-```text
-VITE_API_URL=http://localhost:8080
+```ts
+export const environment = {
+  production: false,
+  apiUrl: 'http://localhost:8080'
+};
 ```
