@@ -2,6 +2,10 @@
 
 Support de la validation intermédiaire : 10 à 15 minutes de présentation, suivies de 10 minutes de questions.
 
+## Fichier actuel
+
+- `Blue and White Modern Business Proposal Presentation.pdf`
+
 ## Partie groupe
 
 1. Idée générale et problématique.
@@ -27,8 +31,7 @@ Chaque responsable présente son microservice en une minute maximum :
 
 Le service commun est présenté par un seul membre.
 
-## Fichiers attendus
+## Fichiers à ajouter
 
-- Support final au format PowerPoint ou PDF.
-- Sources éventuelles des slides.
-- Version exportée pour la soumission Blackboard.
+- Source éditable des slides, si disponible.
+- Version finale exportée pour la soumission Blackboard.

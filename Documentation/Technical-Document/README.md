@@ -1,6 +1,12 @@
 # Document technique
 
-Document technique complet du projet, en Word ou LaTeX. Il doit contenir tout le contenu de la présentation, avec plus de détail.
+Document technique complet du projet. Il doit contenir tout le contenu de la présentation, avec plus de détail.
+
+## Fichier actuel
+
+- `SkillMatch_Dossier_Technique_Design_Final_v2.pdf`
+
+La source Word ou LaTeX pourra être ajoutée pour faciliter les modifications.
 
 ## Plan attendu
 
@@ -58,8 +64,8 @@ Document technique complet du projet, en Word ou LaTeX. Il doit contenir tout le
 
 10. **Conclusion et perspectives**
 
-## Fichiers attendus
+## Annexes
 
-- Version Word `.docx` ou projet LaTeX.
-- Version PDF pour la soumission.
-- Annexes éventuelles : contrats d'API, collections Postman, scripts SQL de création des bases.
+- Contrats d'API.
+- Collections Postman.
+- Scripts SQL de création des bases.
