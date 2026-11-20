@@ -1,31 +1,31 @@
-package tn.esprit.skillmatch.offres.entity;
+package tn.esprit.skillmatch.offres.entity; // Place ce fichier dans le package indiqué, qui organise les classes du service.
 
-import org.junit.jupiter.api.Test;
-import java.time.LocalDate;
-import java.util.List;
+import org.junit.jupiter.api.Test; // Importe l'annotation qui désigne un test JUnit.
+import java.time.LocalDate; // Importe les dates sans heure.
+import java.util.List; // Importe le type liste.
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.*; // Importe les vérifications JUnit comme assertEquals et assertTrue.
 
-class OffreTest {
-    @Test
-    void expirationRespecteLaDateDuJour() {
-        Offre offre = new Offre();
-        offre.setDateExpiration(LocalDate.now().minusDays(1));
-        assertTrue(offre.estExpiree());
-        offre.setDateExpiration(LocalDate.now());
-        assertFalse(offre.estExpiree());
-        offre.setDateExpiration(LocalDate.now().plusDays(1));
-        assertFalse(offre.estExpiree());
-    }
+class OffreTest { // Regroupe les tests de OffreTest.
+    @Test // Indique que JUnit doit exécuter cette méthode comme un test.
+    void expirationRespecteLaDateDuJour() { // Teste l'expiration pour hier, aujourd'hui et demain.
+        Offre offre = new Offre(); // Crée une offre Java vide pour le test.
+        offre.setDateExpiration(LocalDate.now().minusDays(1)); // Choisit hier pour représenter une offre expirée.
+        assertTrue(offre.estExpiree()); // Vérifie qu'une date passée rend l'offre expirée.
+        offre.setDateExpiration(LocalDate.now()); // Choisit aujourd'hui comme dernier jour de validité.
+        assertFalse(offre.estExpiree()); // Vérifie que l'offre n'est pas encore expirée.
+        offre.setDateExpiration(LocalDate.now().plusDays(1)); // Choisit demain comme date d'expiration.
+        assertFalse(offre.estExpiree()); // Vérifie que l'offre n'est pas encore expirée.
+    } // Ferme le bloc précédent (méthode, condition ou classe).
 
-    @Test
-    void scoreIgnoreLaCasseLesEspacesEtLesDoublons() {
-        Offre offre = new Offre();
-        offre.setCompetences(List.of(" Java ", "JAVA", "SQL"));
-        assertEquals(50.0, offre.calculerScore(List.of("java", "java")));
-        assertEquals(100.0, offre.calculerScore(List.of("Java", "sql")));
-        assertEquals(0.0, offre.calculerScore(null));
-        offre.setCompetences(List.of());
-        assertEquals(0.0, offre.calculerScore(List.of("Java")));
-    }
-}
+    @Test // Indique que JUnit doit exécuter cette méthode comme un test.
+    void scoreIgnoreLaCasseLesEspacesEtLesDoublons() { // Teste le calcul du score et les cas sans compétences.
+        Offre offre = new Offre(); // Crée une offre Java vide pour le test.
+        offre.setCompetences(List.of(" Java ", "JAVA", "SQL")); // Prépare des compétences avec espaces, casse différente et doublon.
+        assertEquals(50.0, offre.calculerScore(List.of("java", "java"))); // Vérifie que Java couvre une compétence sur deux malgré les doublons.
+        assertEquals(100.0, offre.calculerScore(List.of("Java", "sql"))); // Vérifie que toutes les compétences requises donnent 100 pour cent.
+        assertEquals(0.0, offre.calculerScore(null)); // Vérifie qu'un profil absent donne un score nul.
+        offre.setCompetences(List.of()); // Retire toutes les compétences requises.
+        assertEquals(0.0, offre.calculerScore(List.of("Java"))); // Vérifie qu'une offre sans compétences donne zéro sans division par zéro.
+    } // Ferme le bloc précédent (méthode, condition ou classe).
+} // Ferme le bloc précédent (méthode, condition ou classe).
