@@ -3,12 +3,13 @@
 Projet Maven indépendant, créé depuis `Backend/_template-service` : Java 17,
 Spring Boot 3.3.5, Spring Cloud 2023.0.3. Aucun POM parent dans `Backend`.
 
-## État actuel : socle uniquement
+## État actuel : socle et entités
 
 - Application : `tn.esprit.skillmatch.offres.OffresServiceApplication`.
 - Port par défaut : **8081** ; base MySQL : **offres_db**.
-- Les entités, CRUD, autorisations JWT et interfaces Angular seront ajoutés aux
-  étapes suivantes. Aucun endpoint métier n'est encore disponible.
+- Les entités `Offre` et `Candidature` sont présentes. Les CRUD, autorisations
+  JWT et interfaces Angular seront ajoutés aux étapes suivantes.
+  Aucun endpoint métier n'est encore disponible.
 - Les dépendances AMQP et Eureka du template sont conservées. L'autoconfiguration
   RabbitMQ est exclue ; l'enregistrement Eureka et la récupération du registre
   sont désactivés par défaut. Aucun serveur RabbitMQ, Eureka ou Config Server
@@ -84,5 +85,49 @@ Invoke-RestMethod http://localhost:18081/actuator/health
 - Contrôle HTTP sur le port temporaire 18081 : `200 {"status":"UP"}`.
   Le port 8081 était occupé par une autre application lors de cette vérification.
 - XAMPP fournit ici MariaDB 10.4.32. Avec le pilote MySQL du template, Hibernate
-  émet un avertissement de version du dialecte. Le socle démarre ; la persistance
-  des futures entités devra être vérifiée à l'étape suivante.
+  émet un avertissement de version du dialecte. Le socle démarre ; les tests de
+  persistance de l'étape 2 passent sur cette installation.
+
+## Étape 2 : entités et relation
+
+- `Offre` devient la table `offres`, `Candidature` devient `candidatures`.
+- Chaque candidature possède une offre obligatoire (`offre_id`). Plusieurs
+  candidatures peuvent référencer la même offre. Pas de suppression en cascade :
+  la clé étrangère protège une offre qui possède des candidatures.
+- `recruteurId` identifie le propriétaire de l'offre ; `entrepriseId` reste une
+  référence différente. Ces identifiants ne créent pas de tables Utilisateur,
+  Entreprise, Test ou CV. Leur existence n'est pas encore vérifiée.
+- `competences` est une liste Java stockée en JSON dans une colonne TEXT,
+  grâce à `CompetencesConverter`, sans table supplémentaire.
+- Les enums reprennent exactement les valeurs UML. Une offre commence en
+  `BROUILLON`. À l'insertion, une candidature reçoit la date courante et `RECUE`.
+- Validations : titre obligatoire, salaire positif ou nul, contrat, statut,
+  date d'expiration et propriétaire obligatoires ; identifiants positifs.
+- `estExpiree()` retourne vrai si la date d'expiration est avant aujourd'hui.
+  Une offre reste ouverte jusqu'à la fin du jour indiqué.
+- La date n'utilise pas `@FutureOrPresent` sur l'entité : une offre expirée doit
+  pouvoir être conservée et fermée ultérieurement. La validation de la date à la
+  création/publication sera ajoutée au CRUD.
+- `calculerScore()` calcule seulement un pourcentage de compétences communes,
+  sans tenir compte de la casse ou des doublons. Aucun appel Profils, moteur de
+  matching ou endpoint de recommandation n'est ajouté.
+- `changerStatut()` refuse une valeur nulle. Les transitions autorisées et les
+  contrôles de rôle appartiendront au service métier des étapes suivantes.
+
+### Tests des entités
+
+```powershell
+mvn package
+mvn "-Dtest=EntityPersistenceIT" test
+```
+
+La première commande exécute les tests unitaires sans MySQL. La seconde exige
+MySQL/XAMPP et vérifie réellement le JSON, les dates automatiques et la clé
+étrangère dans `offres_db`. Elle utilise les paramètres MySQL du service et
+`ddl-auto: update`. Les données de test sont annulées à la fin des transactions ;
+les tables restent créées et les compteurs d'identifiants peuvent avancer.
+Les identifiants utilisateur/CV utilisés sont des références de test, sans
+prétendre vérifier leur existence dans les autres services.
+
+Résultat de l'étape 2 : `mvn package` réussi (9 tests unitaires), puis
+`mvn "-Dtest=EntityPersistenceIT" test` réussi (2 tests de persistance XAMPP).
