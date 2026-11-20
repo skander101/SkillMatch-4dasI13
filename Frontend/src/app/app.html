@@ -1,0 +1,124 @@
+<header class="site-header">
+  <div class="wrap nav-wrap">
+    <a href="#accueil" class="brand" aria-label="SkillMatch Accueil">
+      <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 44 36" fill="none"><circle cx="17" cy="10" r="7" fill="#0A8D52"/><circle cx="32" cy="13" r="5.5" fill="#0B5E38"/><circle cx="6.5" cy="14" r="4.5" fill="#18B66E"/><path d="M4 31c0-8.4 5.2-12.8 13-12.8S30 22.6 30 31v3H4v-3Z" fill="#078046"/><path d="M25.5 32.5v-3.4c0-5.2-1.6-8.4-3.5-10.6 7.9-3 17 1.9 17 10.1v3.9H25.5Z" fill="#075A34"/><path d="M.5 31v-2.5c0-4 1.5-6.4 4.3-7.8C2.8 24 3 27.5 3 31H.5Z" fill="#19B66D"/></svg></span>
+      <span>Skill<span>Match</span></span>
+    </a>
+    <nav class="nav-links" aria-label="Navigation principale" (click)="$event.stopPropagation()">
+      <a class="active" href="#accueil">Accueil</a>
+      @for (service of navServices; track service.id) {
+        <div class="nav-service">
+          <button type="button" class="nav-trigger" [class.open]="openNav() === service.id" [attr.aria-expanded]="openNav() === service.id" aria-haspopup="true" [attr.aria-controls]="'nav-' + service.id" (click)="toggleNav(service.id)">{{ service.label }} <span class="caret" aria-hidden="true">▾</span></button>
+          @if (openNav() === service.id) {
+            <div class="nav-dropdown" [id]="'nav-' + service.id" role="menu" [attr.aria-label]="service.full">
+              <span class="dropdown-title">{{ service.full }}</span>
+              @for (usage of service.items; track usage) {
+                <button type="button" role="menuitem" (click)="onNavAction(service.id, usage)">{{ usage }}</button>
+              }
+            </div>
+          }
+        </div>
+      }
+      <a href="#apropos">À propos</a>
+    </nav>
+    <div class="nav-actions" (click)="$event.stopPropagation()"><button type="button" class="notif-btn" [class.open]="notificationsOpen()" [attr.aria-expanded]="notificationsOpen()" aria-label="Notifications" (click)="toggleNotifications()"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8Z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>@if (unreadCount() > 0) {<span class="notif-badge">{{ unreadCount() }}</span>}</button><button type="button" class="mobile-menu-btn" [attr.aria-expanded]="mobileNavOpen()" aria-label="Afficher les microservices" (click)="toggleMobileNav()">☰</button>@if (currentUser(); as user) {
+    <div class="user-chip">
+      <span class="user-avatar">{{ user.nom.charAt(0) }}</span>
+      <span class="user-info"><b>{{ user.nom }}</b><small>{{ user.role }}</small></span>
+      <button type="button" class="logout-btn" (click)="logout()">Déconnexion</button>
+    </div>
+    } @else {
+    <button class="btn btn-outline" (click)="openAuth('connexion')"><span class="person-outline">♙</span> Se connecter</button><button class="btn btn-solid" (click)="openAuth('inscription')">＋ S'inscrire</button>
+    }</div>
+  @if (notificationsOpen()) {
+    <div class="notif-panel" (click)="$event.stopPropagation()">
+      <div class="notif-head"><b>Notifications</b><button type="button" (click)="markAllRead()">Tout marquer comme lu</button></div>
+      @for (notif of notifications; track notif.title) {
+        <button type="button" class="notif-item" (click)="onNotification(notif)"><span class="notif-tag">{{ notif.tag }}</span><span><b>{{ notif.title }}</b><small>{{ notif.detail }}</small><em>{{ notif.time }}</em></span></button>
+      }
+    </div>
+  }
+  </div>
+  @if (mobileNavOpen()) {
+    <div class="mobile-nav" (click)="$event.stopPropagation()">
+      @for (service of navServices; track service.id) {
+        <div class="mobile-group"><b>{{ service.full }}</b>@for (usage of service.items; track usage) {<button type="button" (click)="onNavAction(service.id, usage)">{{ usage }}</button>}</div>
+      }
+    </div>
+  }
+</header>
+<main>
+  <section class="hero" id="accueil">
+    <div class="hero-left-shape"></div>
+    <div class="hero-visual" role="img" aria-label="Deux professionnels examinent un profil de recrutement"></div>
+    <div class="wrap hero-content">
+      <div class="hero-copy">
+        <div class="eyebrow"><span class="sparkle">✦</span> Plateforme de recrutement intelligente</div>
+        <h1>Trouvez le talent idéal<br>avec <em>SkillMatch</em></h1>
+        <p>Une plateforme qui connecte les candidats qualifiés aux entreprises qui recrutent, grâce aux compétences réelles.</p>
+      </div>
+    </div>
+    <div class="wrap search-wrap">
+      <div class="search-box">
+        <label class="search-control keyword"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 5 5"/></svg><input aria-label="Mot-clé ou compétence" placeholder="Poste, compétence ou mot-clé..." [value]="searchTerm()" (input)="searchTerm.set($any($event.target).value)" (keydown.enter)="onSearch()"></label>
+        <label class="search-control"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h2M13 7h2M9 11h2M13 11h2M9 15h2M13 15h2"/></svg><select aria-label="Domaine" [value]="domain()" (change)="domain.set($any($event.target).value)"><option value="">Tous les domaines</option><option value="Développement">Développement</option><option value="Data">Data</option><option value="Ressources humaines">Ressources humaines</option><option value="Design">Design</option><option value="Marketing">Marketing</option></select></label>
+        <label class="search-control"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 10c0 5-7 12-7 12s-7-7-7-12a7 7 0 1 1 14 0Z"/><circle cx="12" cy="10" r="2.5"/></svg><select aria-label="Localisation" [value]="location()" (change)="location.set($any($event.target).value)"><option value="">Toutes les villes</option><option value="Tunis">Tunis</option><option value="Sfax">Sfax</option><option value="Sousse">Sousse</option><option value="Ariana">Ariana</option></select></label>
+        <button class="btn btn-search" (click)="onSearch()"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 5 5"/></svg> Rechercher</button>
+      </div>
+    </div>
+  </section>
+  <section class="features" id="fonctionnalites">
+    <div class="wrap feature-grid">
+      <div class="feature"><div class="feature-ico"><svg viewBox="0 0 40 40"><rect x="5" y="12" width="30" height="22" rx="3"/><path d="M14 12V8a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3v4M5 22h30M18 20h4v5h-4z"/></svg></div><div><b>Des offres ciblées</b><span>Des opportunités adaptées à votre profil</span></div></div>
+      <div class="feature"><div class="feature-ico"><svg viewBox="0 0 40 40"><path d="M6 32V18h6v14M17 32V7h6v25M28 32V13h6v19M4 34h32"/></svg></div><div><b>Tests de compétences</b><span>Évaluez et valorisez vos aptitudes</span></div></div>
+      <div class="feature"><div class="feature-ico"><svg viewBox="0 0 40 40"><rect x="8" y="7" width="24" height="28" rx="1"/><path d="M13 13h4m6 0h4m-14 7h4m6 0h4M13 27h4m6 0h4M18 35v-7h4v7"/></svg></div><div><b>Entreprises fiables</b><span>Découvrez des recruteurs sérieux</span></div></div>
+      <div class="feature"><div class="feature-ico"><svg viewBox="0 0 40 40"><path d="M12 16a8 8 0 0 1 16 0v7l4 5H8l4-5v-7ZM17 32a3 3 0 0 0 6 0M20 8V4"/></svg></div><div><b>Alertes personnalisées</b><span>Soyez informé des nouvelles offres</span></div></div>
+    </div>
+  </section>
+  <section class="jobs-section" id="offres">
+    <div class="wrap">
+      <div class="section-heading"><div><span class="section-overline">DES OPPORTUNITÉS POUR VOUS</span><h2>Offres d'emploi récentes</h2><p>Découvrez des postes adaptés à vos compétences.</p></div><button class="all-jobs" (click)="showAllJobs()">Voir toutes les offres <span>→</span></button></div>
+      @if (filteredJobs().length) {
+      <div class="job-grid">
+        @for (job of filteredJobs(); track job.id) {
+          <article class="job-card">
+            <div class="job-head"><span class="job-icon">
+              @switch (job.icon) {
+                @case ('code') { &lt;/&gt; }
+                @case ('chart') { ▥ }
+                @case ('team') { ♧ }
+                @default { ✦ }
+              }
+            </span><div class="job-title"><h3>{{ job.title }}</h3><span>{{ job.company }}</span></div><button class="favorite" [class.saved]="favorites().includes(job.id)" [attr.aria-label]="favorites().includes(job.id) ? 'Retirer des favoris' : 'Ajouter aux favoris'" (click)="toggleFavorite(job.id)">{{ favorites().includes(job.id) ? '♥' : '♡' }}</button></div>
+            <div class="meta"><span><svg viewBox="0 0 24 24"><path d="M19 10c0 5-7 12-7 12s-7-7-7-12a7 7 0 1 1 14 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>{{ job.location }}</span><span><svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="14" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 13h18"/></svg>{{ job.contract }}</span></div>
+            <div class="job-tags">@for (tag of job.tags; track tag) { <span>{{tag}}</span> }</div>
+            <button class="see-job" (click)="openJob(job)">Voir l'offre <span>→</span></button>
+          </article>
+        }
+      </div>
+      } @else {
+      <div class="no-results"><b>Aucune offre trouvée.</b><span>Essaie d'autres mots-clés ou filtres.</span><button class="btn btn-solid" (click)="resetSearch()">Effacer les filtres</button></div>
+      }
+    </div>
+  </section>
+  <section class="how-section" id="comment-ca-marche"><div class="wrap how-inner"><div><span class="section-overline">UN RECRUTEMENT PLUS JUSTE</span><h2>Les compétences passent en premier.</h2><p>SkillMatch rapproche candidats et recruteurs grâce aux profils, aux tests techniques et aux offres adaptées.</p></div><div class="how-items"><div><b>01</b><span>Créez votre profil</span></div><div><b>02</b><span>Validez vos compétences</span></div><div><b>03</b><span>Postulez aux bonnes offres</span></div></div></div></section>
+</main>
+<footer class="footer" id="apropos"><div class="wrap footer-content"><div class="brand footer-brand"><span class="brand-dot">●</span> Skill<span>Match</span></div><p>On recrute sur les compétences, pas sur le CV.</p><small>Frontend de démonstration • Angular 21 • Données fictives</small></div></footer>
+@if (navMessage()) {<div class="nav-toast" role="status">{{ navMessage() }}<button type="button" (click)="navMessage.set('')">Fermer</button></div>}
+
+@if (selectedJob(); as job) {
+  <div class="overlay" role="presentation" (click)="closeModal()"><section class="modal" role="dialog" aria-modal="true" aria-label="Détails de l'offre" (click)="$event.stopPropagation()"><button class="close" (click)="closeModal()" aria-label="Fermer">×</button><span class="section-overline">OFFRE D'EMPLOI</span><h2>{{job.title}}</h2><p class="modal-company">{{job.company}} • {{job.location}} • {{job.contract}}</p><p>{{job.blurb}}</p><p><b>Rémunération :</b> {{job.salary}}</p><div class="job-tags">@for(tag of job.tags; track tag){<span>{{tag}}</span>}</div><button class="btn btn-solid modal-cta" (click)="apply()">Postuler à cette offre →</button></section></div>
+}
+@if(authMode(); as mode){
+  <div class="overlay" role="presentation" (click)="closeModal()"><section class="modal auth-modal" role="dialog" aria-modal="true" [attr.aria-label]="mode === 'connexion' ? 'Connexion' : 'Inscription'" (click)="$event.stopPropagation()"><button class="close" (click)="closeModal()" aria-label="Fermer">×</button><span class="section-overline">BIENVENUE SUR SKILLMATCH</span><h2>{{mode === 'connexion' ? 'Se connecter' : 'Créer un compte'}}</h2><p>Recrutez ou postulez en mettant les compétences à l'honneur.</p><form (submit)="$event.preventDefault(); submitAuth(mode)">
+    @if (mode === 'inscription') {
+      <label>Nom complet<input type="text" autocomplete="name" placeholder="Votre nom" [ngModel]="authName()" (ngModelChange)="authName.set($event)" name="name" required></label>
+      <label>Rôle<select [value]="authRole()" (change)="setRole($any($event.target).value)" name="role"><option value="CANDIDAT">Candidat</option><option value="RECRUTEUR">Recruteur</option><option value="ADMIN">Administrateur</option></select></label>
+    }
+    <label>Email<input type="email" autocomplete="email" placeholder="vous@exemple.com" [ngModel]="authEmail()" (ngModelChange)="authEmail.set($event)" name="email" required></label>
+    <label>Mot de passe<input type="password" autocomplete="current-password" placeholder="••••••••" [ngModel]="authPassword()" (ngModelChange)="authPassword.set($event)" name="password" required minlength="6"></label>
+    <button type="submit" class="btn btn-solid modal-cta" [disabled]="authLoading()">{{ authLoading() ? 'Patientez...' : (mode === 'connexion' ? 'Connexion' : 'Créer mon compte') }}</button>
+    </form>
+    @if (authError()) { <p class="auth-error">{{ authError() }}</p> }
+    @if (infoMessage()) { <p class="demo-notice">{{ infoMessage() }}</p> }<button class="text-link" (click)="openAuth(mode === 'connexion' ? 'inscription' : 'connexion')">{{mode === 'connexion' ? 'Pas de compte ? Inscrivez-vous' : 'Déjà un compte ? Connectez-vous'}}</button></section></div>
+}

@@ -28,7 +28,7 @@ Les candidats ont du mal à identifier les offres réellement adaptées à leur 
 - Avis sur les entreprises avec modération.
 - Alertes emploi et offres sauvegardées.
 - Messagerie entre candidats et recruteurs.
-- Notifications envoyées par le service commun.
+- Notifications prévues dans le service commun (non implémentées pour l'instant).
 
 ## Architecture globale
 
@@ -37,7 +37,7 @@ L'application suit une architecture microservices :
 - un **API Gateway** expose l'API publique et valide les JWT ;
 - **Eureka** assure la découverte des services et **Spring Cloud Config** centralise la configuration ;
 - six **microservices métier** indépendants ;
-- un **service commun** pour l'authentification et les notifications ;
+- un **service commun** pour l'authentification ; les notifications sont prévues mais non implémentées ;
 - **RabbitMQ** pour les événements asynchrones ;
 - **MySQL sous XAMPP** pour la persistance, avec une base distincte par service ;
 - un **frontend** unique qui consomme l'API via la gateway.
@@ -54,13 +54,15 @@ Le schéma d'architecture complet et les autres diagrammes se trouvent dans [`Do
 | `tests-service` | 8084 | `tests_db` | Tests techniques, résultats et tentatives |
 | `alertes-service` | 8085 | `alertes_db` | Alertes emploi et offres sauvegardées |
 | `messagerie-service` | 8086 | `messagerie_db` | Conversations et messages |
-| `commun-service` | 8087 | `commun_db` | Authentification JWT et notifications |
-| `api-gateway` | 8080 | — | Routage, sécurité et validation JWT |
+| `commun-service` | 8087 | `commun_db` | Utilisateur et authentification JWT (sans notifications pour l'instant) |
+| `api-gateway` | 8080 | — | Routage `/skillmatch/auth/**` et CORS ; validation JWT prévue |
 | `discovery-service` | 8761 | — | Serveur Eureka |
 | `config-service` | 8888 | — | Configuration centralisée |
 | `Frontend` | 4200 | — | Interface candidat, recruteur et administrateur |
 
 Le détail des contrats, des entités, des appels synchrones et des événements est dans [`Backend/README.md`](Backend/README.md).
+
+État d'intégration : `commun-service` (utilisateur + auth JWT, sans notifications) et `api-gateway` sont implémentés ; le frontend consomme les endpoints `/skillmatch/auth/*` via la gateway.
 
 ## Technologies
 
@@ -126,6 +128,31 @@ Chaque service est un projet Maven indépendant. Depuis son dossier :
 mvn spring-boot:run
 ```
 
+### Démarrage minimal de l'authentification
+
+Tant que les microservices métier ne sont pas développés, le socle exécutable est limité à MySQL, `commun-service`, `api-gateway` et au frontend.
+
+```bash
+cp .env.example .env
+set -a; . ./.env; set +a
+```
+
+Puis, dans trois terminaux distincts :
+
+```bash
+cd Backend/commun-service && mvn spring-boot:run
+```
+
+```bash
+cd Backend/api-gateway && mvn spring-boot:run
+```
+
+```bash
+cd Frontend && npm install && npm run dev
+```
+
+Spring Boot ne lit pas automatiquement le fichier `.env` : les variables doivent être exportées dans chaque terminal ou définies dans l'IDE. La base `commun_db` est créée au premier démarrage si l'utilisateur MySQL dispose du droit `CREATE`.
+
 ## Organisation Git
 
 - `main` contient le socle commun et les fonctionnalités validées.
@@ -165,3 +192,6 @@ Les six membres se répartissent également les briques du service commun : auth
 - [Présentation](Documentation/Presentation/README.md)
 - [Diagrammes](Documentation/Diagrams/README.md)
 - [Document technique](Documentation/Technical-Document/README.md)
+- [commun-service](Backend/commun-service/README.md)
+- [api-gateway](Backend/api-gateway/README.md)
+- [Frontend](Frontend/README.md)

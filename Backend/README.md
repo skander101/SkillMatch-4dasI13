@@ -27,8 +27,8 @@ Chaque microservice est un projet Maven indépendant. Il n'y a pas de `pom.xml` 
 | `tests-service` | 8084 | `tests_db` | `TestTechnique`, `ResultatTest` | — | `TestPassed` | — |
 | `alertes-service` | 8085 | `alertes_db` | `AlerteEmploi`, `OffreSauvegardee` | — | `AlertMatched` | `OfferPublished` |
 | `messagerie-service` | 8086 | `messagerie_db` | `Conversation`, `Message` | — | `MessageSent` | — |
-| `commun-service` | 8087 | `commun_db` | `Utilisateur`, `Notification` | — | — | `StatusChanged`, `AlertMatched`, `TestPassed`, `MessageSent` |
-| `api-gateway` | 8080 | — | — | — | — | — |
+| `commun-service` | 8087 | `commun_db` | `Utilisateur` | Auth JWT | — | — |
+| `api-gateway` | 8080 | — | — | Route `/skillmatch/auth/**` vers `commun-service` | — | — |
 | `discovery-service` | 8761 | — | — | — | — | — |
 | `config-service` | 8888 | — | — | — | — | — |
 
@@ -79,10 +79,24 @@ Chaque microservice est un projet Maven indépendant. Il n'y a pas de `pom.xml` 
 
 ### Service commun
 
-- Entités : `Utilisateur`, `Notification`
+- Entité actuellement implémentée : `Utilisateur`.
 - Rôle de l'utilisateur : `CANDIDAT`, `RECRUTEUR` ou `ADMIN`.
-- Authentification et émission des JWT.
-- Consomme les événements des services métier pour créer des notifications.
+- Authentification avec mot de passe haché BCrypt et émission de JWT signés.
+- Les notifications font partie de la conception globale mais ne sont pas encore développées.
+
+Endpoints implémentés :
+
+| Méthode | Route | Description |
+|---|---|---|
+| `POST` | `/skillmatch/auth/register` | Créer un compte et retourner un JWT |
+| `POST` | `/skillmatch/auth/login` | Se connecter et retourner un JWT |
+| `GET` | `/skillmatch/auth/me` | Récupérer l'utilisateur à partir du JWT |
+
+### API Gateway
+
+- Point d'entrée public du frontend : `http://localhost:8080`.
+- Route `/skillmatch/auth/**` vers `commun-service` sur `http://localhost:8087`.
+- CORS autorisé en développement ; à restreindre en production.
 
 ## Créer un microservice
 
@@ -110,7 +124,9 @@ messagerie_db
 commun_db
 ```
 
-Chaque service se connecte uniquement à sa propre base avec les variables d'environnement définies dans `.env.example`.
+Chaque service se connecte uniquement à sa propre base avec les variables d'environnement définies dans `.env.example`. La base est créée automatiquement au premier démarrage si l'utilisateur MySQL a le droit `CREATE` ; Hibernate crée et met à jour les tables avec `ddl-auto: update`.
+
+Spring Boot ne charge pas automatiquement `.env` : exporter les variables (`set -a; . ./.env; set +a`) ou les définir dans l'IDE avant de lancer Maven.
 
 ## Événements
 
@@ -124,4 +140,4 @@ Les événements sont nommés de manière métier et publiés via RabbitMQ.
 - `AlertMatched` : une offre correspond à une alerte.
 - `MessageSent` : un message est envoyé.
 
-Le service commun consomme `StatusChanged`, `AlertMatched`, `TestPassed` et `MessageSent` pour générer les notifications.
+Prévu mais non implémenté : le service commun consommera `StatusChanged`, `AlertMatched`, `TestPassed` et `MessageSent` pour générer les notifications.
