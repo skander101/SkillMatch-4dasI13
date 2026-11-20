@@ -29,6 +29,10 @@ eureka:
     register-with-eureka: ${EUREKA_REGISTER:false}
     fetch-registry: ${EUREKA_FETCH:false}
 
+# Adresse du service existant qui valide le JWT et retourne l'utilisateur.
+commun-service:
+  url: ${COMMUN_SERVICE_URL:http://localhost:8087}
+
 management:
   endpoints:
     web:

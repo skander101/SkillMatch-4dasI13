@@ -3,13 +3,14 @@
 Projet Maven indépendant, créé depuis `Backend/_template-service` : Java 17,
 Spring Boot 3.3.5, Spring Cloud 2023.0.3. Aucun POM parent dans `Backend`.
 
-## État actuel : socle et entités
+## État actuel : entités et CRUD Offre
 
 - Application : `tn.esprit.skillmatch.offres.OffresServiceApplication`.
 - Port par défaut : **8081** ; base MySQL : **offres_db**.
-- Les entités `Offre` et `Candidature` sont présentes. Les CRUD, autorisations
-  JWT et interfaces Angular seront ajoutés aux étapes suivantes.
-  Aucun endpoint métier n'est encore disponible.
+- Les entités `Offre` et `Candidature` et le CRUD REST des offres sont présents.
+  Recherche, filtres, tri, CRUD Candidature et interfaces Angular restent à faire.
+  L'identité est vérifiée auprès de `commun-service` ; la vérification locale
+  des signatures JWT dans `offres-service` reste prévue à l'étape sécurité.
 - Les dépendances AMQP et Eureka du template sont conservées. L'autoconfiguration
   RabbitMQ est exclue ; l'enregistrement Eureka et la récupération du registre
   sont désactivés par défaut. Aucun serveur RabbitMQ, Eureka ou Config Server
@@ -37,6 +38,7 @@ Spring Boot 3.3.5, Spring Cloud 2023.0.3. Aucun POM parent dans `Backend`.
 | `MYSQL_PASSWORD` | vide, à définir selon votre installation |
 | `EUREKA_REGISTER` | `false` |
 | `EUREKA_FETCH` | `false` |
+| `COMMUN_SERVICE_URL` | `http://localhost:8087` |
 
 Ne pas enregistrer de mot de passe dans Git. Spring Boot ne charge pas
 automatiquement un fichier `.env`. Garder les deux variables Eureka à `false`
@@ -62,9 +64,10 @@ Le test adapté du template vérifie uniquement la présence de la classe de
 démarrage ; il ne valide ni la connexion MySQL ni un CRUD. Le démarrage réel et
 le contrôle de santé doivent être vérifiés séparément avec MySQL disponible.
 
-Pour les étapes d'authentification suivantes, `commun-service` devra également
-tourner sur 8087 ; la Gateway sur 8080 sera utilisée après ajout de ses routes.
-Ils ne sont pas nécessaires pour lancer ce socle sans endpoints métier.
+Pour utiliser le CRUD, `commun-service` doit également tourner sur 8087.
+La Gateway sur 8080 sera utilisée après ajout de ses routes. Le service peut
+toujours démarrer seul avec MySQL ; ses opérations métier nécessitent une
+authentification valide auprès de `commun-service`.
 
 ## Dépannage local
 
@@ -96,7 +99,9 @@ Invoke-RestMethod http://localhost:18081/actuator/health
   la clé étrangère protège une offre qui possède des candidatures.
 - `recruteurId` identifie le propriétaire de l'offre ; `entrepriseId` reste une
   référence différente. Ces identifiants ne créent pas de tables Utilisateur,
-  Entreprise, Test ou CV. Leur existence n'est pas encore vérifiée.
+  Entreprise, Test ou CV. À l'étape 3, une création administrative vérifie
+  l'existence et le rôle du recruteur auprès du service commun. Les références
+  Entreprise, Test et CV ne sont pas encore vérifiées.
 - `competences` est une liste Java stockée en JSON dans une colonne TEXT,
   grâce à `CompetencesConverter`, sans table supplémentaire.
 - Les enums reprennent exactement les valeurs UML. Une offre commence en
@@ -107,7 +112,7 @@ Invoke-RestMethod http://localhost:18081/actuator/health
   Une offre reste ouverte jusqu'à la fin du jour indiqué.
 - La date n'utilise pas `@FutureOrPresent` sur l'entité : une offre expirée doit
   pouvoir être conservée et fermée ultérieurement. La validation de la date à la
-  création/publication sera ajoutée au CRUD.
+  création/publication est maintenant réalisée dans le service CRUD.
 - `calculerScore()` calcule seulement un pourcentage de compétences communes,
   sans tenir compte de la casse ou des doublons. Aucun appel Profils, moteur de
   matching ou endpoint de recommandation n'est ajouté.
@@ -121,7 +126,7 @@ mvn package
 mvn "-Dtest=EntityPersistenceIT" test
 ```
 
-La première commande exécute les tests unitaires sans MySQL. La seconde exige
+La première commande exécute les tests sans MySQL. La seconde exige
 MySQL/XAMPP et vérifie réellement le JSON, les dates automatiques et la clé
 étrangère dans `offres_db`. Elle utilise les paramètres MySQL du service et
 `ddl-auto: update`. Les données de test sont annulées à la fin des transactions ;
@@ -131,3 +136,114 @@ prétendre vérifier leur existence dans les autres services.
 
 Résultat de l'étape 2 : `mvn package` réussi (9 tests unitaires), puis
 `mvn "-Dtest=EntityPersistenceIT" test` réussi (2 tests de persistance XAMPP).
+
+## Étape 3 : CRUD Offre
+
+Le chemin d'une requête est simple : **Controller → Service → Repository → MySQL**.
+Les nouveaux fichiers Java sont commentés pour expliquer chaque ligne utile.
+
+| Méthode | Route | Résultat |
+|---|---|---|
+| GET | `/skillmatch/offres` | ADMIN : toutes ; RECRUTEUR : les siennes ; CANDIDAT : publiées et valides |
+| GET | `/skillmatch/offres/mes-offres` | Offres du gestionnaire connecté ; interdit au candidat |
+| GET | `/skillmatch/offres/{id}` | Détail selon les mêmes droits |
+| POST | `/skillmatch/offres` | Création d'un brouillon, réponse 201 |
+| PUT | `/skillmatch/offres/{id}` | Modification ou publication, réponse 200 |
+| DELETE | `/skillmatch/offres/{id}` | Suppression sans candidature, réponse 204 |
+
+### Propriété et règles
+
+- RECRUTEUR : propriétaire défini par sa session ; jamais par un identifiant
+  libre envoyé par Angular. Ses modifications et suppressions sont limitées à
+  ses offres. Il ne peut pas transférer une offre à un autre recruteur.
+- ADMIN : CRUD global. Pour créer, `recruteurId` est obligatoire et vérifié
+  via `/skillmatch/utilisateurs/{id}` avec son JWT ADMIN. Le propriétaire reste
+  inchangé lors d'un PUT.
+- CANDIDAT : lecture des seules offres `PUBLIEE` dont l'expiration n'est pas
+  passée ; aucune écriture.
+- POST exige `BROUILLON`. Pour publier, envoyer ensuite un PUT avec `PUBLIEE`.
+  Un PUT remplace les champs du formulaire : renvoyer toutes les valeurs utiles.
+- BROUILLON et PUBLIEE exigent une date aujourd'hui ou ultérieure. EXPIREE
+  exige une date passée. FERMEE peut conserver une ancienne date d'expiration.
+- Une offre avec candidature ne peut pas être supprimée : réponse 409 ; utiliser
+  PUT avec `FERMEE` pour conserver l'historique. La clé étrangère reste une
+  protection supplémentaire en cas d'écritures simultanées.
+- Codes testés : 200, 201, 204, 400, 401, 403, 404, 409. Les erreurs JSON ont
+  la forme `{"status":403,"message":"..."}`, comme dans le service commun.
+
+### Authentification minimale de cette étape
+
+Chaque opération transmet `Authorization: Bearer ...` à `/skillmatch/auth/me`.
+Le service commun vérifie réellement le JWT et retourne l'identifiant et le rôle
+depuis sa base ; ils ne sont pas déduits du formulaire ou du stockage Angular.
+Une réponse auth HTTP en erreur est traitée comme un refus 401. Cela couvre
+aussi le comportement actuel de commun-service qui peut répondre 500 pour un
+JWT malformé ; une autre panne HTTP interne de `/me` apparaîtrait donc aussi en
+401. Une connexion impossible ou un délai dépassé renvoie 503. Aucun accès
+n'est accordé si l'identité ne peut pas être vérifiée.
+
+La vérification locale du JWT et ses tests cryptographiques seront ajoutés à
+l'étape sécurité. Aucun secret JWT n'est ajouté ici. La faille existante de
+l'inscription publique acceptant ADMIN reste à signaler au responsable de
+`commun-service` : elle n'est pas corrigée par ce CRUD.
+
+### Exemple de formulaire
+
+```json
+{
+  "titre": "Développeur Java",
+  "description": "Développement d'API REST",
+  "competences": ["Java", "Spring Boot"],
+  "localisation": "Tunis",
+  "contrat": "CDI",
+  "salaire": 2000,
+  "dateExpiration": "2030-12-31",
+  "statut": "BROUILLON",
+  "entrepriseId": null,
+  "testRequisId": null,
+  "recruteurId": null
+}
+```
+
+Pour ADMIN, remplacer `recruteurId` par l'identifiant réel d'un recruteur.
+Adapter la date au jour de la démonstration. Récupérer le JWT par le login
+existant puis le placer dans une variable locale, jamais dans Git.
+
+Exemples PowerShell avec le JWT dans `$env:SKILLMATCH_TOKEN` et le JSON ci-dessus
+dans un fichier local `offre-exemple.json` :
+
+```powershell
+curl.exe -H "Authorization: Bearer $env:SKILLMATCH_TOKEN" http://localhost:8081/skillmatch/offres
+curl.exe -X POST -H "Authorization: Bearer $env:SKILLMATCH_TOKEN" -H "Content-Type: application/json" --data-binary "@offre-exemple.json" http://localhost:8081/skillmatch/offres
+curl.exe -X PUT -H "Authorization: Bearer $env:SKILLMATCH_TOKEN" -H "Content-Type: application/json" --data-binary "@offre-exemple.json" http://localhost:8081/skillmatch/offres/ID
+curl.exe -X DELETE -H "Authorization: Bearer $env:SKILLMATCH_TOKEN" http://localhost:8081/skillmatch/offres/ID
+```
+
+Remplacer `ID` par l'identifiant retourné et passer le statut du formulaire à
+`PUBLIEE` pour publier. Utiliser 18081 seulement si le service a été lancé avec
+le port temporaire de diagnostic. Les routes Gateway et Angular ne sont pas
+modifiées à cette étape.
+
+### Tests du CRUD
+
+```powershell
+mvn test
+mvn "-Dtest=OffreCrudIT,EntityPersistenceIT" test
+mvn package
+```
+
+- `OffreServiceTest` : rôles, propriétaires, dates, brouillon/publication et suppression.
+- `OffreControllerTest` : routes HTTP via MockMvc, validation et codes d'erreur.
+- `IdentiteServiceTest` : vrai client HTTP contre un petit serveur local simulant
+  le contrat de commun-service ; aucune vraie signature JWT n'est testée ici.
+- `OffreCrudIT` : contrôleurs, vrai service et vraie base MySQL ; seule l'identité
+  distante est simulée. Les données sont annulées après chaque test.
+
+Les tests `*IT` exigent MySQL et sont lancés explicitement. Aucun compte réel
+n'est créé. Les compteurs d'identifiants peuvent avancer malgré le rollback.
+
+Vérifications de cette étape : 49 tests sans MySQL réussis et 5 tests
+d'intégration MySQL réussis (3 parcours CRUD et 2 tests du mapping JPA).
+Une lecture de contrôle confirme zéro offre et zéro candidature résiduelles
+après ces tests. La connexion HTTP à un vrai `commun-service` avec de vrais
+comptes et les signatures JWT restent à vérifier à l'étape sécurité.
