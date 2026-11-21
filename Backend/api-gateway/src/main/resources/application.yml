@@ -1,0 +1,43 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: api-gateway
+
+  cloud:
+    gateway:
+      globalcors:
+        add-to-simple-url-handler-mapping: true
+        cors-configurations:
+          '[/**]':
+            allowedOriginPatterns: "*"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders: "*"
+      routes:
+        - id: commun-auth
+          uri: ${COMMUN_SERVICE_URL:http://localhost:8087}
+          predicates:
+            - Path=/skillmatch/auth/**
+        - id: commun-utilisateurs
+          uri: ${COMMUN_SERVICE_URL:http://localhost:8087}
+          predicates:
+            - Path=/skillmatch/utilisateurs/**
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+    register-with-eureka: ${EUREKA_REGISTER:false}
+    fetch-registry: ${EUREKA_FETCH:false}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway

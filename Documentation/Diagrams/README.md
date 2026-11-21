@@ -1,39 +1,37 @@
 # Diagrammes
 
-Ce dossier contient les sources Mermaid et les exports des diagrammes du projet.
+Ce dossier contient les exports PNG des diagrammes du projet.
 
-## Convention de nommage
-
-```text
-<type>-<sujet>.mmd
-<type>-<sujet>.png
-<type>-<sujet>.svg
-```
-
-## Diagrammes attendus
+## Diagrammes présents
 
 | Fichier | Contenu |
 |---|---|
-| `cas-utilisation-global.mmd` | Cas d'utilisation général et acteurs |
-| `architecture-globale.mmd` | Architecture microservices complète |
-| `sequence-auth-jwt.mmd` | Séquence d'authentification JWT |
-| `classes-offres.mmd` | Diagramme de classes du service Offres |
-| `classes-profils.mmd` | Diagramme de classes du service Profils |
-| `classes-entreprises.mmd` | Diagramme de classes du service Entreprises |
-| `classes-tests.mmd` | Diagramme de classes du service Tests |
-| `classes-alertes.mmd` | Diagramme de classes du service Alertes |
-| `classes-messagerie.mmd` | Diagramme de classes du service Messagerie |
-| `classes-commun.mmd` | Diagramme de classes du service commun |
-| `sequence-synchrone.mmd` | Exemple d'appel REST synchrone |
-| `sequence-asynchrone.mmd` | Exemple d'événement RabbitMQ |
-| `etats-candidature.mmd` | Cycle de vie d'une candidature |
-| `planning-gantt.mmd` | Planning du projet |
-| `repartition-taches.mmd` | Répartition entre les membres |
-| `structure-git.mmd` | Structure du dépôt |
-| `strategie-branches.mmd` | Stratégie de branches Git |
+| `diagramme de cas d'utilisation.png` | Cas d'utilisation général et acteurs |
+| `Diagramme de classe Offres & Candidatures.png` | Diagramme de classes du service Offres & Candidatures |
+| `Diagramme de classe Profils & CV.png` | Diagramme de classes du service Profils & CV |
+| `Diagramme de classe Entreprises & Avis.png` | Diagramme de classes du service Entreprises & Avis |
+| `Diagramme de classe Tests & Compétences.png` | Diagramme de classes du service Tests & Compétences |
+| `Diagramme de classe Alertes & Favoris.png` | Diagramme de classes du service Alertes & Favoris |
+| `Diagramme de classe Conversations & Messages.png` | Diagramme de classes du service Messagerie |
+| `Diagramme de classe Authentification & Notifications.png` | Diagramme de classes du service commun |
+| `Diagramme de séquence — Tests & Compétences.png` | Exemple de diagramme de séquence pour le service Tests |
+
+## Diagrammes à compléter
+
+| Diagramme | Usage |
+|---|---|
+| Architecture globale | Obligatoire pour la soumission Blackboard |
+| Séquence d'authentification JWT | Sécurité et service commun |
+| Séquence synchrone REST | Interactions entre microservices |
+| Séquence asynchrone RabbitMQ | Événements métier |
+| États d'une candidature | Cycle de vie d'une candidature |
+| Planning Gantt | Planning du projet |
+| Répartition des tâches | Organisation de l'équipe |
+| Structure Git et stratégie de branches | Organisation du dépôt |
 
 ## Règles
 
 - Tous les nœuds de base de données du diagramme d'architecture sont des bases MySQL.
 - Les diagrammes sont exportés en PNG ou SVG pour les slides et le document technique.
 - Le diagramme d'architecture globale est également fourni en fichier image pour Blackboard.
+- Pour les prochains ajouts, utiliser des noms en minuscules avec des tirets.
