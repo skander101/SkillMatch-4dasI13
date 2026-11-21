@@ -401,4 +401,5 @@ offres-service. Démarrer aussi commun-service pour les requêtes authentifiées
 
 Si Offres tourne temporairement sur 18081, définir
 `OFFRES_SERVICE_URL=http://localhost:18081` dans la configuration de la Gateway.
-Aucune modification Angular n'est incluse dans cette étape.
+L'interface Angular des offres candidat et recruteur utilise ces routes.
+Voir [le guide frontend](../../Frontend/README.md) pour les écrans et leur démarrage.

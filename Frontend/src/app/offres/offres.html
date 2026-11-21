@@ -1,0 +1,77 @@
+<section class="jobs-section" id="offres">
+  <div class="wrap">
+    <div class="section-heading offres-entete">
+      <div><span class="section-overline">{{ recruteur() ? 'VOTRE ESPACE RECRUTEMENT' : 'VOTRE PROCHAINE OPPORTUNITÉ' }}</span>
+        <h2>{{ recruteur() ? 'Mes offres' : "Offres d’emploi" }}</h2>
+        <p>{{ recruteur() ? 'Créez, publiez et gérez vos offres en un seul endroit.' : 'Découvrez les opportunités proposées sur SkillMatch.' }}</p>
+      </div>
+      @if (auth.isLoggedIn()) {
+        <div class="offre-actions">
+          <button class="btn btn-outline" (click)="charger()" [disabled]="loading() || operation()">↻ Actualiser</button>
+          @if (recruteur()) { <button class="btn btn-solid" (click)="ouvrirFormulaire()" [disabled]="operation()">＋ Nouvelle offre</button> }
+        </div>
+      }
+    </div>
+
+    @if (message()) { <p class="offre-succes" role="status">{{ message() }}</p> }
+    @if (erreur()) {
+      <div class="auth-error" role="alert">{{ erreur() }}
+        @if (codeErreur() === 401) { <button class="text-link" (click)="connexion.emit()">Se reconnecter</button> }
+      </div>
+    }
+    @if (!auth.isLoggedIn()) {
+      <div class="no-results connexion-offres"><span class="job-icon">↗</span><b>Votre prochaine rencontre professionnelle commence ici.</b><span>Connectez-vous pour découvrir les offres ou gérer vos recrutements.</span><button class="btn btn-solid" (click)="connexion.emit()">Se connecter</button></div>
+    } @else if (loading()) {
+      <p class="offre-attente" role="status">Chargement des offres…</p>
+    } @else {
+      <p class="offre-compteur">{{ offres().length }} offre(s){{ search() ? ' pour « ' + search() + ' »' : '' }}</p>
+      <div class="job-grid">
+        @for (offre of offres(); track offre.id) {
+          <article class="job-card offre-card">
+            <div class="job-head"><span class="job-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 7h18v14H3zM8 7V3h8v4M3 12h18M10 12v3h4v-3"/></svg></span>
+              <span class="offre-badge" [attr.data-statut]="offre.statut">{{ offre.statut }}</span>
+            </div>
+            <h3>{{ offre.titre }}</h3>
+            <p class="offre-meta">{{ offre.localisation || 'Localisation non précisée' }} <span>·</span> {{ offre.contrat }}</p>
+            <p class="offre-description">{{ offre.description || 'Consultez les détails de cette opportunité.' }}</p>
+            <div class="job-tags">@for (competence of offre.competences; track $index) { <span>{{ competence }}</span> }</div>
+            <div class="offre-reperes"><b>{{ offre.salaire === null ? 'Salaire à discuter' : (offre.salaire | number:'1.0-2') + ' DT / mois' }}</b><span>Jusqu’au {{ offre.dateExpiration | date:'dd/MM/yyyy' }}</span></div>
+            <button class="see-job" (click)="selection.set(offre)">Voir l’offre →</button>
+            @if (recruteur()) {
+              <div class="offre-actions gestion">
+                <button class="action-lien" (click)="ouvrirFormulaire(offre)" [disabled]="operation()">Modifier</button>
+                @if (offre.statut === 'BROUILLON') { <button class="action-lien" (click)="changerStatut(offre, 'PUBLIEE')" [disabled]="operation()">Publier</button> }
+                @if (offre.statut === 'PUBLIEE') { <button class="action-lien" (click)="changerStatut(offre, 'FERMEE')" [disabled]="operation()">Fermer</button> }
+                <button class="action-lien danger" (click)="suppression.set(offre)" [disabled]="operation()">Supprimer</button>
+              </div>
+            }
+          </article>
+        } @empty {
+          <div class="no-results aucune-offre"><b>Aucune offre trouvée.</b><span>{{ recruteur() ? 'Créez votre première offre ou changez votre recherche.' : 'Essayez un autre titre ou revenez prochainement.' }}</span></div>
+        }
+      </div>
+    }
+  </div>
+</section>
+
+@if (selection(); as offre) {
+  <div class="overlay" (click)="selection.set(null)"><section class="modal offre-detail" role="dialog" aria-modal="true" aria-labelledby="detail-titre" (click)="$event.stopPropagation()">
+    <button class="close" aria-label="Fermer les détails" (click)="selection.set(null)">×</button>
+    <span class="section-overline">{{ offre.contrat }} · {{ offre.statut }}</span><h2 id="detail-titre">{{ offre.titre }}</h2>
+    <p class="modal-company">{{ offre.localisation || 'Localisation non précisée' }}</p>
+    <p class="description-complete">{{ offre.description || 'Aucune description complémentaire.' }}</p>
+    <div class="job-tags">@for (competence of offre.competences; track $index) { <span>{{ competence }}</span> }</div>
+    <p><b>Salaire :</b> {{ offre.salaire === null ? 'À discuter' : (offre.salaire | number:'1.0-2') + ' DT / mois' }}</p>
+    <p><b>Date d’expiration :</b> {{ offre.dateExpiration | date:'dd/MM/yyyy' }}</p>
+    <button class="btn btn-solid modal-cta" (click)="selection.set(null)">Fermer</button>
+  </section></div>
+}
+@if (formulaireOuvert()) {
+  <app-offre-form [offre]="edition()" [enCours]="operation()" [erreur]="erreurFormulaire()" (valider)="enregistrer($event)" (annuler)="fermerFormulaire()" />
+}
+@if (suppression(); as offre) {
+  <div class="overlay"><section class="modal confirmation" role="dialog" aria-modal="true" aria-labelledby="suppression-titre">
+    <span class="section-overline">CONFIRMATION</span><h2 id="suppression-titre">Supprimer cette offre ?</h2><p>« {{ offre.titre }} » sera supprimée si elle ne possède aucune candidature.</p>
+    <div class="offre-actions"><button class="btn btn-outline" (click)="suppression.set(null)" [disabled]="operation()">Annuler</button><button class="btn btn-solid bouton-danger" (click)="supprimer()" [disabled]="operation()">{{ operation() ? 'Suppression…' : 'Supprimer' }}</button></div>
+  </section></div>
+}

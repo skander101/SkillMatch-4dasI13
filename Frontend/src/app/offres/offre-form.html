@@ -1,0 +1,33 @@
+<div class="overlay" (click)="annuler.emit()">
+  <section class="modal offre-form" role="dialog" aria-modal="true" aria-labelledby="form-titre" (click)="$event.stopPropagation()">
+    <button type="button" class="close" aria-label="Fermer le formulaire" [disabled]="enCours" (click)="annuler.emit()">×</button>
+    <span class="section-overline">ESPACE RECRUTEUR</span>
+    <h2 id="form-titre">{{ offre ? 'Modifier mon offre' : 'Créer une offre' }}</h2>
+    <p>{{ offre ? 'Actualisez les informations de votre offre.' : 'Enregistrez un brouillon, puis publiez-le depuis vos offres.' }}</p>
+
+    <form #form="ngForm" (ngSubmit)="form.valid && enregistrer()" class="offre-champs">
+      <label class="large">Titre *<input name="titre" [(ngModel)]="formulaire.titre" required maxlength="255" placeholder="Ex. Développeur Java" autofocus></label>
+      <label class="large">Description<textarea name="description" [(ngModel)]="formulaire.description" rows="4" maxlength="10000" placeholder="Présentez le poste, les missions et votre équipe."></textarea></label>
+      <label class="large">Compétences<input name="competences" [(ngModel)]="competences" placeholder="Java, Spring Boot, SQL"><small>Séparez les compétences par des virgules.</small></label>
+      <label>Localisation<input name="localisation" [(ngModel)]="formulaire.localisation" maxlength="255" placeholder="Ex. Tunis"></label>
+      <label>Contrat *<select name="contrat" [(ngModel)]="formulaire.contrat" required><option>CDI</option><option>CDD</option><option value="STAGE">Stage</option><option value="FREELANCE">Freelance</option></select></label>
+      <label>Salaire mensuel (DT)<input name="salaire" type="number" [(ngModel)]="formulaire.salaire" min="0" step="0.01" placeholder="Facultatif"></label>
+      <label>Date d'expiration *<input name="dateExpiration" type="date" [(ngModel)]="formulaire.dateExpiration" required></label>
+      @if (offre) {
+        <label class="large">Statut<select name="statut" [(ngModel)]="formulaire.statut">@for (statut of statuts; track statut) { <option [value]="statut">{{ statut }}</option> }</select></label>
+      }
+      <details class="large references">
+        <summary>Références complémentaires (facultatif)</summary>
+        <div class="offre-champs">
+          <label>Référence entreprise<input name="entrepriseId" type="number" [(ngModel)]="formulaire.entrepriseId" min="1" step="1"></label>
+          <label>Référence du test requis<input name="testRequisId" type="number" [(ngModel)]="formulaire.testRequisId" min="1" step="1"></label>
+        </div>
+      </details>
+      @if (erreur) { <p class="auth-error large" role="alert">{{ erreur }}</p> }
+      <div class="offre-actions large">
+        <button type="button" class="btn btn-outline" [disabled]="enCours" (click)="annuler.emit()">Annuler</button>
+        <button type="submit" class="btn btn-solid" [disabled]="form.invalid || enCours || !formulaire.titre.trim()">{{ enCours ? 'Enregistrement…' : 'Enregistrer' }}</button>
+      </div>
+    </form>
+  </section>
+</div>

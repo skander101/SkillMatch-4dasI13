@@ -1,24 +1,11 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, HostListener, inject, signal } from '@angular/core';
+import { Component, HostListener, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from './user/auth.service';
 import { Role } from './user/user.model';
 import { BackOffice } from './backoffice/backoffice';
+import { Offres } from './offres/offres'; // Liste connectée à l’API existante.
 
-type Domain = 'Développement' | 'Data' | 'Ressources humaines' | 'Design' | 'Marketing';
-type Contract = 'CDI' | 'CDD' | 'Stage' | 'Freelance';
-interface Job {
-  id: number;
-  title: string;
-  company: string;
-  location: string;
-  contract: Contract;
-  domain: Domain;
-  salary: string;
-  tags: string[];
-  icon: string;
-  blurb: string;
-}
 interface NavService {
   id: string;
   label: string;
@@ -29,31 +16,18 @@ interface NavService {
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, FormsModule, BackOffice],
+  imports: [CommonModule, FormsModule, BackOffice, Offres],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
 export class App {
-  // Données fictives de démonstration : remplacer par votre microservice Offres & Candidatures.
-  readonly jobs: Job[] = [
-    { id: 1, title: 'Développeur Full Stack', company: 'TechNova', location: 'Tunis', contract: 'CDI', domain: 'Développement', salary: '2 800 – 3 800 DT', tags: ['Angular', 'Spring Boot', 'Java'], icon: 'code', blurb: 'Participez au développement de solutions web modernes en équipe.' },
-    { id: 2, title: 'Data Analyst', company: 'DataPlus', location: 'Sfax', contract: 'CDD', domain: 'Data', salary: '2 000 – 3 000 DT', tags: ['SQL', 'Power BI', 'Python'], icon: 'chart', blurb: 'Transformez des données en décisions et créez des tableaux de bord.' },
-    { id: 3, title: 'Responsable RH', company: 'Talent RH', location: 'Tunis', contract: 'CDI', domain: 'Ressources humaines', salary: 'Selon profil', tags: ['Recrutement', 'Gestion RH', 'Communication'], icon: 'team', blurb: 'Accompagnez les recrutements et valorisez les talents de demain.' },
-    { id: 4, title: 'Développeur Java Backend', company: 'CodeSphere', location: 'Sousse', contract: 'Stage', domain: 'Développement', salary: 'Stage rémunéré', tags: ['Java', 'Spring Boot', 'API REST'], icon: 'code', blurb: 'Concevez des API et découvrez une architecture microservices.' },
-    { id: 5, title: 'UX/UI Designer', company: 'PixelLab', location: 'Tunis', contract: 'Freelance', domain: 'Design', salary: 'Selon mission', tags: ['Figma', 'UX Research', 'Design'], icon: 'design', blurb: 'Imaginez des interfaces accessibles et intuitives.' },
-    { id: 6, title: 'Chargé de marketing digital', company: 'Grow&Co', location: 'Ariana', contract: 'CDD', domain: 'Marketing', salary: 'Selon profil', tags: ['SEO', 'Réseaux sociaux', 'Analytics'], icon: 'chart', blurb: 'Développez la visibilité digitale de marques innovantes.' }
-  ];
   readonly navServices: NavService[] = [
     {
       id: 'offres',
       label: 'Offres',
       full: 'Offres & Candidatures',
       items: [
-        'Rechercher une offre',
-        'Offres recommandées',
-        'Déposer une candidature',
-        'Suivre mes candidatures',
-        'Planifier un entretien'
+        'Voir les offres'
       ]
     },
     {
@@ -125,11 +99,8 @@ export class App {
   ];
   private navMessageTimer?: number;
   readonly searchTerm = signal('');
-  readonly domain = signal('');
-  readonly location = signal('');
-  readonly showAll = signal(false);
-  readonly favorites = signal<number[]>([]);
-  readonly selectedJob = signal<Job | null>(null);
+  readonly rechercheOffres = signal(''); // Recherche envoyée lorsque l'utilisateur valide.
+  readonly offreSort = signal('titre');
   readonly authMode = signal<'connexion' | 'inscription' | null>(null);
   readonly infoMessage = signal('');
   private readonly auth = inject(AuthService);
@@ -143,17 +114,6 @@ export class App {
   readonly authRole = signal<Role>('CANDIDAT');
   readonly authError = signal('');
   readonly authLoading = signal(false);
-  readonly filteredJobs = computed(() => {
-    const q = this.searchTerm().trim().toLowerCase();
-    const d = this.domain();
-    const loc = this.location();
-    const matching = this.jobs.filter((job) => {
-      const keywordMatch = !q || [job.title,job.company,...job.tags].some((part) => part.toLowerCase().includes(q));
-      return keywordMatch && (!d || job.domain === d) && (!loc || job.location === loc);
-    });
-    return this.showAll() || q || d || loc ? matching : matching.slice(0, 3);
-  });
-  readonly count = computed(() => this.jobs.filter(job => !this.domain() || job.domain === this.domain()).length);
   toggleNav(id: string): void { this.openNav.update((current) => current === id ? null : id); }
   closeNav(): void { this.openNav.set(null); }
   toggleMobileNav(): void { this.mobileNavOpen.update((open) => !open);this.openNav.set(null); }
@@ -169,9 +129,9 @@ export class App {
   }
   onNavAction(serviceId: string, label: string): void {
     this.closeNav();this.mobileNavOpen.set(false);this.notificationsOpen.set(false);
+    if (serviceId === 'offres') { this.onSearch(); return; } // Ouvre la vraie liste selon le rôle.
     const service = this.navServices.find((item) => item.id === serviceId);
     this.showMessage(`${service?.full ?? serviceId} · ${label} — à brancher sur l'API Spring Boot.`);
-    if (serviceId === 'offres') { document.getElementById('offres')?.scrollIntoView({ behavior: 'smooth' }); }
   }
   private showMessage(text: string): void {
     this.navMessage.set(text);
@@ -179,17 +139,12 @@ export class App {
     this.navMessageTimer = window.setTimeout(() => this.navMessage.set(''), 5000);
   }
   onSearch(): void {
-    this.showAll.set(true);
+    this.rechercheOffres.set(this.searchTerm().trim());
     document.getElementById('offres')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (!this.isLoggedIn()) this.openAuth('connexion'); // Réutilise le login existant.
   }
-  resetSearch(): void { this.searchTerm.set('');this.domain.set('');this.location.set('');this.showAll.set(false); }
-  showAllJobs(): void { this.resetSearch();this.showAll.set(true);document.getElementById('offres')?.scrollIntoView({behavior:'smooth'}); }
-  toggleFavorite(jobId: number): void {
-    this.favorites.update((ids) => ids.includes(jobId) ? ids.filter(id => id !== jobId) : [...ids, jobId]);
-  }
-  openJob(job: Job): void { this.selectedJob.set(job);this.authMode.set(null);this.infoMessage.set(''); }
+
   closeModal(): void {
-    this.selectedJob.set(null);
     this.authMode.set(null);
     this.infoMessage.set('');
     this.authError.set('');
@@ -198,7 +153,6 @@ export class App {
 
   openAuth(mode: 'connexion' | 'inscription'): void {
     this.authMode.set(mode);
-    this.selectedJob.set(null);
     this.infoMessage.set('');
     this.authError.set('');
     this.authLoading.set(false);
@@ -244,15 +198,4 @@ export class App {
 
   closeBackOffice(): void { this.backOfficeOpen.set(false); }
 
-  apply(): void {
-    if (!this.isLoggedIn()) {
-      this.selectedJob.set(null);
-      this.openAuth('connexion');
-      this.infoMessage.set('Connectez-vous pour déposer votre candidature.');
-      return;
-    }
-    const title = this.selectedJob()?.title ?? '';
-    this.closeModal();
-    this.showMessage(`Candidature prête pour « ${title} » — à brancher sur POST /skillmatch/candidatures/add.`);
-  }
 }

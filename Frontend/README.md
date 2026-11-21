@@ -2,7 +2,7 @@
 
 Interface web Angular de SkillMatch pour les candidats, les recruteurs et les administrateurs.
 
-Le template Angular 21 choisi par l'équipe est intégré directement dans ce dossier. Le thème vert foncé/blanc, la recherche d'offres, les favoris et les modales ont été conservés. Un back office Angular est également intégré : il s'ouvre automatiquement après la connexion d'un utilisateur `ADMIN`.
+Le template Angular 21 choisi par l'équipe est intégré directement dans ce dossier. Le thème vert foncé/blanc, les cartes et les modales sont réutilisés. Un back office Angular s'ouvre automatiquement après la connexion d'un utilisateur `ADMIN`.
 
 ## Prérequis
 
@@ -115,7 +115,39 @@ Authorization: Bearer <jwt>
 
 L'en-tête affiche le nom et le rôle de l'utilisateur connecté, avec un bouton de déconnexion. Les boutons « Se connecter » et « S'inscrire » sont affichés uniquement lorsque aucun utilisateur n'est connecté.
 
-Le bouton « Postuler » exige une connexion. Le dépôt effectif de candidature reste à brancher sur `POST /skillmatch/candidatures/add`.
+L'interface de candidature sera ajoutée dans une étape suivante, sur `POST /skillmatch/candidatures`.
+
+## Offres candidat et recruteur
+
+Démarrer MySQL, commun-service, offres-service et la Gateway avant Angular.
+Les services Commun et Offres doivent utiliser la même variable `JWT_SECRET`.
+La configuration et les ports sont détaillés dans [offres-service](../Backend/offres-service/README.md).
+
+- CANDIDAT : consulter les offres publiées non expirées et leurs détails.
+- RECRUTEUR : consulter ses offres, créer un brouillon, modifier, publier, fermer et supprimer après confirmation.
+- Recherche simple par titre ; tri par titre, salaire ou expiration, dans les deux sens.
+- Les erreurs, listes vides et chargements sont affichés ; le JWT existant accompagne chaque requête.
+
+Le dossier `src/app/offres/` contient le modèle (`offre.model.ts`), les appels HTTP
+(`offre.service.ts`), la liste et les actions (`offres.ts`, `offres.html`),
+le formulaire (`offre-form.ts`, `offre-form.html`) et le style (`offres.css`).
+Les composants réutilisent aussi `app.css`.
+
+Les appels utilisent `/skillmatch/offres` et `/skillmatch/offres/{id}` ; la liste
+du recruteur utilise `/skillmatch/offres/mes-offres`. Les paramètres sont `search`
+et `sort` : `titre`, `titreDesc`, `salaire`, `salaireDesc`, `dateExpiration`,
+`dateExpirationDesc`. Le serveur vérifie les rôles et la propriété des offres.
+La gestion ADMIN des offres et l'interface des candidatures restent à intégrer.
+
+### Vérification de cette étape
+
+`npm run build` réussit. Avec MySQL et les trois services locaux, le navigateur
+a vérifié la connexion, la création, la modification, la publication, les détails,
+la recherche, le tri décroissant et l'annulation de suppression. Le candidat
+voit l'offre publiée sans boutons de gestion. Les six tris, la fermeture et la
+suppression ont aussi été vérifiés par HTTP via la Gateway. Les deux comptes et
+les deux offres temporaires ont été supprimés après le test.
+Le projet ne dispose pas encore d'un lanceur de tests Angular automatisés.
 
 ## Back office ADMIN
 
@@ -155,12 +187,12 @@ En développement, l'API Gateway autorise toutes les origines (`allowedOriginPat
 
 ## État du template
 
-- Recherche par compétence, domaine et ville : fonctionnelle sur les données fictives.
-- Liste des offres, favoris et détails d'offre : démonstration locale.
+- Recherche par titre, tri, liste et détails des offres : connectés à l'API.
+- CRUD des offres recruteur : connecté à l'API.
 - Authentification et inscription : connectées à l'API.
 - Profils, tests, alertes, entreprises et messagerie : à brancher progressivement sur les microservices.
 
-Les offres affichées restent fictives tant que `GET /skillmatch/offres/all` n'est pas branché.
+Les offres affichées proviennent de MySQL via la Gateway ; les anciennes cartes fictives ont été retirées.
 
 ## Aperçu statique
 
