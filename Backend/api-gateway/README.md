@@ -42,6 +42,6 @@ SERVER_PORT=8090 mvn spring-boot:run
 
 Puis adapter `Frontend/src/environments/environment.development.ts`.
 
-Pour l'instant, la validation JWT est faite dans `commun-service` via le endpoint `/skillmatch/auth/me`. La gateway ne valide pas encore les tokens elle-même.
+Pour l'instant, la validation JWT est faite dans `commun-service` via le endpoint `/skillmatch/auth/me` et un intercepteur ADMIN sur `/skillmatch/utilisateurs/**`. La gateway ne valide pas encore les tokens elle-même.
 
 Le port `8080` doit être libre avant le démarrage ; tout autre serveur (par exemple Apache) doit être arrêté ou la passerelle lancée sur un autre port via `SERVER_PORT`.

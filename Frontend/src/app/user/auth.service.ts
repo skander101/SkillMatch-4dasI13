@@ -15,6 +15,7 @@ export class AuthService {
   readonly token = signal<string | null>(localStorage.getItem(TOKEN_KEY));
   readonly currentUser = signal<User | null>(this.readStoredUser());
   readonly isLoggedIn = computed(() => !!this.token() && !!this.currentUser());
+  readonly isAdmin = computed(() => this.currentUser()?.role === 'ADMIN');
 
   login(request: LoginRequest) {
     return this.http

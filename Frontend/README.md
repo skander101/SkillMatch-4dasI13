@@ -2,7 +2,7 @@
 
 Interface web Angular de SkillMatch pour les candidats, les recruteurs et les administrateurs.
 
-Le template Angular 21 choisi par l'équipe est intégré directement dans ce dossier. Le thème vert foncé/blanc, la recherche d'offres, les favoris et les modales ont été conservés.
+Le template Angular 21 choisi par l'équipe est intégré directement dans ce dossier. Le thème vert foncé/blanc, la recherche d'offres, les favoris et les modales ont été conservés. Un back office Angular est également intégré : il s'ouvre automatiquement après la connexion d'un utilisateur `ADMIN`.
 
 ## Prérequis
 
@@ -39,13 +39,19 @@ npm run build
 ```text
 src/
 ├── app/
-│   ├── app.ts                  logique de la page et de l'authentification
-│   ├── app.html                interface
+│   ├── app.ts                  logique de la page, auth et bascule back office
+│   ├── app.html                interface publique + conteneur back office
 │   ├── app.css                 thème vert foncé et responsive
+│   ├── backoffice/
+│   │   ├── backoffice.ts       panneau admin et CRUD utilisateurs
+│   │   ├── backoffice.html     interface du back office
+│   │   ├── backoffice.css      thème du back office
+│   │   └── nav.data.ts         navigation et notifications de démonstration
 │   └── user/
 │       ├── auth.service.ts     login, register, logout et session
 │       ├── auth.interceptor.ts ajout automatique du JWT
-│       └── user.model.ts       User, Role et requêtes d'authentification
+│       ├── user.model.ts       User, Role et requêtes
+│       └── user.service.ts     CRUD utilisateurs via l'API Gateway
 ├── environments/
 │   ├── environment.ts
 │   └── environment.development.ts
@@ -110,6 +116,29 @@ Authorization: Bearer <jwt>
 L'en-tête affiche le nom et le rôle de l'utilisateur connecté, avec un bouton de déconnexion. Les boutons « Se connecter » et « S'inscrire » sont affichés uniquement lorsque aucun utilisateur n'est connecté.
 
 Le bouton « Postuler » exige une connexion. Le dépôt effectif de candidature reste à brancher sur `POST /skillmatch/candidatures/add`.
+
+## Back office ADMIN
+
+Après `POST /skillmatch/auth/login` avec un compte `ADMIN`, le composant `BackOffice` remplace la page publique. Le bouton « Back office » dans l'en-tête permet d'y revenir après l'avoir quitté. Le bouton « Retour au site » du panneau republie l'interface publique sans déconnecter l'utilisateur.
+
+La rubrique « Utilisateurs & rôles » est connectée au service commun :
+
+| Action | Endpoint | Méthode |
+|---|---|---|
+| Lister | `/skillmatch/utilisateurs` | `GET` |
+| Créer | `/skillmatch/utilisateurs` | `POST` |
+| Modifier | `/skillmatch/utilisateurs/{id}` | `PUT` |
+| Supprimer | `/skillmatch/utilisateurs/{id}` | `DELETE` |
+
+Toutes ces requêtes passent par l'API Gateway et portent l'en-tête `Authorization: Bearer <jwt>` ajouté par l'intercepteur. Le backend vérifie le rôle `ADMIN` et répond `401` ou `403` si nécessaire.
+
+Pour essayer le panneau :
+
+```bash
+curl -X POST http://localhost:8080/skillmatch/auth/register \
+  -H 'Content-Type: application/json' \
+  -d '{"nom":"Admin BO","email":"admin.bo.test@skillmatch.tn","password":"123456","role":"ADMIN"}'
+```
 
 ## Configuration de l'API
 

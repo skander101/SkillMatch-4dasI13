@@ -1,3 +1,6 @@
+@if (backOfficeOpen() && isAdmin()) {
+  <app-back-office (exit)="closeBackOffice()" />
+} @else {
 <header class="site-header">
   <div class="wrap nav-wrap">
     <a href="#accueil" class="brand" aria-label="SkillMatch Accueil">
@@ -24,8 +27,10 @@
     <div class="nav-actions" (click)="$event.stopPropagation()"><button type="button" class="notif-btn" [class.open]="notificationsOpen()" [attr.aria-expanded]="notificationsOpen()" aria-label="Notifications" (click)="toggleNotifications()"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8Z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>@if (unreadCount() > 0) {<span class="notif-badge">{{ unreadCount() }}</span>}</button><button type="button" class="mobile-menu-btn" [attr.aria-expanded]="mobileNavOpen()" aria-label="Afficher les microservices" (click)="toggleMobileNav()">☰</button>@if (currentUser(); as user) {
     <div class="user-chip">
       <span class="user-avatar">{{ user.nom.charAt(0) }}</span>
-      <span class="user-info"><b>{{ user.nom }}</b><small>{{ user.role }}</small></span>
-      <button type="button" class="logout-btn" (click)="logout()">Déconnexion</button>
+       <span class="user-info"><b>{{ user.nom }}</b><small>{{ user.role }}</small></span>
+       @if (user.role === 'ADMIN') { <button type="button" class="admin-btn" (click)="openBackOffice()">Back office</button> }
+       <button type="button" class="logout-btn" (click)="logout()">Déconnexion</button>
+
     </div>
     } @else {
     <button class="btn btn-outline" (click)="openAuth('connexion')"><span class="person-outline">♙</span> Se connecter</button><button class="btn btn-solid" (click)="openAuth('inscription')">＋ S'inscrire</button>
@@ -121,4 +126,5 @@
     </form>
     @if (authError()) { <p class="auth-error">{{ authError() }}</p> }
     @if (infoMessage()) { <p class="demo-notice">{{ infoMessage() }}</p> }<button class="text-link" (click)="openAuth(mode === 'connexion' ? 'inscription' : 'connexion')">{{mode === 'connexion' ? 'Pas de compte ? Inscrivez-vous' : 'Déjà un compte ? Connectez-vous'}}</button></section></div>
+}
 }

@@ -23,3 +23,17 @@ export interface AuthResponse {
   token: string;
   user: User;
 }
+
+export interface CreateUserRequest {
+  nom: string;
+  email: string;
+  password: string;
+  role: Role;
+}
+
+export interface UpdateUserRequest {
+  nom: string;
+  email: string;
+  password?: string;
+  role: Role;
+}

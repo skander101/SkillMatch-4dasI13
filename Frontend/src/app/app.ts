@@ -3,6 +3,7 @@ import { Component, computed, HostListener, inject, signal } from '@angular/core
 import { FormsModule } from '@angular/forms';
 import { AuthService } from './user/auth.service';
 import { Role } from './user/user.model';
+import { BackOffice } from './backoffice/backoffice';
 
 type Domain = 'Développement' | 'Data' | 'Ressources humaines' | 'Design' | 'Marketing';
 type Contract = 'CDI' | 'CDD' | 'Stage' | 'Freelance';
@@ -28,7 +29,7 @@ interface NavService {
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, BackOffice],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
@@ -134,6 +135,8 @@ export class App {
   private readonly auth = inject(AuthService);
   readonly currentUser = this.auth.currentUser;
   readonly isLoggedIn = this.auth.isLoggedIn;
+  readonly isAdmin = this.auth.isAdmin;
+  readonly backOfficeOpen = signal(this.auth.isAdmin());
   readonly authEmail = signal('');
   readonly authPassword = signal('');
   readonly authName = signal('');
@@ -221,6 +224,7 @@ export class App {
       next: () => {
         this.authLoading.set(false);
         this.closeModal();
+        if (this.isAdmin()) { this.backOfficeOpen.set(true); }
         this.showMessage(`Bienvenue ${this.currentUser()?.nom ?? ''} — rôle ${this.currentUser()?.role ?? ''}`);
       },
       error: (error) => {
@@ -232,8 +236,13 @@ export class App {
 
   logout(): void {
     this.auth.logout();
+    this.backOfficeOpen.set(false);
     this.showMessage('Vous êtes déconnecté.');
   }
+
+  openBackOffice(): void { this.backOfficeOpen.set(true); }
+
+  closeBackOffice(): void { this.backOfficeOpen.set(false); }
 
   apply(): void {
     if (!this.isLoggedIn()) {

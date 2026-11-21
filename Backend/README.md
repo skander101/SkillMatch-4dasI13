@@ -91,6 +91,11 @@ Endpoints implémentés :
 | `POST` | `/skillmatch/auth/register` | Créer un compte et retourner un JWT |
 | `POST` | `/skillmatch/auth/login` | Se connecter et retourner un JWT |
 | `GET` | `/skillmatch/auth/me` | Récupérer l'utilisateur à partir du JWT |
+| `GET` | `/skillmatch/utilisateurs` | Lister les utilisateurs (ADMIN) |
+| `GET` | `/skillmatch/utilisateurs/{id}` | Récupérer un utilisateur (ADMIN) |
+| `POST` | `/skillmatch/utilisateurs` | Créer un utilisateur (ADMIN) |
+| `PUT` | `/skillmatch/utilisateurs/{id}` | Modifier un utilisateur (ADMIN) |
+| `DELETE` | `/skillmatch/utilisateurs/{id}` | Supprimer un utilisateur (ADMIN) |
 
 ### API Gateway
 

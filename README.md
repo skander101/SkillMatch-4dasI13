@@ -62,7 +62,7 @@ Le schéma d'architecture complet et les autres diagrammes se trouvent dans [`Do
 
 Le détail des contrats, des entités, des appels synchrones et des événements est dans [`Backend/README.md`](Backend/README.md).
 
-État d'intégration : `commun-service` (utilisateur + auth JWT, sans notifications) et `api-gateway` sont implémentés ; le frontend consomme les endpoints `/skillmatch/auth/*` via la gateway.
+État d'intégration : `commun-service` (utilisateur + auth JWT + CRUD ADMIN, sans notifications) et `api-gateway` sont implémentés ; le frontend consomme les endpoints `/skillmatch/auth/*` et `/skillmatch/utilisateurs/*` via la gateway. Un back office s'ouvre automatiquement après connexion avec le rôle `ADMIN`.
 
 ## Technologies
 

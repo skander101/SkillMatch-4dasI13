@@ -1,0 +1,191 @@
+<div class="backoffice" [class.closed]="!sidebarOpen()">
+  <button type="button" class="sidebar-fab" [class.hidden]="sidebarOpen()" (click)="toggleSidebar()" aria-label="Afficher le menu">☰</button>
+  <aside class="sidebar">
+    <div class="side-brand">
+      <svg viewBox="0 0 44 36" fill="none" aria-hidden="true"><circle cx="17" cy="10" r="7" fill="#0A8D52"/><circle cx="32" cy="13" r="5.5" fill="#0B5E38"/><circle cx="6.5" cy="14" r="4.5" fill="#18B66E"/><path d="M4 31c0-8.4 5.2-12.8 13-12.8S30 22.6 30 31v3H4v-3Z" fill="#078046"/><path d="M25.5 32.5v-3.4c0-5.2-1.6-8.4-3.5-10.6 7.9-3 17 1.9 17 10.1v3.9H25.5Z" fill="#075A34"/><path d="M.5 31v-2.5c0-4 1.5-6.4 4.3-7.8C2.8 24 3 27.5 3 31H.5Z" fill="#19B66D"/></svg>
+      <span>Skill<span class="brand-green">Match</span><small>BACK OFFICE</small></span>
+    </div>
+    <div class="side-scroll">
+      <div class="side-label">GESTION</div>
+      <nav aria-label="Navigation métier" (click)="$event.stopPropagation()">
+        <button type="button" class="side-btn" [class.active]="activeSection() === dashboardItem.id" (click)="selectSection(dashboardItem.id)"><svg viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="dashboardItem.path"/></svg>{{ dashboardItem.label }}</button>
+        @for (group of sideGroups; track group.id) {
+          <div class="side-group">
+            <button type="button" class="side-btn side-toggle" [class.active]="isGroupActive(group)" [class.open]="openNav() === group.id" [attr.aria-expanded]="openNav() === group.id" (click)="toggleNav(group.id)"><svg viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="group.path"/></svg>{{ group.label }}<span class="side-caret" aria-hidden="true">▾</span></button>
+            @if (openNav() === group.id) {
+              <div class="side-submenu">
+                @for (entity of group.children; track entity.label) {
+                  <button type="button" class="side-subbtn" [class.active]="activeSection() === entity.id" (click)="selectSection(entity.id)">{{ entity.label }}</button>
+                }
+              </div>
+            }
+          </div>
+        }
+      </nav>
+      <div class="side-label">ADMINISTRATION</div>
+      <nav aria-label="Navigation administration" (click)="$event.stopPropagation()">
+        @for (group of adminGroups; track group.id) {
+          <div class="side-group">
+            <button type="button" class="side-btn side-toggle" [class.active]="isGroupActive(group)" [class.open]="openNav() === group.id" [attr.aria-expanded]="openNav() === group.id" (click)="toggleNav(group.id)"><svg viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="group.path"/></svg>{{ group.label }}<span class="side-caret" aria-hidden="true">▾</span></button>
+            @if (openNav() === group.id) {
+              <div class="side-submenu">
+                @for (entity of group.children; track entity.label) {
+                  <button type="button" class="side-subbtn" [class.active]="activeSection() === entity.id" (click)="selectSection(entity.id)">{{ entity.label }}</button>
+                }
+              </div>
+            }
+          </div>
+        }
+      </nav>
+    </div>
+    <div class="side-foot"><b>●</b> Angular 21 · 6 microservices<br>Environnement de démonstration<button type="button" (click)="exit.emit()">← Retour au site</button></div>
+  </aside>
+  @if (sidebarOpen()) { <div class="backdrop" (click)="toggleSidebar()"></div> }
+
+  <div class="bo-main">
+    <main class="bo-content">
+      @switch (activeSection()) {
+        @case ('dashboard') {
+          <div class="page-head">
+            <div><span class="eyebrow">VUE D'ENSEMBLE</span><h1>Tableau de bord</h1><p>Bonjour {{ currentUser()?.nom ?? 'Admin' }}, voici l'activité de SkillMatch aujourd'hui.</p></div>
+            <div class="head-actions"><button type="button" class="bo-btn ghost" (click)="showMessage('Export CSV généré (démonstration).')">↓ Exporter</button><button type="button" class="bo-btn" (click)="selectSection('offres')">＋ Nouvelle offre</button></div>
+          </div>
+          <div class="kpis">
+            @for (kpi of kpis; track kpi.label) {
+              <div class="kpi"><span class="kpi-label">{{ kpi.label }}</span><div class="kpi-value">{{ kpi.value }}</div><div class="kpi-foot"><span class="trend" [class.down]="kpi.tone === 'down'">{{ kpi.trend }}</span><span>{{ kpi.note }}</span></div></div>
+            }
+          </div>
+          <div class="charts">
+            <section class="panel">
+              <div class="panel-head"><div><h3>Candidatures par jour</h3><p>Semaine du 16 au 22 novembre</p></div><span class="pill">7 jours</span></div>
+              <div class="bars">
+                @for (bar of bars; track bar.label) {
+                  <div class="bar-col"><div class="bar-track"><div class="bar" [style.height.%]="bar.value"></div></div><span>{{ bar.label }}</span></div>
+                }
+              </div>
+            </section>
+            <section class="panel">
+              <div class="panel-head"><div><h3>Répartition des statuts</h3><p>Candidatures en cours</p></div></div>
+              <div class="donut-wrap">
+                <div class="donut"><div class="donut-hole"><b>342</b><span>total</span></div></div>
+                <div class="legend"><span><i class="dot green"></i> Acceptées · 45 %</span><span><i class="dot amber"></i> Entretiens · 25 %</span><span><i class="dot blue"></i> Présélection · 18 %</span><span><i class="dot gray"></i> Autres · 12 %</span></div>
+              </div>
+            </section>
+          </div>
+          <div class="bottom-grid">
+            <section class="panel">
+              <div class="panel-head"><div><h3>Dernières candidatures</h3><p>Mises à jour via l'événement StatusChanged</p></div><button type="button" class="link-btn" (click)="selectSection('candidatures')">Tout voir →</button></div>
+              <div class="table-wrap"><table>
+                <thead><tr><th>Candidat</th><th>Offre</th><th>Date</th><th>Statut</th></tr></thead>
+                <tbody>
+                  @for (row of tables['candidatures'].rows.slice(0, 4); track $index) {
+                    <tr (click)="onRowClick(row)"><td><b>{{ row.cells[0] }}</b></td><td>{{ row.cells[1] }}</td><td>{{ row.cells[2] }}</td><td><span class="badge" [ngClass]="row.tone">{{ row.status }}</span></td></tr>
+                  }
+                </tbody>
+              </table></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head"><div><h3>Activité récente</h3><p>Événements RabbitMQ</p></div></div>
+              <div class="activity">
+                @for (item of activities; track item.time) {
+                  <div class="activity-item"><span class="activity-dot"></span><div><span class="event-tag">{{ item.tag }}</span><p>{{ item.text }}</p><small>{{ item.time }}</small></div></div>
+                }
+              </div>
+            </section>
+          </div>
+        }
+        @case ('parametres') {
+          <div class="page-head"><div><span class="eyebrow">ADMINISTRATION</span><h1>Paramètres</h1><p>Préférences globales de la plateforme.</p></div></div>
+          <div class="settings-grid">
+            <section class="panel">
+              <div class="panel-head"><div><h3>Notifications</h3><p>Service commun · Auth & Notifications</p></div></div>
+              <label class="setting-row"><span><b>Alertes emploi</b><small>Notifier à chaque offre correspondante</small></span><input type="checkbox" [checked]="alertsEnabled()" (change)="alertsEnabled.set($any($event.target).checked)"><i class="switch"></i></label>
+              <label class="setting-row"><span><b>Rapport hebdomadaire</b><small>Résumé envoyé tous les lundis</small></span><input type="checkbox" [checked]="digestEnabled()" (change)="digestEnabled.set($any($event.target).checked)"><i class="switch"></i></label>
+              <label class="setting-row"><span><b>Modération des avis</b><small>Validation manuelle avant publication</small></span><input type="checkbox" [checked]="moderationEnabled()" (change)="moderationEnabled.set($any($event.target).checked)"><i class="switch"></i></label>
+            </section>
+            <section class="panel">
+              <div class="panel-head"><div><h3>Compte administrateur</h3><p>Profil connecté via JWT</p></div></div>
+              <div class="setting-form"><label>Nom complet<input value="Admin SkillMatch"></label><label>Adresse email<input value="admin@skillmatch.tn" type="email"></label><label>Rôle<select><option>ADMIN</option><option>RECRUTEUR</option><option>CANDIDAT</option></select></label><button type="button" class="bo-btn" (click)="showMessage('Paramètres enregistrés (démonstration).')">Enregistrer</button></div>
+            </section>
+          </div>
+        }
+        @case ('utilisateurs') {
+          <div class="page-head">
+            <div><span class="eyebrow">ADMINISTRATION</span><h1>Utilisateurs & rôles</h1><p>{{ users().length }} compte(s) géré(s) par le service commun.</p></div>
+            <div class="head-actions"><button type="button" class="bo-btn ghost" (click)="loadUsers()">↻ Actualiser</button><button type="button" class="bo-btn" (click)="openUserForm()">＋ Nouvel utilisateur</button></div>
+          </div>
+          <section class="panel crud-panel">
+            <div class="panel-head"><div><h3>{{ selectedUserId() ? 'Modifier un utilisateur' : 'Créer un utilisateur' }}</h3><p>Rôles : CANDIDAT, RECRUTEUR, ADMIN.</p></div></div>
+            <div class="user-form-grid">
+              <label>Nom complet<input type="text" [value]="userNom()" (input)="userNom.set($any($event.target).value)"></label>
+              <label>Adresse email<input type="email" [value]="userEmail()" (input)="userEmail.set($any($event.target).value)"></label>
+              <label>Mot de passe<input type="password" [value]="userPassword()" (input)="userPassword.set($any($event.target).value)" [placeholder]="selectedUserId() ? 'Laisser vide pour conserver' : '6 caractères minimum'"></label>
+              <label>Rôle<select [value]="userRole()" (change)="setUserRole($any($event.target).value)"><option value="CANDIDAT">CANDIDAT</option><option value="RECRUTEUR">RECRUTEUR</option><option value="ADMIN">ADMIN</option></select></label>
+              <div class="form-actions"><button type="button" class="bo-btn" [disabled]="userSaving()" (click)="saveUser()">{{ userSaving() ? 'Enregistrement...' : (selectedUserId() ? 'Mettre à jour' : 'Créer') }}</button><button type="button" class="bo-btn ghost" (click)="resetUserForm()">Annuler</button></div>
+            </div>
+            @if (userError()) { <p class="form-error">{{ userError() }}</p> }
+          </section>
+          <section class="panel">
+            <div class="panel-head"><div><h3>{{ filteredUsers().length }} utilisateur(s)</h3><p>Données du service commun · CRUD connecté</p></div><label class="top-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 5 5"/></svg><input aria-label="Filtrer les utilisateurs" placeholder="Filtrer..." [value]="query()" (input)="query.set($any($event.target).value)"></label></div>
+            @if (userLoading()) { <p class="muted">Chargement des utilisateurs...</p> }
+            <div class="table-wrap"><table>
+              <thead><tr><th>Utilisateur</th><th>Rôle</th><th>Email</th><th>Statut</th><th>Actions</th></tr></thead>
+              <tbody>
+                @for (user of filteredUsers(); track user.id) {
+                  <tr>
+                    <td><b>{{ user.nom }}</b></td>
+                    <td>{{ user.role }}</td>
+                    <td>{{ user.email }}</td>
+                    <td><span class="badge green">Actif</span></td>
+                    <td class="crud-actions"><button type="button" class="row-action" (click)="editUser(user)" aria-label="Modifier">✎</button><button type="button" class="row-action danger" (click)="requestDelete(user)" aria-label="Supprimer">✕</button>
+</td>
+                  </tr>
+                } @empty {
+                  <tr><td colspan="5" class="muted">Aucun utilisateur trouvé.</td></tr>
+                }
+              </tbody>
+            </table></div>
+          </section>
+        }
+        @default {
+          @if (currentTable(); as table) {
+            <div class="page-head">
+              <div><span class="eyebrow">MODULE D'ADMINISTRATION</span><h1>{{ table.title }}</h1><p>{{ table.subtitle }}</p></div>
+              <div class="head-actions"><button type="button" class="bo-btn ghost" (click)="showMessage('Export CSV généré (démonstration).')">↓ Exporter</button><button type="button" class="bo-btn" (click)="showMessage('Nouvel élément créé (démonstration).')">＋ Ajouter</button></div>
+            </div>
+            <section class="panel">
+              <div class="panel-head"><div><h3>{{ filteredRows().length }} résultat(s)</h3><p>Données fictives de démonstration</p></div><label class="top-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 5 5"/></svg><input aria-label="Filtrer" placeholder="Filtrer..." [value]="query()" (input)="query.set($any($event.target).value)"></label></div>
+              <div class="table-wrap"><table>
+                <thead><tr>@for (column of table.columns; track column) {<th>{{ column }}</th>}</tr></thead>
+                <tbody>
+                  @for (row of filteredRows(); track $index) {
+                    <tr (click)="onRowClick(row)">
+                      @for (cell of row.cells; track $index) {<td>{{ cell }}</td>}
+                      <td><span class="badge" [ngClass]="row.tone">{{ row.status }}</span></td>
+                      <td><button type="button" class="row-action" (click)="$event.stopPropagation(); onRowClick(row)" aria-label="Actions">•••</button></td>
+                    </tr>
+                  }
+                </tbody>
+              </table></div>
+              <div class="pager"><span>Affichage de 1 à {{ filteredRows().length }} sur {{ filteredRows().length }}</span><div><button type="button" class="page-btn active">1</button><button type="button" class="page-btn">2</button><button type="button" class="page-btn">3</button><button type="button" class="page-btn">→</button></div></div>
+            </section>
+          }
+        }
+      }
+    </main>
+  </div>
+  @if (pendingDelete(); as user) {
+    <div class="bo-modal-overlay" role="presentation" (click)="cancelDelete()">
+      <section class="bo-confirm" role="alertdialog" aria-modal="true" aria-labelledby="confirm-delete-title" (click)="$event.stopPropagation()">
+        <span class="confirm-icon">!</span>
+        <h2 id="confirm-delete-title">Supprimer cet utilisateur ?</h2>
+        <p>Le compte de <b>{{ user.nom }}</b> ({{ user.email }}) sera définitivement supprimé.</p>
+        <div class="confirm-actions">
+          <button type="button" class="bo-btn ghost" [disabled]="deleteLoading()" (click)="cancelDelete()">Annuler</button>
+          <button type="button" class="bo-btn danger" [disabled]="deleteLoading()" (click)="confirmDelete()">{{ deleteLoading() ? 'Suppression...' : 'Supprimer' }}</button>
+        </div>
+      </section>
+    </div>
+  }
+  @if (navMessage()) {<div class="bo-toast" role="status">{{ navMessage() }}<button type="button" (click)="navMessage.set('')">Fermer</button></div>}
+</div>

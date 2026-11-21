@@ -34,6 +34,13 @@ Les erreurs JSON ont la forme `{"status":409,"message":"Cet email est déjà uti
 | `POST` | `/skillmatch/auth/register` | Créer un compte et retourner un JWT |
 | `POST` | `/skillmatch/auth/login` | Se connecter et retourner un JWT |
 | `GET` | `/skillmatch/auth/me` | Récupérer l'utilisateur à partir du JWT |
+| `GET` | `/skillmatch/utilisateurs` | Lister les utilisateurs |
+| `GET` | `/skillmatch/utilisateurs/{id}` | Récupérer un utilisateur |
+| `POST` | `/skillmatch/utilisateurs` | Créer un utilisateur |
+| `PUT` | `/skillmatch/utilisateurs/{id}` | Modifier un utilisateur |
+| `DELETE` | `/skillmatch/utilisateurs/{id}` | Supprimer un utilisateur |
+
+Les endpoints `/skillmatch/utilisateurs/**` exigent un JWT de rôle `ADMIN` : sans jeton la réponse est `401`, avec un jeton non administrateur elle est `403`. Lors d'une mise à jour, un mot de passe vide conserve le mot de passe actuel.
 
 Exemple d'inscription :
 
