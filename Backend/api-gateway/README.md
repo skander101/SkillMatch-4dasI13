@@ -15,6 +15,8 @@ Passerelle Spring Cloud Gateway de SkillMatch.
 | `/skillmatch/auth/**` | `commun-service` |
 | `/skillmatch/utilisateurs/**` | `commun-service` |
 
+La route `/skillmatch/entreprises/**` n'est pas encore configurée. Sur le commit actuel de `skander_entreprise+avis`, `entreprises-service` se teste directement sur `http://localhost:8083` ; son routage via la gateway est prévu au commit 4 du plan.
+
 ## Configuration
 
 - Port : `8080`

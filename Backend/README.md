@@ -15,6 +15,7 @@ Chaque microservice est un projet Maven indépendant. Il n'y a pas de `pom.xml` 
 - Les listes sans champs propres sont stockées en colonne JSON ou TEXT
 - Les appels synchrones utilisent REST
 - Les événements asynchrones utilisent RabbitMQ
+- La documentation des API est exposée avec springdoc-openapi et Swagger UI
 - Les ports et les noms de bases sont fixés dans le tableau ci-dessous
 
 ## Contrats des microservices
@@ -28,9 +29,11 @@ Chaque microservice est un projet Maven indépendant. Il n'y a pas de `pom.xml` 
 | `alertes-service` | 8085 | `alertes_db` | `AlerteEmploi`, `OffreSauvegardee` | — | `AlertMatched` | `OfferPublished` |
 | `messagerie-service` | 8086 | `messagerie_db` | `Conversation`, `Message` | — | `MessageSent` | — |
 | `commun-service` | 8087 | `commun_db` | `Utilisateur` | Auth JWT | — | — |
-| `api-gateway` | 8080 | — | — | Route `/skillmatch/auth/**` vers `commun-service` | — | — |
+| `api-gateway` | 8080 | — | — | Routes `/skillmatch/auth/**` et `/skillmatch/utilisateurs/**` vers `commun-service` | — | — |
 | `discovery-service` | 8761 | — | — | — | — | — |
 | `config-service` | 8888 | — | — | — | — | — |
+
+> Le tableau décrit le contrat cible. État courant sur `skander_entreprise+avis` : `entreprises-service` implémente uniquement le CRUD `Entreprise` ; les appels et événements annoncés seront ajoutés aux commits 2 à 5 du plan.
 
 ## Détail par microservice
 
@@ -51,10 +54,22 @@ Chaque microservice est un projet Maven indépendant. Il n'y a pas de `pom.xml` 
 
 ### Entreprises & Avis
 
-- Entités : `Entreprise`, `AvisEntreprise`
-- Un utilisateur ne peut publier qu'un seul avis par entreprise.
-- Les avis possèdent un statut de modération.
-- La moyenne des notes est calculée par le service.
+Implémentation actuelle (commit 1 sur `skander_entreprise+avis`) :
+
+- Entité implémentée : `Entreprise` avec `id`, `nom`, `secteur`, `ville`, `description` et `noteMoyenne` initialisée à `0.0`.
+- CRUD disponible directement sur `http://localhost:8083/skillmatch/entreprises` : `POST`, `GET`, `GET /{id}`, `PUT /{id}` et `DELETE /{id}`.
+- Documentation Swagger UI : `http://localhost:8083/swagger-ui.html` ; spécification JSON : `http://localhost:8083/v3/api-docs`.
+- Erreurs JSON au format `{"status":404,"message":"Entreprise introuvable"}`.
+- Aucune sécurité via gateway pour l'instant : les endpoints sont testés directement sur le port `8083`.
+- Détails complets : [`entreprises-service/README.md`](entreprises-service/README.md).
+
+À venir dans les prochains commits du plan :
+
+- entité `AvisEntreprise` avec note de 1 à 5 et unicité par entreprise/utilisateur ;
+- statuts de modération `EN_ATTENTE`, `APPROUVE` et `REJETE`, puis recalcul de `noteMoyenne` ;
+- appel synchrone à `commun-service` via `/skillmatch/auth/me` ;
+- publication de `AvisModere` et consommation de `ProfileUpdated` via RabbitMQ ;
+- routage `/skillmatch/entreprises/**` et `/skillmatch/avis/**` par l'API Gateway.
 
 ### Tests & Compétences
 
@@ -100,7 +115,8 @@ Endpoints implémentés :
 ### API Gateway
 
 - Point d'entrée public du frontend : `http://localhost:8080`.
-- Route `/skillmatch/auth/**` vers `commun-service` sur `http://localhost:8087`.
+- Routes `/skillmatch/auth/**` et `/skillmatch/utilisateurs/**` vers `commun-service` sur `http://localhost:8087`.
+- La route `/skillmatch/entreprises/**` n'est pas encore configurée : le premier commit de `entreprises-service` se teste directement sur `http://localhost:8083`.
 - CORS autorisé en développement ; à restreindre en production.
 
 ## Créer un microservice
@@ -143,6 +159,7 @@ Les événements sont nommés de manière métier et publiés via RabbitMQ.
 - `ProfileUpdated` : le profil d'un candidat est mis à jour.
 - `TestPassed` : un test technique est réussi.
 - `AlertMatched` : une offre correspond à une alerte.
+- `AvisModere` : un avis a été modéré (prévu au commit 5 de la branche entreprises).
 - `MessageSent` : un message est envoyé.
 
 Prévu mais non implémenté : le service commun consommera `StatusChanged`, `AlertMatched`, `TestPassed` et `MessageSent` pour générer les notifications.

@@ -2,7 +2,7 @@
 
 Interface web Angular de SkillMatch pour les candidats, les recruteurs et les administrateurs.
 
-Le template Angular 21 choisi par l'équipe est intégré directement dans ce dossier. Le thème vert foncé/blanc, la recherche d'offres, les favoris et les modales ont été conservés. Un back office Angular est également intégré : il s'ouvre automatiquement après la connexion d'un utilisateur `ADMIN`.
+Le template Angular 21 choisi par l'équipe est intégré directement dans ce dossier. Le thème vert foncé/blanc, la recherche d'offres, les favoris et les modales ont été conservés. Un back office Angular est également intégré : il s'ouvre automatiquement après la connexion d'un utilisateur `ADMIN`. Le backend [`entreprises-service`](../Backend/entreprises-service/README.md) fournit déjà le CRUD des entreprises et Swagger, mais le frontend n'y est pas encore connecté.
 
 ## Prérequis
 
@@ -158,7 +158,8 @@ En développement, l'API Gateway autorise toutes les origines (`allowedOriginPat
 - Recherche par compétence, domaine et ville : fonctionnelle sur les données fictives.
 - Liste des offres, favoris et détails d'offre : démonstration locale.
 - Authentification et inscription : connectées à l'API.
-- Profils, tests, alertes, entreprises et messagerie : à brancher progressivement sur les microservices.
+- Profils, tests, alertes et messagerie : à brancher progressivement sur les microservices.
+- Entreprises & avis : backend CRUD et Swagger disponibles sur `http://localhost:8083`, mais affichage public, annuaire, modération et publication d'avis encore à brancher dans le frontend (commits 6 et 7 du plan).
 
 Les offres affichées restent fictives tant que `GET /skillmatch/offres/all` n'est pas branché.
 

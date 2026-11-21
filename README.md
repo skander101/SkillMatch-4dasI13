@@ -2,7 +2,7 @@
 
 Plateforme de mise en relation entre candidats et recruteurs, construite en microservices dans le cadre du projet AWD de la filière 4DAS (Data & AI) à ESPRIT.
 
-> Validation intermédiaire — séance 4. Le projet n'est pas terminé : ce dépôt présente la conception, la structure et la répartition du travail.
+> Validation intermédiaire — séance 4. Le projet reste en cours : ce dépôt contient la conception, la structure, la répartition du travail et les premières tranches fonctionnelles fusionnées sur `main` et `skander_entreprise+avis`.
 
 ## Problématique
 
@@ -55,7 +55,7 @@ Le schéma d'architecture complet et les autres diagrammes se trouvent dans [`Do
 | `alertes-service` | 8085 | `alertes_db` | Alertes emploi et offres sauvegardées |
 | `messagerie-service` | 8086 | `messagerie_db` | Conversations et messages |
 | `commun-service` | 8087 | `commun_db` | Utilisateur et authentification JWT (sans notifications pour l'instant) |
-| `api-gateway` | 8080 | — | Routage `/skillmatch/auth/**` et CORS ; validation JWT prévue |
+| `api-gateway` | 8080 | — | Routage `/skillmatch/auth/**` et `/skillmatch/utilisateurs/**` ; validation JWT dans `commun-service` |
 | `discovery-service` | 8761 | — | Serveur Eureka |
 | `config-service` | 8888 | — | Configuration centralisée |
 | `Frontend` | 4200 | — | Interface candidat, recruteur et administrateur |
@@ -63,6 +63,8 @@ Le schéma d'architecture complet et les autres diagrammes se trouvent dans [`Do
 Le détail des contrats, des entités, des appels synchrones et des événements est dans [`Backend/README.md`](Backend/README.md).
 
 État d'intégration : `commun-service` (utilisateur + auth JWT + CRUD ADMIN, sans notifications) et `api-gateway` sont implémentés ; le frontend consomme les endpoints `/skillmatch/auth/*` et `/skillmatch/utilisateurs/*` via la gateway. Un back office s'ouvre automatiquement après connexion avec le rôle `ADMIN`.
+
+Sur `skander_entreprise+avis`, le service `entreprises-service` fournit désormais le CRUD de l'entité `Entreprise` sur `http://localhost:8083/skillmatch/entreprises`, avec Swagger UI sur `http://localhost:8083/swagger-ui.html`. Les avis, la modération, la sécurité via gateway et le frontend associé restent à implémenter dans les commits suivants du plan.
 
 ## Technologies
 
@@ -72,6 +74,7 @@ Le détail des contrats, des entités, des appels synchrones et des événements
 - RabbitMQ
 - API Gateway, Eureka, Spring Cloud Config
 - JWT
+- springdoc-openapi et Swagger UI pour la documentation des API
 - Angular et TypeScript pour le frontend
 - Docker Compose pour RabbitMQ et les outils d'infrastructure
 - Git et GitHub pour la gestion de version
@@ -128,16 +131,16 @@ Chaque service est un projet Maven indépendant. Depuis son dossier :
 mvn spring-boot:run
 ```
 
-### Démarrage minimal de l'authentification
+### Démarrage minimal : authentification, back office et entreprises
 
-Tant que les microservices métier ne sont pas développés, le socle exécutable est limité à MySQL, `commun-service`, `api-gateway` et au frontend.
+Tant que les autres microservices métier ne sont pas développés, le socle exécutable comprend MySQL, `commun-service`, `api-gateway`, le frontend et, sur la branche entreprises, `entreprises-service`.
 
 ```bash
 cp .env.example .env
 set -a; . ./.env; set +a
 ```
 
-Puis, dans trois terminaux distincts :
+Puis, dans quatre terminaux distincts :
 
 ```bash
 cd Backend/commun-service && mvn spring-boot:run
@@ -151,12 +154,18 @@ cd Backend/api-gateway && mvn spring-boot:run
 cd Frontend && npm install && npm run dev
 ```
 
-Spring Boot ne lit pas automatiquement le fichier `.env` : les variables doivent être exportées dans chaque terminal ou définies dans l'IDE. La base `commun_db` est créée au premier démarrage si l'utilisateur MySQL dispose du droit `CREATE`.
+```bash
+cd Backend/entreprises-service && mvn spring-boot:run
+```
+
+Spring Boot ne lit pas automatiquement le fichier `.env` : les variables doivent être exportées dans chaque terminal ou définies dans l'IDE. Les bases `commun_db` et `entreprises_db` sont créées au premier démarrage si l'utilisateur MySQL dispose du droit `CREATE`.
+
+`entreprises-service` n'est pas encore routé par la gateway : tester ses endpoints directement sur `http://localhost:8083`. RabbitMQ n'est pas nécessaire pour ce commit et l'enregistrement Eureka est désactivé par défaut en local.
 
 ## Organisation Git
 
 - `main` contient le socle commun et les fonctionnalités validées.
-- Chaque membre travaille sur une branche `feature/<service>`.
+- Chaque membre travaille sur une branche dédiée, par exemple `feature/<service>` ou `skander_entreprise+avis`.
 - Les pull requests sont relues avant fusion.
 - Chaque microservice possède un premier commit clair créé par son responsable.
 
@@ -168,7 +177,7 @@ Voir [`CONTRIBUTING.md`](CONTRIBUTING.md) pour les conventions détaillées.
 |---|---|---|
 | Membre 1 | Offres & Candidatures | `feature/offres-service` |
 | Membre 2 | Profils & CV | `feature/profils-service` |
-| Membre 3 | Entreprises & Avis | `feature/entreprises-service` |
+| Membre 3 | Entreprises & Avis | `skander_entreprise+avis` |
 | Membre 4 | Tests & Compétences | `feature/tests-service` |
 | Membre 5 | Alertes & Favoris | `feature/alertes-service` |
 | Membre 6 | Messagerie | `feature/messagerie-service` |
@@ -193,5 +202,6 @@ Les six membres se répartissent également les briques du service commun : auth
 - [Diagrammes](Documentation/Diagrams/README.md)
 - [Document technique](Documentation/Technical-Document/README.md)
 - [commun-service](Backend/commun-service/README.md)
+- [entreprises-service](Backend/entreprises-service/README.md)
 - [api-gateway](Backend/api-gateway/README.md)
 - [Frontend](Frontend/README.md)
