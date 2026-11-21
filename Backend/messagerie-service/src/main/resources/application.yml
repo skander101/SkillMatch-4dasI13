@@ -1,0 +1,49 @@
+server:
+  port: ${SERVER_PORT:8086}
+
+spring:
+  application:
+    name: messagerie-service
+
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:messagerie_db}?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: ${MYSQL_USER:root}
+    password: ${MYSQL_PASSWORD:}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+
+# JWT — secret partagé avec commun-service, validé localement (jamais généré ici)
+jwt:
+  secret: ${JWT_SECRET}
+
+# URL du commun-service pour résoudre l'id numérique de l'utilisateur via GET /skillmatch/auth/me
+# Si commun-service ajoute un claim userId dans le JWT, cet appel pourra être supprimé.
+commun:
+  service:
+    url: ${COMMUN_SERVICE_URL:http://localhost:8087}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+    register-with-eureka: ${EUREKA_REGISTER:false}
+    fetch-registry: ${EUREKA_FETCH:false}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
