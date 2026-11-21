@@ -137,11 +137,14 @@ public class OffreService { // Un seul service pour les trois rôles.
 
     private List<Offre> rechercherEtTrier(List<Offre> liste, String search, String sort) { // Une seule petite méthode pour les deux listes.
         String mot = search.trim().toLowerCase(Locale.ROOT); // Ignore la casse et les espaces autour du mot.
-        Comparator<Offre> ordre = switch (sort) { // Choisit le tri croissant.
+        Comparator<Offre> ordre = switch (sort) { // Choisit le tri croissant ou décroissant.
             case "titre" -> Comparator.comparing(Offre::getTitre, String.CASE_INSENSITIVE_ORDER); // Titre de A à Z.
+            case "titreDesc" -> Comparator.comparing(Offre::getTitre, String.CASE_INSENSITIVE_ORDER).reversed(); // Titre de Z à A.
             case "salaire" -> Comparator.comparing(Offre::getSalaire, Comparator.nullsLast(Comparator.naturalOrder())); // Salaires croissants ; absents à la fin.
+            case "salaireDesc" -> Comparator.comparing(Offre::getSalaire, Comparator.nullsLast(Comparator.reverseOrder())); // Salaires décroissants ; absents à la fin.
             case "dateExpiration" -> Comparator.comparing(Offre::getDateExpiration); // Expiration la plus proche d'abord.
-            default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tri : titre, salaire ou dateExpiration"); // Refuse un tri inconnu.
+            case "dateExpirationDesc" -> Comparator.comparing(Offre::getDateExpiration).reversed(); // Expiration la plus lointaine d’abord.
+            default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tri : titre, salaire ou dateExpiration, avec Desc pour décroissant"); // Refuse un tri inconnu.
         }; // Fin du choix.
         return liste.stream() // Parcourt uniquement les offres déjà autorisées.
                 .filter(offre -> offre.getTitre().toLowerCase(Locale.ROOT).contains(mot)) // Garde les titres contenant le mot.

@@ -258,8 +258,11 @@ acceptent seulement deux paramètres :
 - `search` : partie du titre, sans tenir compte de la casse.
 - `sort` : `titre` (A-Z, par défaut), `salaire` (croissant, absents à la fin)
   ou `dateExpiration` (date la plus proche d'abord).
+- Pour le sens décroissant : `titreDesc` (Z-A), `salaireDesc` (plus grand
+  au plus petit, absents à la fin) et `dateExpirationDesc` (date la plus lointaine).
 
 Exemple : `/skillmatch/offres?search=Java&sort=salaire`.
+Exemple décroissant : `/skillmatch/offres?search=Java&sort=salaireDesc`.
 
 Le repository charge d'abord uniquement les offres autorisées selon le rôle.
 Une petite méthode Java recherche ensuite dans le titre et trie cette liste.

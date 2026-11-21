@@ -235,6 +235,20 @@ class OffreServiceTest { // Vérifie les règles indépendamment de HTTP.
         erreur(400, () -> service.lister(TOKEN, "", "inconnu")); // Tri invalide.
     } // Fin du test.
 
+    @Test // Vérifie les trois tris décroissants.
+    void trieDansLordreDecroissant() { // Garde les salaires absents à la fin.
+        connecter("ADMIN"); // Identité autorisée.
+        Offre a = offreDeListe("Alpha", 1000.0); // Petit salaire et titre A.
+        Offre z = offreDeListe("Zebra", 3000.0); // Grand salaire et titre Z.
+        Offre sansSalaire = offreDeListe("Milieu", null); // Salaire non renseigné.
+        z.setDateExpiration(LocalDate.now().plusDays(20)); // Date la plus lointaine.
+        a.setDateExpiration(LocalDate.now().plusDays(1)); // Date la plus proche.
+        when(offres.findAll()).thenReturn(List.of(a, z, sansSalaire)); // Liste de départ.
+        assertEquals(List.of(z, sansSalaire, a), service.lister(TOKEN, "", "titreDesc")); // Z-A.
+        assertEquals(List.of(z, a, sansSalaire), service.lister(TOKEN, "", "salaireDesc")); // Grand au petit, puis absence.
+        assertEquals(List.of(z, sansSalaire, a), service.lister(TOKEN, "", "dateExpirationDesc")); // Date lointaine d'abord.
+    } // Fin du test.
+
     private Offre offreDeListe(String titre, Double salaire) { // Prépare une offre pour la recherche.
         Offre offre = new Offre(); // Objet de test.
         offre.setTitre(titre); // Titre recherché.
