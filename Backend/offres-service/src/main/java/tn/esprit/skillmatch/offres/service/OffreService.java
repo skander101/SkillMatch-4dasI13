@@ -14,6 +14,8 @@ import tn.esprit.skillmatch.offres.security.IdentiteService.Identite; // Donnée
 import java.time.LocalDate; // Date du jour.
 import java.util.ArrayList; // Copie de la liste des compétences.
 import java.util.List; // Listes de résultats.
+import java.util.Comparator; // Compare les offres pour les trier.
+import java.util.Locale; // Convertit les textes en minuscules.
 
 @Service // Rend ce service injectable dans le contrôleur.
 @Transactional // Une opération réussit entièrement ou est annulée.
@@ -29,41 +31,30 @@ public class OffreService { // Un seul service pour les trois rôles.
     } // Fin du constructeur.
 
     @Transactional(readOnly = true) // Cette méthode ne modifie pas la base.
-    public List<Offre> lister(String authorization) { // Adapte les résultats au rôle.
+    public List<Offre> lister(String authorization, String search, String sort) { // Adapte les résultats au rôle.
         Identite utilisateur = identites.courante(authorization); // Authentifie avant de consulter la base.
-        if ("ADMIN".equals(utilisateur.role())) return offres.findAll(); // ADMIN voit toutes les offres.
-        if ("RECRUTEUR".equals(utilisateur.role())) return offres.findByRecruteurId(utilisateur.id()); // RECRUTEUR voit ses offres.
-        return offres.findByStatutAndDateExpirationGreaterThanEqual(OffreStatut.PUBLIEE, LocalDate.now()); // CANDIDAT voit les offres ouvertes.
+        if ("ADMIN".equals(utilisateur.role())) return rechercherEtTrier(offres.findAll(), search, sort); // ADMIN voit toutes les offres.
+        if ("RECRUTEUR".equals(utilisateur.role())) return rechercherEtTrier(offres.findByRecruteurId(utilisateur.id()), search, sort); // RECRUTEUR voit ses offres.
+        return rechercherEtTrier(offres.findByStatutAndDateExpirationGreaterThanEqual(OffreStatut.PUBLIEE, LocalDate.now()), search, sort); // CANDIDAT voit les offres ouvertes.
     } // Fin de la liste.
 
     @Transactional(readOnly = true) // Lecture seule.
-    public List<Offre> mesOffres(String authorization) { // Liste les offres du propriétaire connecté.
-        Identite utilisateur = identites.courante(authorization); // Identité validée par commun-service.
-        exigerGestionnaire(utilisateur); // Réserve cette opération à ADMIN et RECRUTEUR.
-        return offres.findByRecruteurId(utilisateur.id()); // Filtre par l'identifiant de session.
+    public List<Offre> mesOffres(String authorization, String search, String sort) { // Liste les offres du propriétaire connecté.
+        Identite utilisateur = exigerGestionnaire(authorization); // Authentifie et exige ADMIN ou RECRUTEUR.
+        return rechercherEtTrier(offres.findByRecruteurId(utilisateur.id()), search, sort); // Filtre par l'identifiant de session.
     } // Fin de mes offres.
 
     @Transactional(readOnly = true) // Lecture seule.
-    public Offre consulter(Long id, String authorization) { // Consulte une seule offre.
-        Identite utilisateur = identites.courante(authorization); // Authentifie la demande.
-        Offre offre = trouver(id); // Retourne 404 si l'offre n'existe pas.
-        if ("CANDIDAT".equals(utilisateur.role())) { // Applique la visibilité candidat.
-            if (offre.getStatut() != OffreStatut.PUBLIEE || offre.estExpiree()) { // Masque les offres non ouvertes.
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cette offre n'est pas ouverte"); // Réponse 403.
-            } // Fin du contrôle candidat.
-        } else { // ADMIN ou RECRUTEUR.
-            exigerProprietaire(offre, utilisateur); // ADMIN a accès ; RECRUTEUR doit être propriétaire.
-        } // Fin des droits de lecture.
-        return offre; // Le JSON contient seulement les champs de l'offre, sans relation candidature.
+    public Offre consulter(Long id, String authorization) { // Lecture avec les contrôles communs.
+        return trouverAccessible(id, identites.courante(authorization)); // Vérifie l'identité, l'existence et les droits.
     } // Fin de la consultation.
 
     public Offre creer(OffreRequest demande, String authorization) { // Crée un brouillon.
-        Identite utilisateur = identites.courante(authorization); // Vérifie la session.
-        exigerGestionnaire(utilisateur); // Un candidat ne peut pas créer d'offre.
+        Identite utilisateur = exigerGestionnaire(authorization); // Authentifie et exige ADMIN ou RECRUTEUR.
         if (demande.statut() != OffreStatut.BROUILLON) { // La publication passe ensuite par PUT.
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Créer d'abord un brouillon"); // Règle explicite.
         } // Fin du contrôle du statut initial.
-        verifierDate(demande); // Refuse une date déjà passée pour un nouveau brouillon.
+        verifierDonnees(demande); // Refuse une date déjà passée pour un nouveau brouillon.
         Long proprietaire = utilisateur.id(); // Le recruteur est propriétaire de sa création.
         if ("ADMIN".equals(utilisateur.role())) { // ADMIN crée pour un recruteur réel.
             identites.verifierRecruteur(demande.recruteurId(), authorization); // Contrôle l'existence et le rôle côté serveur.
@@ -78,23 +69,19 @@ public class OffreService { // Un seul service pour les trois rôles.
     } // Fin de la création.
 
     public Offre modifier(Long id, OffreRequest demande, String authorization) { // Modifie une offre existante.
-        Identite utilisateur = identites.courante(authorization); // Authentifie la demande.
-        exigerGestionnaire(utilisateur); // Refuse les candidats.
-        Offre offre = trouver(id); // Charge l'offre ou renvoie 404.
-        exigerProprietaire(offre, utilisateur); // Empêche un recruteur de modifier l'offre d'un autre.
+        Identite utilisateur = exigerGestionnaire(authorization); // Authentifie et exige ADMIN ou RECRUTEUR.
+        Offre offre = trouverAccessible(id, utilisateur); // Charge l’offre et vérifie son propriétaire.
         if (demande.recruteurId() != null && !offre.getRecruteurId().equals(demande.recruteurId())) { // Le propriétaire est conservé même pour ADMIN.
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Le propriétaire d'une offre ne peut pas être changé"); // Évite les transferts implicites.
         } // Fin du contrôle du propriétaire.
-        verifierDate(demande); // Vérifie la cohérence entre statut et expiration.
+        verifierDonnees(demande); // Vérifie la cohérence entre statut et expiration.
         remplir(offre, demande); // Affecte les champs modifiables.
         return offres.save(offre); // Enregistre les modifications.
     } // Fin de la modification.
 
     public void supprimer(Long id, String authorization) { // Supprime physiquement une offre sans candidature.
-        Identite utilisateur = identites.courante(authorization); // Vérifie la session.
-        exigerGestionnaire(utilisateur); // Refuse les candidats.
-        Offre offre = trouver(id); // Charge l'offre.
-        exigerProprietaire(offre, utilisateur); // Vérifie le propriétaire ou le rôle ADMIN.
+        Identite utilisateur = exigerGestionnaire(authorization); // Authentifie et exige ADMIN ou RECRUTEUR.
+        Offre offre = trouverAccessible(id, utilisateur); // Charge l’offre et vérifie son propriétaire.
         if (candidatures.existsByOffreId(id)) { // Protège les candidatures associées.
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Cette offre possède des candidatures : fermez-la au lieu de la supprimer"); // Réponse 409.
         } // Fin de la protection.
@@ -102,23 +89,27 @@ public class OffreService { // Un seul service pour les trois rôles.
         offres.flush(); // Détecte immédiatement un éventuel conflit de clé étrangère.
     } // Fin de la suppression.
 
-    private Offre trouver(Long id) { // Recherche commune aux opérations sur un identifiant.
-        return offres.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Offre introuvable")); // Réponse 404 si absente.
-    } // Fin de la recherche interne.
+    private Offre trouverAccessible(Long id, Identite utilisateur) { // Lecture et autorisation regroupées.
+        Offre offre = offres.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Offre introuvable")); // 404 si absente.
+        if ("CANDIDAT".equals(utilisateur.role())) { // Le candidat voit seulement les offres ouvertes.
+            if (offre.getStatut() != OffreStatut.PUBLIEE || offre.estExpiree()) { // Vérifie le statut et la date.
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cette offre n'est pas ouverte"); // Réponse 403.
+            } // Fin du contrôle candidat.
+        } else if (!"ADMIN".equals(utilisateur.role()) && !offre.getRecruteurId().equals(utilisateur.id())) { // ADMIN peut tout consulter ; le recruteur reste propriétaire.
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cette offre appartient à un autre recruteur"); // Réponse 403.
+        } // Fin du contrôle propriétaire.
+        return offre; // Retourne uniquement une offre accessible.
+    } // Fin de la lecture contrôlée.
 
-    private void exigerGestionnaire(Identite utilisateur) { // Réserve les écritures aux rôles autorisés.
+    private Identite exigerGestionnaire(String authorization) { // Regroupe l'authentification et le contrôle de rôle.
+        Identite utilisateur = identites.courante(authorization); // Résout l'identité une seule fois.
         if (!"ADMIN".equals(utilisateur.role()) && !"RECRUTEUR".equals(utilisateur.role())) { // Ne dépend pas des boutons Angular.
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Opération réservée aux recruteurs et administrateurs"); // Réponse 403.
         } // Fin du contrôle de rôle.
+        return utilisateur; // Réutilise l’identité vérifiée dans l’opération.
     } // Fin du contrôle gestionnaire.
 
-    private void exigerProprietaire(Offre offre, Identite utilisateur) { // Applique la propriété côté backend.
-        if (!"ADMIN".equals(utilisateur.role()) && !offre.getRecruteurId().equals(utilisateur.id())) { // ADMIN est autorisé sur toutes les offres.
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cette offre appartient à un autre recruteur"); // Réponse 403.
-        } // Fin du contrôle de propriété.
-    } // Fin du contrôle propriétaire.
-
-    private void verifierDate(OffreRequest demande) { // Vérifie la cohérence des données métier.
+    private void verifierDonnees(OffreRequest demande) { // Vérifie la cohérence des données métier.
         boolean expiree = demande.dateExpiration().isBefore(LocalDate.now()); // Aujourd'hui reste valide.
         if ((demande.statut() == OffreStatut.PUBLIEE || demande.statut() == OffreStatut.BROUILLON) && expiree) { // Une offre ouverte ou un nouveau brouillon ne doit pas être périmé.
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La date d'expiration ne peut pas être passée pour ce statut"); // Réponse 400.
@@ -143,4 +134,17 @@ public class OffreService { // Un seul service pour les trois rôles.
         offre.setEntrepriseId(demande.entrepriseId()); // Conserve une simple référence Entreprise.
         offre.setTestRequisId(demande.testRequisId()); // Conserve une simple référence Test.
     } // Fin du mapping.
+
+    private List<Offre> rechercherEtTrier(List<Offre> liste, String search, String sort) { // Une seule petite méthode pour les deux listes.
+        String mot = search.trim().toLowerCase(Locale.ROOT); // Ignore la casse et les espaces autour du mot.
+        Comparator<Offre> ordre = switch (sort) { // Choisit le tri croissant.
+            case "titre" -> Comparator.comparing(Offre::getTitre, String.CASE_INSENSITIVE_ORDER); // Titre de A à Z.
+            case "salaire" -> Comparator.comparing(Offre::getSalaire, Comparator.nullsLast(Comparator.naturalOrder())); // Salaires croissants ; absents à la fin.
+            case "dateExpiration" -> Comparator.comparing(Offre::getDateExpiration); // Expiration la plus proche d'abord.
+            default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tri : titre, salaire ou dateExpiration"); // Refuse un tri inconnu.
+        }; // Fin du choix.
+        return liste.stream() // Parcourt uniquement les offres déjà autorisées.
+                .filter(offre -> offre.getTitre().toLowerCase(Locale.ROOT).contains(mot)) // Garde les titres contenant le mot.
+                .sorted(ordre).toList(); // Trie puis retourne la liste.
+    } // Fin de la recherche simple.
 } // Fin du service.

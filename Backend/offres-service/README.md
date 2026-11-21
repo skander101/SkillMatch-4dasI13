@@ -8,7 +8,8 @@ Spring Boot 3.3.5, Spring Cloud 2023.0.3. Aucun POM parent dans `Backend`.
 - Application : `tn.esprit.skillmatch.offres.OffresServiceApplication`.
 - Port par défaut : **8081** ; base MySQL : **offres_db**.
 - Les entités `Offre` et `Candidature` et le CRUD REST des offres sont présents.
-  Recherche, filtres, tri, CRUD Candidature et interfaces Angular restent à faire.
+  La recherche simple par titre et le tri des offres sont présents.
+  Le CRUD Candidature et les interfaces Angular restent à faire.
   L'identité est vérifiée auprès de `commun-service` ; la vérification locale
   des signatures JWT dans `offres-service` reste prévue à l'étape sécurité.
 - Les dépendances AMQP et Eureka du template sont conservées. L'autoconfiguration
@@ -236,8 +237,9 @@ mvn package
 - `OffreControllerTest` : routes HTTP via MockMvc, validation et codes d'erreur.
 - `IdentiteServiceTest` : vrai client HTTP contre un petit serveur local simulant
   le contrat de commun-service ; aucune vraie signature JWT n'est testée ici.
-- `OffreCrudIT` : contrôleurs, vrai service et vraie base MySQL ; seule l'identité
-  distante est simulée. Les données sont annulées après chaque test.
+- `OffreCrudIT` : un seul scénario court avec le vrai service et MySQL : créer,
+  lire, modifier et supprimer. L'identité distante est simulée et les données
+  sont annulées après le test. Les routes HTTP sont testées dans `OffreControllerTest`.
 
 Les tests `*IT` exigent MySQL et sont lancés explicitement. Aucun compte réel
 n'est créé. Les compteurs d'identifiants peuvent avancer malgré le rollback.
@@ -247,3 +249,31 @@ d'intégration MySQL réussis (3 parcours CRUD et 2 tests du mapping JPA).
 Une lecture de contrôle confirme zéro offre et zéro candidature résiduelles
 après ces tests. La connexion HTTP à un vrai `commun-service` avec de vrais
 comptes et les signatures JWT restent à vérifier à l'étape sécurité.
+
+## Recherche et tri simples
+
+Les deux listes `/skillmatch/offres` et `/skillmatch/offres/mes-offres`
+acceptent seulement deux paramètres :
+
+- `search` : partie du titre, sans tenir compte de la casse.
+- `sort` : `titre` (A-Z, par défaut), `salaire` (croissant, absents à la fin)
+  ou `dateExpiration` (date la plus proche d'abord).
+
+Exemple : `/skillmatch/offres?search=Java&sort=salaire`.
+
+Le repository charge d'abord uniquement les offres autorisées selon le rôle.
+Une petite méthode Java recherche ensuite dans le titre et trie cette liste.
+Cette solution simple convient au projet pédagogique ; elle charge les offres
+autorisées en mémoire. Il n'y a plus de filtres supplémentaires, de DTO de
+recherche ou de Specifications JPA. Les permissions existantes sont conservées.
+
+Tests : `mvn test`, puis
+`mvn "-Dtest=OffreCrudIT,EntityPersistenceIT" test` avec MySQL démarré.
+Les 51 tests sans MySQL ont été vérifiés. Le test `OffreCrudIT` a ensuite été
+raccourci en un seul scénario ; ses règles détaillées restent couvertes par
+`OffreServiceTest`, `OffreControllerTest` et `EntityPersistenceIT`.
+
+Dans `OffreService`, `trouverAccessible` regroupe la recherche d'une offre et
+ses droits d'accès. `exigerGestionnaire` authentifie et retourne le gestionnaire
+autorisé. `verifierDonnees`, `remplir` et `rechercherEtTrier` restent partagées
+pour éviter de répéter les mêmes instructions dans les opérations CRUD.

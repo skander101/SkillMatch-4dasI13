@@ -36,23 +36,23 @@ class OffreServiceTest { // Vérifie les règles indépendamment de HTTP.
     @Test // Lecture ADMIN.
     void adminVoitToutesLesOffres() { // Vérifie le périmètre global.
         connecter("ADMIN"); // Simule un administrateur connecté.
-        service.lister(TOKEN); // Demande la liste.
+        service.lister(TOKEN, "", "titre"); // Demande la liste.
         verify(offres).findAll(); // Vérifie l'absence de filtre propriétaire.
     } // Fin du test.
 
     @Test // Lecture RECRUTEUR.
     void recruteurVoitSeulementSesOffres() { // Vérifie le filtre de propriétaire.
         connecter("RECRUTEUR"); // Utilisateur numéro 1.
-        service.lister(TOKEN); // Demande la liste.
+        service.lister(TOKEN, "", "titre"); // Demande la liste.
         verify(offres).findByRecruteurId(1L); // Aucun identifiant librement choisi.
     } // Fin du test.
 
     @Test // Lecture CANDIDAT.
     void candidatVoitSeulementLesOffresOuvertes() { // Vérifie le filtre statut et date.
         connecter("CANDIDAT"); // Simule un candidat.
-        service.lister(TOKEN); // Consulte le catalogue.
+        service.lister(TOKEN, "", "titre"); // Consulte le catalogue.
         verify(offres).findByStatutAndDateExpirationGreaterThanEqual(OffreStatut.PUBLIEE, LocalDate.now()); // Inclut aujourd'hui.
-        erreur(403, () -> service.mesOffres(TOKEN)); // Le candidat n'a pas d'offres à gérer.
+        erreur(403, () -> service.mesOffres(TOKEN, "", "titre")); // Le candidat n'a pas d'offres à gérer.
     } // Fin du test.
 
     @ParameterizedTest // Répète la même règle pour les trois statuts fermés au candidat.
@@ -211,6 +211,37 @@ class OffreServiceTest { // Vérifie les règles indépendamment de HTTP.
         when(offres.save(offre)).thenReturn(offre); // Enregistrement simulé.
         assertEquals(OffreStatut.FERMEE, service.modifier(10L, fermee, TOKEN).getStatut()); // Fermeture autorisée.
     } // Fin du test.
+
+    @Test // Recherche simple par titre.
+    void rechercheIgnoreLaCasseEtLesEspaces() { // Aucun filtre supplémentaire.
+        connecter("RECRUTEUR"); // Propriétaire connecté.
+        Offre java = offreDeListe("Développeur Java", 2000.0); // Titre correspondant.
+        Offre angular = offreDeListe("Développeur Angular", 3000.0); // Autre titre.
+        when(offres.findByRecruteurId(1L)).thenReturn(List.of(java, angular)); // Seulement ses offres.
+        assertEquals(List.of(java), service.lister(TOKEN, " JAVA ", "titre")); // Recherche insensible à la casse.
+        assertTrue(service.mesOffres(TOKEN, "Python", "titre").isEmpty()); // Aucun titre correspondant.
+    } // Fin du test.
+
+    @Test // Vérifie les trois tris.
+    void trieParTitreSalaireOuExpiration() { // Deux offres suffisent.
+        connecter("ADMIN"); // Toutes les offres sont accessibles.
+        Offre z = offreDeListe("Zebra", 1000.0); // Titre après Alpha, mais salaire plus petit.
+        Offre a = offreDeListe("Alpha", null); // Salaire absent.
+        z.setDateExpiration(LocalDate.now().plusDays(1)); // Expiration plus proche.
+        when(offres.findAll()).thenReturn(List.of(z, a)); // Ordre de départ.
+        assertEquals(List.of(a, z), service.lister(TOKEN, "", "titre")); // A-Z.
+        assertEquals(List.of(z, a), service.lister(TOKEN, "", "salaire")); // Salaire absent à la fin.
+        assertEquals(List.of(z, a), service.lister(TOKEN, "", "dateExpiration")); // Date la plus proche.
+        erreur(400, () -> service.lister(TOKEN, "", "inconnu")); // Tri invalide.
+    } // Fin du test.
+
+    private Offre offreDeListe(String titre, Double salaire) { // Prépare une offre pour la recherche.
+        Offre offre = new Offre(); // Objet de test.
+        offre.setTitre(titre); // Titre recherché.
+        offre.setSalaire(salaire); // Salaire utilisé pour le tri.
+        offre.setDateExpiration(LocalDate.now().plusDays(10)); // Date utilisée pour le tri.
+        return offre; // Retourne l'objet.
+    } // Fin du helper.
 
     private void connecter(String role) { // Prépare seulement le rôle utile au scénario.
         when(identites.courante(TOKEN)).thenReturn(new Identite(1L, "Test", "test@example.invalid", role)); // Identité de test.

@@ -18,13 +18,15 @@ public class OffreController { // Un seul contrôleur pour les trois rôles.
     } // Fin du constructeur.
 
     @GetMapping // GET /skillmatch/offres.
-    public List<Offre> lister(@RequestHeader(value = "Authorization", required = false) String token) { // L'absence du JWT sera traitée en 401.
-        return service.lister(token); // Le service filtre selon le rôle.
+    public List<Offre> lister(@RequestParam(defaultValue = "") String search, @RequestParam(defaultValue = "titre") String sort, // Deux paramètres simples de l'URL.
+                              @RequestHeader(value = "Authorization", required = false) String token) { // JWT de l'utilisateur.
+        return service.lister(token, search, sort); // Recherche seulement dans les offres autorisées.
     } // Fin de la liste.
 
     @GetMapping("/mes-offres") // GET /skillmatch/offres/mes-offres.
-    public List<Offre> mesOffres(@RequestHeader(value = "Authorization", required = false) String token) { // Offres du propriétaire connecté.
-        return service.mesOffres(token); // Ne lit aucun userId depuis le client.
+    public List<Offre> mesOffres(@RequestParam(defaultValue = "") String search, @RequestParam(defaultValue = "titre") String sort, // Même recherche et tri.
+                                 @RequestHeader(value = "Authorization", required = false) String token) { // Identité du propriétaire.
+        return service.mesOffres(token, search, sort); // Ne lit aucun userId depuis le client.
     } // Fin de mes offres.
 
     @GetMapping("/{id}") // GET /skillmatch/offres/12.
