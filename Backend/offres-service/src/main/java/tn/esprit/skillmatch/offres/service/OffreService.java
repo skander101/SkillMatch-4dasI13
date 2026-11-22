@@ -140,6 +140,7 @@ public class OffreService { // Un seul service pour les trois rôles.
         offre.setSalaire(demande.salaire()); // Met à jour le salaire.
         offre.setDateExpiration(demande.dateExpiration()); // Met à jour la date.
         offre.setStatut(demande.statut()); // Met à jour le statut.
+        offre.setNomEntreprise(demande.nomEntreprise()); // Enregistre le nom libre.
         offre.setEntrepriseId(demande.entrepriseId()); // Conserve une simple référence Entreprise.
         offre.setTestRequisId(demande.testRequisId()); // Conserve une simple référence Test.
     } // Fin du mapping.

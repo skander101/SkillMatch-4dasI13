@@ -23,7 +23,6 @@ export class OffreForm implements OnChanges, OnInit {
   @Output() annuler = new EventEmitter<void>();
   private readonly utilisateurs = inject(UserService);
   private readonly references = inject(ReferencesService);
-  readonly entreprises = signal<ChoixReference[]>([]);
   readonly tests = signal<ChoixReference[]>([]);
   readonly recruteurs = signal<User[]>([]);
   readonly chargement = signal(false);
@@ -33,7 +32,7 @@ export class OffreForm implements OnChanges, OnInit {
   readonly aujourdHui = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
   formulaire: OffreRequest = {
     titre: '', description: '', competences: [], localisation: '', contrat: 'CDI',
-    salaire: null, dateExpiration: '', statut: 'BROUILLON', entrepriseId: null, testRequisId: null
+    salaire: null, dateExpiration: '', statut: 'BROUILLON', nomEntreprise: '', entrepriseId: null, testRequisId: null
   };
 
   ngOnInit(): void {
@@ -41,11 +40,9 @@ export class OffreForm implements OnChanges, OnInit {
     forkJoin({ references: this.references.charger(), users: this.admin && !this.offre ? this.utilisateurs.list() : of([]) }).subscribe({
       next: ({ references, users }) => {
         // Conserve les associations des anciennes offres sans inventer leur nom.
-        if (this.offre?.entrepriseId && !references.entreprises.some(e => e.id === this.offre!.entrepriseId))
-          references.entreprises.push({ id: this.offre.entrepriseId, nom: 'Entreprise associée à cette ancienne offre' });
         if (this.offre?.testRequisId && !references.tests.some(t => t.id === this.offre!.testRequisId))
           references.tests.push({ id: this.offre.testRequisId, nom: 'Test associé à cette ancienne offre' });
-        this.entreprises.set(references.entreprises); this.tests.set(references.tests);
+        this.tests.set(references.tests);
         this.recruteurs.set(users.filter(u => u.role === 'RECRUTEUR'));
         this.chargement.set(false);
       },
@@ -72,6 +69,6 @@ export class OffreForm implements OnChanges, OnInit {
     if (!valide || this.erreurDate() || !this.formulaire.titre.trim() || this.enCours || this.chargement() || this.erreurChoix()) return;
     const competences = this.competences.split(',').map(valeur => valeur.trim()).filter(Boolean);
     if (!competences.length) return;
-    this.valider.emit({ ...this.formulaire, titre: this.formulaire.titre.trim(), description: (this.formulaire.description || '').trim(), localisation: (this.formulaire.localisation || '').trim(), competences: [...new Set(competences)] });
+    this.valider.emit({ ...this.formulaire, titre: this.formulaire.titre.trim(), nomEntreprise: (this.formulaire.nomEntreprise || '').trim(), description: (this.formulaire.description || '').trim(), localisation: (this.formulaire.localisation || '').trim(), competences: [...new Set(competences)] });
   }
 }

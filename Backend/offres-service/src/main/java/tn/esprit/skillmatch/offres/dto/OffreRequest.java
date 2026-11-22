@@ -15,11 +15,13 @@ public record OffreRequest( // Un record évite d'écrire des getters et setters
         @NotNull @PositiveOrZero Double salaire, // Salaire obligatoire, positif ou nul.
         @NotNull @FutureOrPresent LocalDate dateExpiration, // La cohérence de la date est vérifiée par le service.
         @NotNull OffreStatut statut, // La création exige BROUILLON.
-        @NotNull @Positive Long entrepriseId, // Référence simple, sans appel Entreprise.
+        @Positive Long entrepriseId, // Référence simple, sans appel Entreprise.
         @Positive Long testRequisId, // Référence simple, sans appel Tests.
-        @Positive Long recruteurId // Obligatoire pour ADMIN à la création ; jamais une preuve d'identité.
+        @Positive Long recruteurId, // Obligatoire pour ADMIN à la création ; jamais une preuve d'identité.
+        @NotBlank @Size(min = 2, max = 255) String nomEntreprise // Nom obligatoire, saisi librement.
 ) {
     public OffreRequest { // Nettoie les espaces avant de vérifier les longueurs.
+        nomEntreprise = nomEntreprise == null ? null : nomEntreprise.trim();
         titre = titre == null ? null : titre.trim();
         description = description == null ? null : description.trim();
         localisation = localisation == null ? null : localisation.trim();

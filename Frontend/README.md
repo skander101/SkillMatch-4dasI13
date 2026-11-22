@@ -202,7 +202,7 @@ distincts des rubriques Offres/Candidatures connectées.
 ### Contrôles des formulaires (ajout et modification)
 
 - Offre RECRUTEUR/ADMIN : titre de 3 à 255 caractères, description de 20 à 10000,
-  compétences, localisation, contrat, salaire et entreprise obligatoires ; test facultatif ; date actuelle ou future.
+  compétences, localisation, contrat, salaire et nom de l’entreprise obligatoires ; test facultatif ; date actuelle ou future.
 - Candidature CANDIDAT/ADMIN : lettre obligatoire de 20 à 10000 caractères,
   sans CV ; choix de l'offre ouverte et du candidat pour l'ajout ADMIN.
 - Traitement RECRUTEUR/ADMIN : statut, date actuelle ou future, note entière positive
@@ -292,13 +292,15 @@ Les offres affichées proviennent de MySQL via la Gateway ; les anciennes cartes
 
 Le dossier `preview/` contient `apercu.html`, une version statique non interactive du template. Elle ne remplace pas `npm start`.
 
-### Listes de démonstration et cartes
+### Entreprise libre, tests de démonstration et cartes
 
-Entreprise et test utilisent le catalogue HTTP local `public/demo/references.json`, chargé
-par `references.service.ts`. Il contient cinq entreprises et sept tests de démonstration.
-Aucun test envoie `testRequisId: null` ; entrepriseId reste obligatoire. Les noms ne sont
-pas stockés dans Offre, uniquement leurs identifiants. Ces données ne sont pas
-les véritables ressources des services Entreprises et Tests : lors de l’intégration,
-remplacer cette source et rapprocher les identifiants de démonstration des véritables identifiants.
-Les anciennes associations hors catalogue restent sélectionnées avec un libellé neutre.
+Le nom de l'entreprise est saisi librement : 2 à 255 caractères, obligatoire en ajout
+et modification ADMIN/RECRUTEUR. Il est enregistré dans offres.nom_entreprise et affiché
+sur la carte et dans le détail. entrepriseId reste facultatif pour une future intégration.
+Les anciennes offres restent lisibles ; renseigner leur nom lors d'une modification.
+Hibernate ddl-auto:update ajoute la colonne au prochain démarrage.
+
+Le catalogue HTTP local public/demo/references.json contient uniquement sept tests de
+démonstration. Aucun test transmet testRequisId:null. Lors de l'intégration, remplacer
+cette source et rapprocher les identifiants de démonstration des vrais identifiants.
 Les cartes partagent un bandeau vert flouté, des icônes et un état gris si indisponibles.

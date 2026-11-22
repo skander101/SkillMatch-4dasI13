@@ -12,6 +12,7 @@ export interface Offre {
   salaire: number | null;
   dateExpiration: string;
   statut: OffreStatut;
+  nomEntreprise: string | null;
   entrepriseId: number | null;
   testRequisId: number | null;
   recruteurId: number;

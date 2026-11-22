@@ -52,7 +52,10 @@ public class Offre { // Déclare l'entité Offre, avec ses champs et ses méthod
     @Column(nullable = false) // Interdit NULL dans cette colonne de la base.
     private OffreStatut statut = OffreStatut.BROUILLON; // Déclare le statut ; BROUILLON est la valeur initiale.
 
-    @Positive // Exige un identifiant strictement supérieur à zéro s'il est renseigné.
+    @Size(max = 255) // Les anciennes offres peuvent conserver un nom absent.
+    private String nomEntreprise; // Nom saisi librement, sans dépendre du service Entreprises.
+
+    @Positive // Référence facultative pour la future intégration.
     private Long entrepriseId; // Déclare l'identifiant de l'entreprise.
 
     @Positive // Exige un identifiant strictement supérieur à zéro s'il est renseigné.
@@ -160,6 +163,10 @@ public class Offre { // Déclare l'entité Offre, avec ses champs et ses méthod
     public void setStatut(OffreStatut statut) { // Permet de renseigner ou modifier le statut.
         this.statut = statut; // Stocke la valeur reçue dans le champ de cet objet.
     } // Ferme le bloc précédent (méthode, condition ou classe).
+
+    public String getNomEntreprise() { return nomEntreprise; }
+
+    public void setNomEntreprise(String nomEntreprise) { this.nomEntreprise = nomEntreprise; }
 
     public Long getEntrepriseId() { // Permet de lire l'identifiant de l'entreprise.
         return entrepriseId; // Retourne l'identifiant de l'entreprise de cet objet.

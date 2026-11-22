@@ -19,7 +19,7 @@ import static org.mockito.Mockito.when; // Prépare la réponse d'identité.
 
 // Lancer avec MySQL : mvn "-Dtest=OffreCrudIT" test.
 // Les routes HTTP sont testées séparément dans OffreControllerTest.
-@SpringBootTest // Utilise le vrai service et la vraie base.
+@SpringBootTest(properties = "eureka.client.enabled=false") // Utilise le vrai service et la vraie base.
 @Transactional // Aucun enregistrement de test n'est conservé.
 class OffreCrudIT { // Un seul scénario, facile à suivre.
     @Autowired OffreService service; // Exécute le CRUD.
@@ -33,8 +33,11 @@ class OffreCrudIT { // Un seul scénario, facile à suivre.
         Offre offre = service.creer(formulaire("Java", OffreStatut.BROUILLON), token); // CREATE : enregistre un brouillon.
         Long id = offre.getId(); // Récupère l'identifiant généré.
         assertTrue(offres.existsById(id)); // Vérifie que l'offre existe dans MySQL.
+        assertEquals("Entreprise de test", service.consulter(id, token).getNomEntreprise());
         assertEquals("Java", service.consulter(id, token).getTitre()); // READ : vérifie le titre.
         service.modifier(id, formulaire("Angular", OffreStatut.PUBLIEE), token); // UPDATE : change le titre et publie.
+        offres.flush(); offres.findById(id).orElseThrow();
+        assertEquals("Entreprise de test", service.consulter(id, token).getNomEntreprise());
         assertEquals("Angular", service.consulter(id, token).getTitre()); // Vérifie le nouveau titre.
         assertEquals(OffreStatut.PUBLIEE, service.consulter(id, token).getStatut()); // Vérifie la publication.
         assertEquals(List.of(offre), service.lister(token, "angular", "titre")); // Vérifie aussi la recherche simple.
@@ -44,6 +47,6 @@ class OffreCrudIT { // Un seul scénario, facile à suivre.
 
     private OffreRequest formulaire(String titre, OffreStatut statut) { // Prépare seulement les données nécessaires.
         return new OffreRequest(titre, "Description détaillée du poste Java", List.of("Java"), "Tunis", ContratType.CDI, 2000.0, // Champs simples.
-                LocalDate.now().plusDays(10), statut, 1L, 1L, null); // Date valide et références obligatoires.
+                LocalDate.now().plusDays(10), statut, 1L, 1L, null, "Entreprise de test"); // Date valide et références obligatoires.
     } // Fin du formulaire.
 } // Fin du fichier.

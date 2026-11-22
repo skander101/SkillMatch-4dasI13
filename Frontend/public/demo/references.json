@@ -1,26 +1,4 @@
 {
-  "entreprises": [
-    {
-      "id": 1,
-      "nom": "Vermeg"
-    },
-    {
-      "id": 2,
-      "nom": "Telnet"
-    },
-    {
-      "id": 3,
-      "nom": "Sofrecom"
-    },
-    {
-      "id": 4,
-      "nom": "Sopra HR"
-    },
-    {
-      "id": 5,
-      "nom": "Talan"
-    }
-  ],
   "tests": [
     {
       "id": 1,

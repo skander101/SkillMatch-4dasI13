@@ -31,7 +31,8 @@ Les espaces autour des textes ne comptent pas dans les longueurs.
 | Contrat et statut | Valeurs autorisées obligatoires ; création BROUILLON |
 | Salaire | Obligatoire, nombre fini positif ou nul |
 | Expiration | Obligatoire, aujourd'hui ou dans le futur, quel que soit le statut |
-| Entreprise | Choix obligatoire ; identifiant entier positif |
+| Nom de l’entreprise | Saisie libre obligatoire, 2 à 255 caractères ; affichée sur les cartes |
+| entrepriseId | Référence facultative pour la future intégration |
 | Test requis | Choix facultatif, Aucun test transmet null ; identifiant positif si fourni |
 | Recruteur | Session RECRUTEUR ; choix obligatoire et vérifié pour une création ADMIN |
 
@@ -238,7 +239,8 @@ l'inscription publique acceptant ADMIN reste à signaler au responsable de
   "salaire": 2000,
   "dateExpiration": "2030-12-31",
   "statut": "BROUILLON",
-  "entrepriseId": 1,
+  "nomEntreprise": "Mon entreprise",
+  "entrepriseId": null,
   "testRequisId": 1,
   "recruteurId": null
 }

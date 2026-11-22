@@ -40,12 +40,9 @@
           @if (etat.invalid && (etat.touched || form.submitted)) { <small class="champ-erreur" role="alert">Choisissez un statut.</small> }
         </label>
       }
-      <div class="large catalogue-note">Entreprises et tests de démonstration : ces choix ne sont pas encore reliés aux services de vos collègues.</div>
-      <label>Entreprise *<select name="entrepriseId" #entreprise="ngModel" [(ngModel)]="formulaire.entrepriseId" required>
-        <option [ngValue]="null">Choisir une entreprise</option>
-        @for (e of entreprises(); track e.id) { <option [ngValue]="e.id">{{ e.nom }}</option> }
-      </select>
-        @if (entreprise.invalid && (entreprise.touched || form.submitted)) { <small class="champ-erreur" role="alert">Choisissez une entreprise.</small> }
+      <div class="large catalogue-note">Tests de démonstration : choisissez un test si nécessaire.</div>
+      <label>Nom de l’entreprise *<input name="nomEntreprise" #entreprise="ngModel" [(ngModel)]="formulaire.nomEntreprise" required saisieValide="texte" minlength="2" maxlength="255" placeholder="Ex. votre entreprise">
+        @if (entreprise.invalid && (entreprise.touched || form.submitted)) { <small class="champ-erreur" role="alert">Nom obligatoire : 2 à 255 caractères, hors espaces autour.</small> }
       </label>
       <label>Test requis<select name="testRequisId" [(ngModel)]="formulaire.testRequisId">
         <option [ngValue]="null">Aucun test</option>

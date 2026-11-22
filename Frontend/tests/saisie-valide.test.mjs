@@ -24,7 +24,7 @@ function valide(valeur, type, regles = []) {
   return Validators.compose([c => validateur.validate(c), ...regles])(new FormControl(valeur)) === null;
 }
 
-test('Références entreprise et test : entiers positifs obligatoires', () => {
+test('Identifiants numériques : entiers positifs', () => {
   const regles = [Validators.required, Validators.min(1)];
   assert.ok(valide(1, 'entier', regles));
   for (const valeur of [null, 0, -1, 1.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1]) assert.equal(valide(valeur, 'entier', regles), false);
@@ -57,7 +57,7 @@ test('une saisie navigateur incorrecte reste invalide même avec un modèle vide
 });
 
 // Les mêmes règles de texte sont utilisées pour ADMIN, CANDIDAT et RECRUTEUR.
-for (const [nom, min, max] of [['titre', 3, 255], ['description', 20, 10000], ['lettre', 20, 10000], ['commentaire', 5, 10000]]) {
+for (const [nom, min, max] of [['entreprise', 2, 255], ['titre', 3, 255], ['description', 20, 10000], ['lettre', 20, 10000], ['commentaire', 5, 10000]]) {
   test(nom + ' : obligatoire, minimum et maximum après nettoyage des espaces', () => {
     champ.minLength = min; champ.maxLength = max;
     const regles = [Validators.required];

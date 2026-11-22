@@ -200,7 +200,7 @@ class OffreServiceTest { // Vérifie les règles indépendamment de HTTP.
         connecter("RECRUTEUR"); // Propriétaire autorisé.
         existante(); // Offre modifiable.
         OffreRequest base = demande(OffreStatut.PUBLIEE, null); // Demande valide à adapter.
-        OffreRequest passee = new OffreRequest(base.titre(), null, base.competences(), null, base.contrat(), null, LocalDate.now().minusDays(1), base.statut(), null, null, null); // Publication périmée.
+        OffreRequest passee = new OffreRequest(base.titre(), null, base.competences(), null, base.contrat(), null, LocalDate.now().minusDays(1), base.statut(), null, null, null, "Entreprise de test"); // Publication périmée.
         erreur(400, () -> service.modifier(10L, passee, TOKEN)); // Publication refusée.
         erreur(400, () -> service.modifier(10L, demande(OffreStatut.EXPIREE, null), TOKEN)); // Date future incompatible avec EXPIREE.
     } // Fin du test.
@@ -210,7 +210,7 @@ class OffreServiceTest { // Vérifie les règles indépendamment de HTTP.
         connecter("RECRUTEUR"); // Propriétaire.
         Offre offre = existante(); // Offre à fermer.
         OffreRequest base = demande(OffreStatut.FERMEE, null); // Formulaire de fermeture.
-        OffreRequest fermee = new OffreRequest(base.titre(), null, base.competences(), null, base.contrat(), null, LocalDate.now().minusDays(1), base.statut(), null, null, null); // Date déjà passée.
+        OffreRequest fermee = new OffreRequest(base.titre(), null, base.competences(), null, base.contrat(), null, LocalDate.now().minusDays(1), base.statut(), null, null, null, "Entreprise de test"); // Date déjà passée.
         erreur(400, () -> service.modifier(10L, fermee, TOKEN)); // Une saisie passée est refusée pour tous les statuts.
     } // Fin du test.
 
@@ -287,7 +287,7 @@ class OffreServiceTest { // Vérifie les règles indépendamment de HTTP.
     } // Fin de la préparation.
 
     private OffreRequest demande(OffreStatut statut, Long proprietaire) { // Formulaire valide standard.
-        return new OffreRequest(" Java ", "Description", List.of("Java"), "Tunis", ContratType.CDI, 2000.0, LocalDate.now().plusDays(5), statut, null, null, proprietaire); // Aucun utilisateur réel créé.
+        return new OffreRequest(" Java ", "Description", List.of("Java"), "Tunis", ContratType.CDI, 2000.0, LocalDate.now().plusDays(5), statut, null, null, proprietaire, "Entreprise de test"); // Aucun utilisateur réel créé.
     } // Fin du formulaire.
 
     private void erreur(int code, Runnable operation) { // Évite de répéter les assertions d'erreur.

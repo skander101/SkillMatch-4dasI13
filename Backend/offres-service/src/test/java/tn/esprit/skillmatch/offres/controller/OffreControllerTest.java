@@ -158,14 +158,14 @@ class OffreControllerTest { // Teste contrôleur, validations et vrai service en
     @ValueSource(strings = {"POST", "PUT"})
     void ajoutEtModificationRefusentLesChampsVidesEtLesLongueursInvalides(String methode) throws Exception {
         var base = json.readTree(formulaire());
-        for (String champ : List.of("titre", "description", "localisation", "salaire", "competences", "contrat", "dateExpiration", "statut", "entrepriseId")) {
+        for (String champ : List.of("titre", "description", "localisation", "salaire", "competences", "contrat", "dateExpiration", "statut", "nomEntreprise")) {
             var corps = base.deepCopy(); ((com.fasterxml.jackson.databind.node.ObjectNode) corps).putNull(champ);
             var route = methode.equals("POST") ? post("/skillmatch/offres") : put("/skillmatch/offres/10");
             mvc.perform(route.contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(corps))).andExpect(status().isBadRequest());
         }
-        for (String champ : List.of("titre", "description")) {
-            int minimum = champ.equals("titre") ? 3 : 20;
-            int maximum = champ.equals("titre") ? 255 : 10000;
+        for (String champ : List.of("titre", "description", "nomEntreprise")) {
+            int minimum = champ.equals("titre") ? 3 : champ.equals("nomEntreprise") ? 2 : 20;
+            int maximum = champ.equals("description") ? 10000 : 255;
             for (String texte : List.of(" ", "a".repeat(minimum - 1), "a".repeat(maximum + 1))) {
                 var corps = base.deepCopy(); ((com.fasterxml.jackson.databind.node.ObjectNode) corps).put(champ, texte);
                 var route = methode.equals("POST") ? post("/skillmatch/offres") : put("/skillmatch/offres/10");
@@ -181,12 +181,13 @@ class OffreControllerTest { // Teste contrôleur, validations et vrai service en
         when(offres.save(any())).thenAnswer(appel -> appel.getArgument(0));
         var corps = (com.fasterxml.jackson.databind.node.ObjectNode) json.readTree(formulaire());
         corps.putNull("testRequisId");
+        corps.putNull("entrepriseId");
         mvc.perform(post("/skillmatch/offres").header("Authorization", "Bearer test")
                 .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(corps)))
-                .andExpect(status().isCreated()).andExpect(jsonPath("$.testRequisId").isEmpty());
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.testRequisId").isEmpty()).andExpect(jsonPath("$.nomEntreprise").value("Entreprise de test"));
     }
 
     private String formulaire() throws Exception { // Formulaire valide commun.
-        return json.writeValueAsString(new OffreRequest("Java", "Description détaillée du poste Java", List.of("Java"), "Tunis", ContratType.CDI, 2000.0, LocalDate.now().plusDays(5), OffreStatut.BROUILLON, 1L, 1L, null)); // Génère un vrai JSON.
+        return json.writeValueAsString(new OffreRequest("Java", "Description détaillée du poste Java", List.of("Java"), "Tunis", ContratType.CDI, 2000.0, LocalDate.now().plusDays(5), OffreStatut.BROUILLON, 1L, 1L, null, "Entreprise de test")); // Génère un vrai JSON.
     } // Fin du formulaire.
 } // Fin des tests HTTP.

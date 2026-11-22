@@ -110,3 +110,5 @@ button:focus-visible, summary:focus-visible { outline: 3px solid #10b981; outlin
 .offre-badge[data-statut="BROUILLON"] { background: linear-gradient(120deg, #fff3cf, #ffe08a); box-shadow: 0 5px 12px #dba12415; }
 .catalogue-note { padding: 12px 14px; border: 1px solid #d6eade; border-radius: 12px; background: #eff9f3; color: #547362; font-size: 12px; line-height: 1.6; }
 @media(prefers-reduced-motion: reduce) { .offre-card { transition: none; } .offre-card:hover { transform: none; } }
+
+.carte-entreprise { margin: -5px 0 12px; color: #08734d; font-size: 13px; font-weight: 700; overflow-wrap: anywhere; }
