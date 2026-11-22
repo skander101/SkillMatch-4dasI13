@@ -19,9 +19,6 @@
         <label class="large">Lettre de motivation *<textarea name="lettre" #motivation="ngModel" [(ngModel)]="lettre" required saisieValide="texte" minlength="20" maxlength="10000" rows="5"></textarea>
           @if (motivation.invalid && (motivation.touched || form.submitted)) { <small class="champ-erreur" role="alert">Lettre obligatoire : 20 à 10000 caractères, hors espaces autour.</small> }
         </label>
-        <label class="large">Référence CV *<input name="cvId" #cv="ngModel" type="number" [(ngModel)]="cvId" saisieValide="entier" required min="1" step="1"><small>Phase 1 : référence numérique de test. Aucun fichier CV n'est envoyé.</small>
-          @if (cv.invalid && (cv.touched || form.submitted)) { <small class="champ-erreur" role="alert">La référence CV doit être un entier positif, par exemple 1.</small> }
-        </label>
       }
       @if (candidature && role !== 'CANDIDAT') {
         <label>Statut *<select name="statut" #etat="ngModel" [(ngModel)]="statut" required>@if (!statuts.includes(candidature.statut)) { <option [value]="candidature.statut" disabled>{{ candidature.statut }}</option> }@for (s of statuts; track s) { <option [value]="s">{{ s }}</option> }</select>

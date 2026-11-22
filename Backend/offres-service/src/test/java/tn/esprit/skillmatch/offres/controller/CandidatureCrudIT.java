@@ -38,17 +38,17 @@ class CandidatureCrudIT {
         offre.setDateExpiration(LocalDate.now().plusDays(10));
         offres.saveAndFlush(offre);
         when(identites.courante("Bearer test")).thenReturn(new Identite(2L, "Test", "test@example.invalid", "CANDIDAT"));
-        String body = "{\"offreId\":" + offre.getId() + ",\"lettre\":\"Je suis motivé pour rejoindre votre équipe Java.\",\"cvId\":3}";
-        mvc.perform(post("/skillmatch/candidatures").header("Authorization", "Bearer test").contentType(MediaType.APPLICATION_JSON).content(body.replace("\"cvId\":3", "\"cvId\":1.5")))
+        String body = "{\"offreId\":" + offre.getId() + ",\"lettre\":\"Je suis motivé pour rejoindre votre équipe Java.\"}";
+        mvc.perform(post("/skillmatch/candidatures").header("Authorization", "Bearer test").contentType(MediaType.APPLICATION_JSON).content(body.replace("}", ",\"cvId\":1.5}")))
                 .andExpect(status().isBadRequest()); // Vérifie la vraie configuration Jackson, sans troncature.
         String resultat = mvc.perform(post("/skillmatch/candidatures").header("Authorization", "Bearer test").contentType(MediaType.APPLICATION_JSON).content(body))
-                .andExpect(status().isCreated()).andExpect(jsonPath("$.statut").value("RECUE")).andExpect(jsonPath("$.dateCandidature").isNotEmpty())
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.statut").value("RECUE")).andExpect(jsonPath("$.dateCandidature").isNotEmpty()).andExpect(jsonPath("$.cvId").isEmpty())
                 .andReturn().getResponse().getContentAsString();
         long id = json.readTree(resultat).get("id").asLong(); // Identifiant réellement généré.
         mvc.perform(get("/skillmatch/candidatures/{id}", id).header("Authorization", "Bearer test")).andExpect(status().isOk());
         mvc.perform(get("/skillmatch/candidatures").header("Authorization", "Bearer test")).andExpect(status().isOk());
-        mvc.perform(put("/skillmatch/candidatures/{id}", id).header("Authorization", "Bearer test").contentType(MediaType.APPLICATION_JSON).content("{\"lettre\":\"Lettre de motivation modifiée pour ce poste\",\"cvId\":4}"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.cvId").value(4));
+        mvc.perform(put("/skillmatch/candidatures/{id}", id).header("Authorization", "Bearer test").contentType(MediaType.APPLICATION_JSON).content("{\"lettre\":\"Lettre de motivation modifiée pour ce poste\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.cvId").isEmpty());
         mvc.perform(post("/skillmatch/candidatures").header("Authorization", "Bearer test").contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isConflict()); // Doublon.
         mvc.perform(delete("/skillmatch/candidatures/{id}", id).header("Authorization", "Bearer test")).andExpect(status().isNoContent());
         assertEquals(CandidatureStatut.RETIREE, candidatures.findById(id).orElseThrow().getStatut()); // Retrait logique.

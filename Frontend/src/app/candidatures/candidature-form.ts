@@ -32,7 +32,6 @@ export class CandidatureForm implements OnInit {
     : ['PRESELECTIONNEE', 'ENTRETIEN_PLANIFIE', 'ACCEPTEE', 'REFUSEE'];
   readonly aujourdHui = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
   lettre = '';
-  cvId: number | null = null;
   userId: number | null = null;
   statut: CandidatureStatut = 'RECUE';
   entretien = '';
@@ -42,7 +41,7 @@ export class CandidatureForm implements OnInit {
   ngOnInit(): void {
     const c = this.candidature;
     if (c) { // Copie les valeurs sans modifier la carte affichée.
-      this.lettre = c.lettre; this.cvId = c.cvId; this.statut = c.statut;
+      this.lettre = c.lettre; this.statut = c.statut;
       this.entretien = c.dateEntretien?.slice(0, 16) || '';
       this.note = c.noteRecruteur; this.commentaire = c.commentaireRecruteur || '';
     }
@@ -73,12 +72,12 @@ export class CandidatureForm implements OnInit {
     if (!valide || this.enCours || this.chargement() || this.erreurChoix() || this.erreurEntretien()) return;
     if (this.role !== 'RECRUTEUR' && !this.lettre.trim()) return;
     if (!this.candidature) {
-      if (!this.offreId || !this.cvId) return;
-      this.valider.emit({ offreId: this.offreId, cvId: this.cvId, lettre: this.lettre.trim(), ...(this.role === 'ADMIN' && this.userId ? { userId: this.userId } : {}) });
+      if (!this.offreId) return;
+      this.valider.emit({ offreId: this.offreId, lettre: this.lettre.trim(), ...(this.role === 'ADMIN' && this.userId ? { userId: this.userId } : {}) });
       return;
     }
     const demande: CandidatureUpdate = {};
-    if (this.role !== 'RECRUTEUR') { demande.lettre = this.lettre.trim(); demande.cvId = this.cvId!; }
+    if (this.role !== 'RECRUTEUR') { demande.lettre = this.lettre.trim(); }
     if (this.role !== 'CANDIDAT') {
       if (this.statut !== this.candidature.statut) demande.statut = this.statut;
       // Envoie les champs validés, y compris pour ADMIN.

@@ -37,10 +37,9 @@ public class Candidature { // Déclare l'entité Candidature, avec ses champs et
     @Column(nullable = false) // Interdit NULL dans cette colonne de la base.
     private Long userId; // Déclare l'identifiant du candidat.
 
-    @NotNull // Refuse une valeur null lors de la validation.
-    @Positive // Exige un identifiant strictement supérieur à zéro s'il est renseigné.
-    @Column(nullable = false) // Interdit NULL dans cette colonne de la base.
-    private Long cvId; // Déclare l'identifiant du CV.
+    @Positive // Référence positive si renseignée, facultative pour postuler.
+    @Column(nullable = true) // Autorise une candidature sans CV en base.
+    private Long cvId; // Conservé pour la future intégration du service Profils.
 
     // Aucune cascade : supprimer une candidature ne supprime jamais son offre.
     @NotNull // Refuse une valeur null lors de la validation.

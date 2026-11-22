@@ -123,10 +123,8 @@ public class CandidatureService {
         }
         if (!"RECRUTEUR".equals(u.role())) { // Même contrôle pour le candidat et ADMIN.
             String lettre = d.lettre() == null ? c.getLettre() : d.lettre();
-            Long cv = d.cvId() == null ? c.getCvId() : d.cvId();
             if (lettre == null || lettre.trim().length() < 20 || lettre.trim().length() > 10000)
                 throw erreur(400, "La lettre est obligatoire : 20 à 10000 caractères");
-            if (cv == null || cv <= 0) throw erreur(400, "La référence CV est obligatoire et positive");
         }
         LocalDateTime entretien = d.dateEntretien() == null ? c.getDateEntretien() : d.dateEntretien(); // Date effective.
         if (!"CANDIDAT".equals(u.role())) { // Traitement obligatoire pour ADMIN et RECRUTEUR.

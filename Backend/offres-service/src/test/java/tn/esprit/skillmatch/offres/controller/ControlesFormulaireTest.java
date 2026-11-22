@@ -27,7 +27,7 @@ class ControlesFormulaireTest {
         var identites = mock(IdentiteService.class);
         when(identites.courante("Bearer test")).thenReturn(new Identite(1L, "Test", "test@example.invalid", role));
         Offre offre = new Offre(); offre.setId(2L); offre.setRecruteurId(1L);
-        Candidature c = new Candidature(); c.setOffre(offre); c.setUserId(1L); c.setCvId(1L);
+        Candidature c = new Candidature(); c.setOffre(offre); c.setUserId(1L); c.setCvId(null);
         c.setLettre("Je souhaite rejoindre votre équipe de développement.");
         when(repository.findById(1L)).thenReturn(Optional.of(c));
         when(repository.save(c)).thenReturn(c);
@@ -37,7 +37,7 @@ class ControlesFormulaireTest {
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setMessageConverters(new MappingJackson2HttpMessageConverter(json)).build();
         Map<String, Object> valide = new HashMap<>();
-        if (!role.equals("RECRUTEUR")) { valide.put("lettre", c.getLettre()); valide.put("cvId", 1); }
+        if (!role.equals("RECRUTEUR")) { valide.put("lettre", c.getLettre()); }
         if (!role.equals("CANDIDAT")) {
             valide.put("dateEntretien", LocalDate.now().atStartOfDay()); // Aujourd'hui est accepté, même si l'heure est passée.
             valide.put("noteRecruteur", 0); valide.put("commentaireRecruteur", "Profil intéressant");

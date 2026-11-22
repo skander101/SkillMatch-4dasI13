@@ -147,7 +147,7 @@ la création. Le propriétaire d'une offre existante reste inchangé.
 ## Candidatures et administration
 
 - CANDIDAT : « Postuler » depuis une offre ouverte, consulter ses candidatures,
-  modifier lettre/CV et retirer une candidature au statut `RECUE`.
+  modifier sa lettre et retirer une candidature au statut `RECUE`.
 - RECRUTEUR : consulter les candidatures de ses offres et modifier le statut,
   la date d'entretien, la note et le commentaire. Aucune suppression recruteur.
 - ADMIN : rubriques « Toutes les offres » et « Toutes les candidatures » dans
@@ -191,25 +191,22 @@ selon le JWT : le navigateur ne choisit pas l'identité du candidat connecté.
 `search` cherche dans la lettre ; `sort` vaut `dateCandidature` ou
 `dateCandidatureDesc` (récentes d'abord par défaut).
 
-Limites de phase 1 : saisir une référence CV numérique de test, sans envoi de
-fichier ni connexion à Profils. Un retrait conserve la candidature et interdit
+Le dépôt nécessite seulement la lettre de motivation : aucun champ CV, aucun
+envoi de fichier ni connexion à Profils. cvId reste facultatif pour une future intégration. Un retrait conserve la candidature et interdit
 un nouveau dépôt sur la même offre. Une suppression ADMIN est définitive.
 Une offre ayant des candidatures doit être fermée ; sa suppression est refusée.
-Les champs d'entretien et note laissés vides conservent leur valeur backend.
+Les champs de traitement sont obligatoires dans le formulaire ADMIN/RECRUTEUR.
 Le tableau de bord et les autres modules de démonstration du collègue restent
 distincts des rubriques Offres/Candidatures connectées.
 
 ### Contrôles des formulaires (ajout et modification)
 
-- Offre RECRUTEUR/ADMIN : titre non vide, contrat et expiration obligatoires,
-  cohérence date/statut, salaire facultatif positif ou nul, limites de texte,
-  références facultatives entières positives et choix du recruteur pour ADMIN.
-- Candidature CANDIDAT/ADMIN : lettre non vide (10000 caractères maximum),
-  CV entier positif, choix de l'offre ouverte et du candidat pour l'ajout ADMIN.
-- Traitement RECRUTEUR/ADMIN : statut obligatoire, note facultative entière
-  positive ou nulle, commentaire limité à 10000 caractères ; une nouvelle date
-  d'entretien doit être future et une planification nécessite une date.
-  Une date existante inchangée n'est pas renvoyée, même si elle est passée.
+- Offre RECRUTEUR/ADMIN : titre de 3 à 255 caractères, description de 20 à 10000,
+  compétences, localisation, contrat, salaire et références obligatoires ; date actuelle ou future.
+- Candidature CANDIDAT/ADMIN : lettre obligatoire de 20 à 10000 caractères,
+  sans CV ; choix de l'offre ouverte et du candidat pour l'ajout ADMIN.
+- Traitement RECRUTEUR/ADMIN : statut, date actuelle ou future, note entière positive
+  ou nulle et commentaire de 5 à 10000 caractères obligatoires.
 
 Les champs invalides sont signalés après avoir quitté le champ ou cliqué sur
 Enregistrer ; aucune requête d'enregistrement ne part tant que le formulaire

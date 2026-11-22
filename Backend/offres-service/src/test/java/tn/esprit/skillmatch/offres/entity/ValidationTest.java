@@ -37,15 +37,16 @@ class ValidationTest { // Regroupe les tests de ValidationTest.
     } // Ferme le bloc précédent (méthode, condition ou classe).
 
     @Test // Indique que JUnit doit exécuter cette méthode comme un test.
-    void candidatureExigeUneOffreUnCandidatEtUnCv() { // Teste les références obligatoires d'une candidature.
+    void candidatureExigeUneOffreEtUnCandidatMaisPasDeCv() { // Teste les références obligatoires d'une candidature.
         try (var factory = Validation.buildDefaultValidatorFactory()) { // Crée le moteur de validation et garantit sa fermeture à la fin du bloc.
             Candidature candidature = new Candidature(); // Crée une candidature Java vide pour le test.
             Set<String> erreurs = factory.getValidator().validate(candidature).stream() // Valide la candidature vide et parcourt les erreurs trouvées.
                     .map(erreur -> erreur.getPropertyPath().toString()).collect(Collectors.toSet()); // Récupère les noms des champs en erreur dans un ensemble.
-            assertTrue(erreurs.containsAll(Set.of("offre", "userId", "cvId"))); // Vérifie que l'offre, le candidat et le CV sont obligatoires.
+            assertTrue(erreurs.containsAll(Set.of("offre", "userId"))); // L’offre et le candidat sont obligatoires.
             candidature.setOffre(new Offre()); // Fournit une offre Java ; ce test ne vérifie pas son existence en base.
             candidature.setUserId(2L); // Utilise un identifiant de candidat de test, sans vérification externe.
-            candidature.setCvId(3L); // Utilise un identifiant de CV de test, sans vérifier le service Profils.
+            assertFalse(erreurs.contains("cvId")); // Le CV est facultatif.
+            candidature.setCvId(null); // Une candidature peut être enregistrée sans CV.
             assertTrue(factory.getValidator().validate(candidature).isEmpty()); // Vérifie les contraintes de la candidature une fois ses références renseignées.
         } // Ferme le bloc précédent (méthode, condition ou classe).
     } // Ferme le bloc précédent (méthode, condition ou classe).

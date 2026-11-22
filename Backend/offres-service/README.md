@@ -38,7 +38,7 @@ Les espaces autour des textes ne comptent pas dans les longueurs.
 |---|---|
 | Offre et candidat | Offre ouverte et candidat identifié ; sélection obligatoire pour ADMIN |
 | Lettre | Obligatoire au dépôt et en modification candidat/ADMIN, 20 à 10000 caractères |
-| Référence CV | Obligatoire, entier positif |
+| Référence CV | Facultative, entier positif si fournie ; absente des formulaires |
 | Statut | Valeur autorisée selon le rôle ; RECUE automatique au dépôt |
 | Date d'entretien | Obligatoire lors du traitement ADMIN/RECRUTEUR, aujourd'hui ou dans le futur |
 | Note | Obligatoire lors du traitement ADMIN/RECRUTEUR, entier de 0 à 2147483647 |
@@ -49,6 +49,10 @@ Les champs de traitement ne sont pas demandés au candidat ni à la création.
 Une ancienne date d'entretien doit être actualisée avant un nouveau traitement.
 Les anciennes données restent lisibles ; une modification doit respecter les nouvelles règles.
 Le rôle CANDIDAT ne peut pas ajouter ou modifier une offre.
+
+Pour une base existante, exécuter une fois [sql/cv-facultatif.sql](sql/cv-facultatif.sql)
+dans offres_db : Hibernate update ne retire pas forcément l'ancienne contrainte NOT NULL.
+La base locale a été adaptée ; les anciennes références CV sont conservées.
 
 ## Démarrage dans IntelliJ
 
@@ -326,7 +330,7 @@ Un contrôleur et un service, avec cinq routes :
 | PUT | `/skillmatch/candidatures/{id}` | Modification selon le rôle |
 | DELETE | `/skillmatch/candidatures/{id}` | Retrait candidat ou suppression physique ADMIN |
 
-Création : `{"offreId":1,"lettre":"Ma lettre de motivation","cvId":3}`.
+Création : `{"offreId":1,"lettre":"Ma lettre de motivation pour ce poste."}`.
 Le candidat vient du JWT via le service commun. Pour ADMIN, ajouter `userId` :
 son existence et son rôle CANDIDAT sont vérifiés côté serveur.
 
@@ -338,7 +342,7 @@ avec une note, un commentaire et une date d'entretien obligatoires. La date
 doit être aujourd'hui ou dans le futur. Une candidature retirée ne peut plus être traitée
 par le recruteur. ADMIN peut modifier les données et tous les statuts.
 
-Exemples PUT : candidat `{"lettre":"Je souhaite rejoindre votre équipe Java.","cvId":4}` ;
+Exemples PUT : candidat `{"lettre":"Je souhaite rejoindre votre équipe Java."}` ;
 recruteur `{"statut":"PRESELECTIONNEE","noteRecruteur":8,"commentaireRecruteur":"Profil intéressant","dateEntretien":"2030-12-31T10:00:00"}` (adapter la date).
 Un champ absent conserve sa valeur ; les champs candidat/offre et la date du
 dépôt ne sont pas modifiables par cette route. La création initialise toujours
@@ -441,7 +445,8 @@ Voir [le guide frontend](../../Frontend/README.md) pour les écrans et leur dém
 L'interface des candidatures est aussi connectée : dépôt et suivi candidat,
 traitement recruteur, ainsi que les deux CRUD ADMIN dans le back-office existant.
 Les contrôles métier restent dans ce service ; aucun nouveau backend ADMIN.
-En phase 1, `cvId` est une référence numérique de test, sans dépôt de fichier.
+Le formulaire ne demande plus de CV : la lettre suffit. `cvId` est nullable et
+facultatif dans l’API pour la future intégration Profils ; les références existantes sont conservées.
 
 ## Améliorations des écrans
 

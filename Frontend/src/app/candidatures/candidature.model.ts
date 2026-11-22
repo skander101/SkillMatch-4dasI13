@@ -5,7 +5,7 @@ export interface Candidature {
   offreId: number;
   offreTitre: string;
   userId: number;
-  cvId: number;
+  cvId: number | null;
   lettre: string;
   statut: CandidatureStatut;
   dateCandidature: string;
@@ -17,7 +17,7 @@ export interface Candidature {
 export interface CandidatureCreation {
   offreId: number;
   lettre: string;
-  cvId: number;
+  cvId?: number;
   userId?: number;
 }
 

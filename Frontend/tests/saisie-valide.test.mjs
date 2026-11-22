@@ -24,7 +24,7 @@ function valide(valeur, type, regles = []) {
   return Validators.compose([c => validateur.validate(c), ...regles])(new FormControl(valeur)) === null;
 }
 
-test('CV : entier positif obligatoire, jamais décimal ou vide', () => {
+test('Références entreprise et test : entiers positifs obligatoires', () => {
   const regles = [Validators.required, Validators.min(1)];
   assert.ok(valide(1, 'entier', regles));
   for (const valeur of [null, 0, -1, 1.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1]) assert.equal(valide(valeur, 'entier', regles), false);
