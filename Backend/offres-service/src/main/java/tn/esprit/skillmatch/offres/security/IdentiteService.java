@@ -42,23 +42,31 @@ public class IdentiteService { // Ne lit jamais un rôle envoyé par le formulai
     } // Fin de la résolution.
 
     public void verifierRecruteur(Long id, String authorization) { // Contrôle le propriétaire choisi par ADMIN.
-        if (id == null || id <= 0) { // Un administrateur doit choisir un recruteur.
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Choisir un recruteur existant"); // Réponse 400.
+        verifierUtilisateur(id, authorization, "RECRUTEUR"); // Réutilise la vérification commune.
+    }
+
+    public void verifierCandidat(Long id, String authorization) { // Contrôle le candidat choisi par ADMIN.
+        verifierUtilisateur(id, authorization, "CANDIDAT"); // Ne crée aucun utilisateur fictif.
+    }
+
+    private void verifierUtilisateur(Long id, String authorization, String role) { // Même vérification pour les deux rôles.
+        if (id == null || id <= 0) { // Un administrateur doit choisir un utilisateur.
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Choisir un utilisateur existant"); // Réponse 400.
         } // Fin du contrôle.
-        Identite recruteur; // Utilisateur à vérifier dans commun-service.
+        Identite utilisateur; // Utilisateur à vérifier dans commun-service.
         try { // Utilise le CRUD ADMIN déjà existant.
-            recruteur = client.get().uri("/skillmatch/utilisateurs/{id}", id).header("Authorization", authorization) // Transmet le JWT ADMIN.
+            utilisateur = client.get().uri("/skillmatch/utilisateurs/{id}", id).header("Authorization", authorization) // Transmet le JWT ADMIN.
                     .retrieve().body(Identite.class); // Récupère le vrai rôle de l'utilisateur choisi.
         } catch (RestClientResponseException exception) { // Adapte l'erreur du service commun.
             if (exception.getStatusCode().value() == 404) { // Identifiant inexistant.
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Recruteur inexistant"); // Refuse une association inventée.
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Utilisateur inexistant"); // Refuse une association inventée.
             } // Fin du contrôle 404.
-            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Vérification du recruteur impossible"); // Refuse la création en cas d'incertitude.
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Vérification de l'utilisateur impossible"); // Refuse la création en cas d'incertitude.
         } catch (RestClientException exception) { // Panne de communication.
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Service utilisateurs indisponible"); // Réponse 503.
         } // Fin de l'appel HTTP.
-        if (recruteur == null || !id.equals(recruteur.id()) || !"RECRUTEUR".equals(recruteur.role())) { // Vérifie l'identifiant et le rôle réels.
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Le propriétaire doit être un recruteur"); // Refuse ADMIN ou CANDIDAT comme propriétaire.
+        if (utilisateur == null || !id.equals(utilisateur.id()) || !role.equals(utilisateur.role())) { // Vérifie l'identifiant et le rôle demandés.
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Le rôle de l'utilisateur doit être " + role); // Refuse un rôle incorrect.
         } // Fin de la vérification.
     } // Fin du contrôle administratif.
 

@@ -48,6 +48,13 @@ class EntityPersistenceIT { // Regroupe les tests de EntityPersistenceIT.
         assertThrows(PersistenceException.class, () -> em.flush()); // Vérifie que la clé étrangère bloque cette suppression.
     } // Ferme le bloc précédent (méthode, condition ou classe).
 
+    @Test // Protection des doublons au niveau MySQL.
+    void interditDeuxCandidaturesDuMemeCandidatPourLaMemeOffre() {
+        Offre offre = creerOffre();
+        creerCandidature(offre);
+        assertThrows(PersistenceException.class, () -> creerCandidature(offre)); // Même en cas de demandes simultanées.
+    }
+
     private Offre creerOffre() { // Regroupe la préparation d'une offre valide pour les tests MySQL.
         Offre offre = new Offre(); // Crée une offre Java vide pour le test.
         offre.setTitre("Offre de test transactionnel"); // Donne un titre à l'offre de test.

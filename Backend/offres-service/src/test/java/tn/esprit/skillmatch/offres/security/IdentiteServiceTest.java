@@ -86,6 +86,13 @@ class IdentiteServiceTest { // Ce faux serveur ne signe pas de JWT ; il teste le
         erreur(400, () -> service.verifierRecruteur(null, "Bearer admin")); // Propriétaire obligatoire.
     } // Fin du test.
 
+    @Test // Création administrative d'une candidature.
+    void verifieUnCandidatExistant() {
+        erreur(400, () -> service.verifierCandidat(7L, "Bearer admin")); // Le faux serveur retourne d'abord RECRUTEUR.
+        reponse = reponse.replace("RECRUTEUR", "CANDIDAT"); // Retourne maintenant un vrai candidat.
+        service.verifierCandidat(7L, "Bearer admin"); // Vérification acceptée.
+    }
+
     private void erreur(int codeAttendu, Runnable operation) { // Vérification commune.
         ResponseStatusException exception = assertThrows(ResponseStatusException.class, operation::run); // Capture l'erreur.
         assertEquals(codeAttendu, exception.getStatusCode().value()); // Vérifie le statut.

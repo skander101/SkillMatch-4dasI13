@@ -1,0 +1,100 @@
+package tn.esprit.skillmatch.offres.service; // Tests courts des règles essentielles.
+
+import org.junit.jupiter.api.*; // Tests et préparation.
+import org.junit.jupiter.api.extension.ExtendWith; // Active Mockito.
+import org.mockito.*; // Faux repositories.
+import org.mockito.junit.jupiter.MockitoExtension; // Support Mockito.
+import org.springframework.web.server.ResponseStatusException; // Erreurs attendues.
+import tn.esprit.skillmatch.offres.dto.*; // Formulaires.
+import tn.esprit.skillmatch.offres.entity.*; // Entités.
+import tn.esprit.skillmatch.offres.enums.*; // Statuts.
+import tn.esprit.skillmatch.offres.repository.*; // Repositories simulés.
+import tn.esprit.skillmatch.offres.security.IdentiteService; // Identité simulée.
+import tn.esprit.skillmatch.offres.security.IdentiteService.Identite;
+import java.time.LocalDate; // Date de l'offre.
+import java.util.Optional; // Résultats des recherches.
+import static org.junit.jupiter.api.Assertions.*; // Vérifications.
+import static org.mockito.Mockito.*; // Simulation.
+
+@ExtendWith(MockitoExtension.class)
+class CandidatureServiceTest {
+    @Mock CandidatureRepository candidatures;
+    @Mock OffreRepository offres;
+    @Mock IdentiteService identites;
+    CandidatureService service;
+    Offre offre;
+    Candidature candidature;
+    final String token = "Bearer test";
+
+    @BeforeEach
+    void preparer() { // Jeu de données local, sans MySQL.
+        service = new CandidatureService(candidatures, offres, identites);
+        offre = new Offre();
+        offre.setId(10L);
+        offre.setRecruteurId(2L);
+        offre.setStatut(OffreStatut.PUBLIEE);
+        offre.setDateExpiration(LocalDate.now().plusDays(10));
+        candidature = new Candidature();
+        candidature.setOffre(offre);
+        candidature.setUserId(1L);
+    }
+
+    @Test
+    void creationRefuseUsurpationOffreFermeeEtDoublon() {
+        connecter("CANDIDAT", 1L);
+        erreur(403, () -> service.creer(new CandidatureRequest(10L, "Lettre", 3L, 9L), token)); // Faux propriétaire.
+        when(offres.findById(10L)).thenReturn(Optional.of(offre));
+        offre.setStatut(OffreStatut.FERMEE);
+        erreur(409, () -> service.creer(demande(), token)); // Offre fermée.
+        offre.setStatut(OffreStatut.PUBLIEE);
+        offre.setDateExpiration(LocalDate.now().minusDays(1));
+        erreur(409, () -> service.creer(demande(), token)); // Offre expirée.
+        offre.setDateExpiration(LocalDate.now().plusDays(10));
+        when(candidatures.existsByUserIdAndOffreId(1L, 10L)).thenReturn(true);
+        erreur(409, () -> service.creer(demande(), token)); // Déjà postulé.
+    }
+
+    @Test
+    void candidatNePeutPasSeNoterNiModifierApresTraitement() {
+        connecter("CANDIDAT", 1L);
+        when(candidatures.findById(5L)).thenReturn(Optional.of(candidature));
+        erreur(403, () -> service.modifier(5L, new CandidatureUpdate(null, null, CandidatureStatut.ACCEPTEE, null, 20, null), token));
+        candidature.setStatut(CandidatureStatut.PRESELECTIONNEE);
+        erreur(409, () -> service.modifier(5L, new CandidatureUpdate("Lettre", 3L, null, null, null, null), token));
+        erreur(409, () -> service.supprimer(5L, token)); // Retrait trop tardif.
+    }
+
+    @Test
+    void autreCandidatEtAutreRecruteurSontRefuses() {
+        when(candidatures.findById(5L)).thenReturn(Optional.of(candidature));
+        connecter("CANDIDAT", 9L);
+        erreur(403, () -> service.consulter(5L, token));
+        connecter("RECRUTEUR", 9L);
+        erreur(403, () -> service.consulter(5L, token));
+        connecter("RECRUTEUR", 2L);
+        erreur(403, () -> service.supprimer(5L, token)); // Même le propriétaire de l'offre ne peut pas supprimer.
+        erreur(403, () -> service.creer(demande(), token)); // Il ne peut pas postuler non plus.
+        erreur(400, () -> service.modifier(5L, new CandidatureUpdate(null, null, CandidatureStatut.ENTRETIEN_PLANIFIE, null, null, null), token));
+        when(candidatures.save(candidature)).thenReturn(candidature);
+        assertEquals(8, service.modifier(5L, new CandidatureUpdate(null, null, CandidatureStatut.PRESELECTIONNEE, null, 8, "Avis"), token).noteRecruteur()); // Traitement autorisé.
+        candidature.setStatut(CandidatureStatut.RETIREE);
+        erreur(409, () -> service.modifier(5L, new CandidatureUpdate(null, null, CandidatureStatut.ACCEPTEE, null, null, null), token)); // Retrait respecté.
+    }
+
+    @Test
+    void adminVerifieLeCandidatAvantDeCreer() {
+        connecter("ADMIN", 9L);
+        when(offres.findById(10L)).thenReturn(Optional.of(offre));
+        when(candidatures.saveAndFlush(any())).thenAnswer(appel -> appel.getArgument(0));
+        assertEquals(7L, service.creer(new CandidatureRequest(10L, "Lettre", 3L, 7L), token).userId());
+        verify(identites).verifierCandidat(7L, token); // Vérification serveur exigée.
+    }
+
+    private CandidatureRequest demande() { return new CandidatureRequest(10L, "Lettre", 3L, null); } // Candidat de session.
+
+    private void connecter(String role, Long id) { when(identites.courante(token)).thenReturn(new Identite(id, "Test", "test@example.invalid", role)); } // Identité de test.
+
+    private void erreur(int code, Runnable action) {
+        assertEquals(code, assertThrows(ResponseStatusException.class, action::run).getStatusCode().value()); // Vérifie le refus exact.
+    }
+}

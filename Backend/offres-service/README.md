@@ -9,7 +9,7 @@ Spring Boot 3.3.5, Spring Cloud 2023.0.3. Aucun POM parent dans `Backend`.
 - Port par défaut : **8081** ; base MySQL : **offres_db**.
 - Les entités `Offre` et `Candidature` et le CRUD REST des offres sont présents.
   La recherche simple par titre et le tri des offres sont présents.
-  Le CRUD Candidature et les interfaces Angular restent à faire.
+  Le CRUD Candidature est présent ; les interfaces Angular restent à faire.
   L'identité est vérifiée auprès de `commun-service` ; la vérification locale
   des signatures JWT dans `offres-service` reste prévue à l'étape sécurité.
 - Les dépendances AMQP et Eureka du template sont conservées. L'autoconfiguration
@@ -280,3 +280,59 @@ Dans `OffreService`, `trouverAccessible` regroupe la recherche d'une offre et
 ses droits d'accès. `exigerGestionnaire` authentifie et retourne le gestionnaire
 autorisé. `verifierDonnees`, `remplir` et `rechercherEtTrier` restent partagées
 pour éviter de répéter les mêmes instructions dans les opérations CRUD.
+
+## CRUD Candidature
+
+Un contrôleur et un service, avec cinq routes :
+
+| Méthode | Route | Utilité |
+|---|---|---|
+| GET | `/skillmatch/candidatures` | Candidat : les siennes ; recruteur : reçues sur ses offres ; ADMIN : toutes |
+| GET | `/skillmatch/candidatures/{id}` | Détail avec le même contrôle d'accès |
+| POST | `/skillmatch/candidatures` | Candidat ou ADMIN, offre publiée non expirée |
+| PUT | `/skillmatch/candidatures/{id}` | Modification selon le rôle |
+| DELETE | `/skillmatch/candidatures/{id}` | Retrait candidat ou suppression physique ADMIN |
+
+Création : `{"offreId":1,"lettre":"Ma lettre de motivation","cvId":3}`.
+Le candidat vient du JWT via le service commun. Pour ADMIN, ajouter `userId` :
+son existence et son rôle CANDIDAT sont vérifiés côté serveur.
+
+Le candidat peut modifier `lettre` et `cvId` seulement au statut `RECUE`.
+Son DELETE passe au statut `RETIREE`, sans effacer l'historique. Le recruteur
+ne peut ni créer ni supprimer : il traite uniquement les candidatures de ses
+offres (`PRESELECTIONNEE`, `ENTRETIEN_PLANIFIE`, `ACCEPTEE`, `REFUSEE`),
+avec une note, un commentaire et une date d'entretien facultatifs. Un entretien
+planifié exige une date future. Une candidature retirée ne peut plus être traitée
+par le recruteur. ADMIN peut modifier les données et tous les statuts.
+
+Exemples PUT : candidat `{"lettre":"Nouvelle lettre","cvId":4}` ;
+recruteur `{"statut":"PRESELECTIONNEE","noteRecruteur":8}`.
+Un champ absent conserve sa valeur ; les champs candidat/offre et la date du
+dépôt ne sont pas modifiables par cette route. La création initialise toujours
+`RECUE` et la date courante. Le JSON de réponse contient `offreId`, pas l'entité
+Offre complète.
+
+Règle de doublon volontairement simple : une candidature par candidat et offre,
+même après retrait. Une contrainte MySQL protège aussi les demandes simultanées.
+Le doublon renvoie 409. Une suppression physique par ADMIN libère cette paire.
+Le `cvId` reste une référence positive non vérifiée auprès de Profils : aucune
+fausse validation de CV, aucun stockage de fichier ajouté.
+
+Les trois petits DTO sont `CandidatureRequest` (création),
+`CandidatureUpdate` (modification) et `CandidatureResponse` (réponse JSON).
+Pas de recherche, de tri supplémentaire, de notifications ou de matching dans
+cette étape. Les routes Gateway et les écrans Angular ne sont pas encore branchés.
+
+Vérification :
+
+```powershell
+mvn test
+mvn "-Dtest=CandidatureCrudIT,OffreCrudIT,EntityPersistenceIT" test
+```
+
+Les tests MySQL annulent leurs données. L'identité distante y est simulée ;
+les vrais comptes et signatures JWT seront vérifiés à l'étape sécurité.
+
+Résultat de cette étape : 59 tests sans MySQL et 5 tests d'intégration MySQL
+réussis, JAR généré. La contrainte anti-doublon est présente dans MySQL et
+les deux tables sont revenues à zéro ligne après les tests.

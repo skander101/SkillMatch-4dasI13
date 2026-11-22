@@ -9,7 +9,7 @@ import java.time.LocalDateTime; // Importe les dates avec l'heure.
 import java.util.Objects; // Importe les vérifications simples comme le refus de null.
 
 @Entity // Indique à JPA que cette classe est enregistrée dans une table.
-@Table(name = "candidatures") // Associe cette classe à la table candidatures dans offres_db.
+@Table(name = "candidatures", uniqueConstraints = @UniqueConstraint(name = "uk_candidature_user_offre", columnNames = {"user_id", "offre_id"})) // Une seule candidature par candidat et offre, même après retrait.
 public class Candidature { // Déclare l'entité Candidature, avec ses champs et ses méthodes.
     @Id // Désigne la clé primaire de la table.
     @GeneratedValue(strategy = GenerationType.IDENTITY) // Laisse MySQL générer l'identifiant avec AUTO_INCREMENT.
