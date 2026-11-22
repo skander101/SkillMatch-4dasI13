@@ -205,14 +205,13 @@ class OffreServiceTest { // Vérifie les règles indépendamment de HTTP.
         erreur(400, () -> service.modifier(10L, demande(OffreStatut.EXPIREE, null), TOKEN)); // Date future incompatible avec EXPIREE.
     } // Fin du test.
 
-    @Test // Fermeture d'une offre périmée.
-    void peutFermerUneOffreDontLaDateEstPassee() { // La conservation d'un historique reste possible.
+    @Test // Date passée refusée pour une fermeture.
+    void refuseUneDatePasseeMemePourUneOffreFermee() { // Les nouvelles saisies doivent respecter la date actuelle.
         connecter("RECRUTEUR"); // Propriétaire.
         Offre offre = existante(); // Offre à fermer.
         OffreRequest base = demande(OffreStatut.FERMEE, null); // Formulaire de fermeture.
         OffreRequest fermee = new OffreRequest(base.titre(), null, base.competences(), null, base.contrat(), null, LocalDate.now().minusDays(1), base.statut(), null, null, null); // Date déjà passée.
-        when(offres.save(offre)).thenReturn(offre); // Enregistrement simulé.
-        assertEquals(OffreStatut.FERMEE, service.modifier(10L, fermee, TOKEN).getStatut()); // Fermeture autorisée.
+        erreur(400, () -> service.modifier(10L, fermee, TOKEN)); // Une saisie passée est refusée pour tous les statuts.
     } // Fin du test.
 
     @Test // Recherche simple par titre.

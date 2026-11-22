@@ -43,7 +43,7 @@ class OffreCrudIT { // Un seul scénario, facile à suivre.
     } // Fin du scénario.
 
     private OffreRequest formulaire(String titre, OffreStatut statut) { // Prépare seulement les données nécessaires.
-        return new OffreRequest(titre, "Description", List.of("Java"), "Tunis", ContratType.CDI, 2000.0, // Champs simples.
-                LocalDate.now().plusDays(10), statut, null, null, null); // Date valide et références facultatives.
+        return new OffreRequest(titre, "Description détaillée du poste Java", List.of("Java"), "Tunis", ContratType.CDI, 2000.0, // Champs simples.
+                LocalDate.now().plusDays(10), statut, 1L, 1L, null); // Date valide et références obligatoires.
     } // Fin du formulaire.
 } // Fin du fichier.

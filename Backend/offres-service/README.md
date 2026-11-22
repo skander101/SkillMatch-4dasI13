@@ -17,6 +17,39 @@ Spring Boot 3.3.5, Spring Cloud 2023.0.3. Aucun POM parent dans `Backend`.
   Voir [le guide Eureka](../discovery-service/README.md).
   Voir [le guide RabbitMQ](RABBITMQ.md) pour les messages, le lancement et les limites.
 
+## Contrôles de saisie actuels
+
+Les formulaires Angular et l'API Java appliquent les mêmes règles à l'ajout et à la modification.
+Les espaces autour des textes ne comptent pas dans les longueurs.
+
+| Offre | Règle |
+|---|---|
+| Titre | Obligatoire, 3 à 255 caractères |
+| Description | Obligatoire, 20 à 10000 caractères |
+| Compétences | Au moins une, 1 à 255 caractères chacune |
+| Localisation | Obligatoire, 1 à 255 caractères |
+| Contrat et statut | Valeurs autorisées obligatoires ; création BROUILLON |
+| Salaire | Obligatoire, nombre fini positif ou nul |
+| Expiration | Obligatoire, aujourd'hui ou dans le futur, quel que soit le statut |
+| Entreprise et test requis | Références obligatoires, entiers positifs |
+| Recruteur | Session RECRUTEUR ; choix obligatoire et vérifié pour une création ADMIN |
+
+| Candidature | Règle |
+|---|---|
+| Offre et candidat | Offre ouverte et candidat identifié ; sélection obligatoire pour ADMIN |
+| Lettre | Obligatoire au dépôt et en modification candidat/ADMIN, 20 à 10000 caractères |
+| Référence CV | Obligatoire, entier positif |
+| Statut | Valeur autorisée selon le rôle ; RECUE automatique au dépôt |
+| Date d'entretien | Obligatoire lors du traitement ADMIN/RECRUTEUR, aujourd'hui ou dans le futur |
+| Note | Obligatoire lors du traitement ADMIN/RECRUTEUR, entier de 0 à 2147483647 |
+| Commentaire | Obligatoire lors du traitement ADMIN/RECRUTEUR, 5 à 10000 caractères |
+| Date du dépôt | Générée automatiquement, non modifiable |
+
+Les champs de traitement ne sont pas demandés au candidat ni à la création.
+Une ancienne date d'entretien doit être actualisée avant un nouveau traitement.
+Les anciennes données restent lisibles ; une modification doit respecter les nouvelles règles.
+Le rôle CANDIDAT ne peut pas ajouter ou modifier une offre.
+
 ## Démarrage dans IntelliJ
 
 1. Démarrer MySQL dans XAMPP (3306), RabbitMQ (5672) et `DiscoveryServiceApplication` (8761).
@@ -114,7 +147,7 @@ Invoke-RestMethod http://localhost:18081/actuator/health
 - `estExpiree()` retourne vrai si la date d'expiration est avant aujourd'hui.
   Une offre reste ouverte jusqu'à la fin du jour indiqué.
 - La date n'utilise pas `@FutureOrPresent` sur l'entité : une offre expirée doit
-  pouvoir être conservée et fermée ultérieurement. La validation de la date à la
+  pouvoir être conservée en historique. Pour la modifier, actualiser sa date. La validation de la date à la
   création/publication est maintenant réalisée dans le service CRUD.
 - `calculerScore()` calcule seulement un pourcentage de compétences communes,
   sans tenir compte de la casse ou des doublons. Aucun appel Profils, moteur de
@@ -166,8 +199,8 @@ Les nouveaux fichiers Java sont commentés pour expliquer chaque ligne utile.
   passée ; aucune écriture.
 - POST exige `BROUILLON`. Pour publier, envoyer ensuite un PUT avec `PUBLIEE`.
   Un PUT remplace les champs du formulaire : renvoyer toutes les valeurs utiles.
-- BROUILLON et PUBLIEE exigent une date aujourd'hui ou ultérieure. EXPIREE
-  exige une date passée. FERMEE peut conserver une ancienne date d'expiration.
+- Toute date saisie doit être aujourd'hui ou ultérieure, y compris pour FERMEE.
+  EXPIREE reste un état historique : pour modifier cette offre, choisir un autre statut et actualiser la date.
 - Une offre avec candidature ne peut pas être supprimée : réponse 409 ; utiliser
   PUT avec `FERMEE` pour conserver l'historique. La clé étrangère reste une
   protection supplémentaire en cas d'écritures simultanées.
@@ -200,8 +233,8 @@ l'inscription publique acceptant ADMIN reste à signaler au responsable de
   "salaire": 2000,
   "dateExpiration": "2030-12-31",
   "statut": "BROUILLON",
-  "entrepriseId": null,
-  "testRequisId": null,
+  "entrepriseId": 1,
+  "testRequisId": 1,
   "recruteurId": null
 }
 ```
@@ -301,12 +334,12 @@ Le candidat peut modifier `lettre` et `cvId` seulement au statut `RECUE`.
 Son DELETE passe au statut `RETIREE`, sans effacer l'historique. Le recruteur
 ne peut ni créer ni supprimer : il traite uniquement les candidatures de ses
 offres (`PRESELECTIONNEE`, `ENTRETIEN_PLANIFIE`, `ACCEPTEE`, `REFUSEE`),
-avec une note, un commentaire et une date d'entretien facultatifs. Un entretien
-planifié exige une date future. Une candidature retirée ne peut plus être traitée
+avec une note, un commentaire et une date d'entretien obligatoires. La date
+doit être aujourd'hui ou dans le futur. Une candidature retirée ne peut plus être traitée
 par le recruteur. ADMIN peut modifier les données et tous les statuts.
 
-Exemples PUT : candidat `{"lettre":"Nouvelle lettre","cvId":4}` ;
-recruteur `{"statut":"PRESELECTIONNEE","noteRecruteur":8}`.
+Exemples PUT : candidat `{"lettre":"Je souhaite rejoindre votre équipe Java.","cvId":4}` ;
+recruteur `{"statut":"PRESELECTIONNEE","noteRecruteur":8,"commentaireRecruteur":"Profil intéressant","dateEntretien":"2030-12-31T10:00:00"}` (adapter la date).
 Un champ absent conserve sa valeur ; les champs candidat/offre et la date du
 dépôt ne sont pas modifiables par cette route. La création initialise toujours
 `RECUE` et la date courante. Le JSON de réponse contient `offreId`, pas l'entité

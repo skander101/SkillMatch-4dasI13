@@ -30,6 +30,7 @@ export class CandidatureForm implements OnInit {
   readonly statuts: CandidatureStatut[] = this.role === 'ADMIN'
     ? ['RECUE', 'PRESELECTIONNEE', 'ENTRETIEN_PLANIFIE', 'ACCEPTEE', 'REFUSEE', 'RETIREE']
     : ['PRESELECTIONNEE', 'ENTRETIEN_PLANIFIE', 'ACCEPTEE', 'REFUSEE'];
+  readonly aujourdHui = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
   lettre = '';
   cvId: number | null = null;
   userId: number | null = null;
@@ -61,11 +62,9 @@ export class CandidatureForm implements OnInit {
 
   erreurEntretien(): string {
     if (!this.candidature || this.role === 'CANDIDAT') return '';
-    if (!this.entretien) return this.statut === 'ENTRETIEN_PLANIFIE' ? 'Choisissez une date et une heure pour l’entretien.' : '';
-    const modifie = this.entretien !== (this.candidature.dateEntretien?.slice(0, 16) || '');
-    const planifie = this.statut === 'ENTRETIEN_PLANIFIE' && this.statut !== this.candidature.statut;
-    if ((modifie || planifie) && (!Number.isFinite(Date.parse(this.entretien)) || Date.parse(this.entretien) <= Date.now())) {
-      return 'La nouvelle date d’entretien doit être dans le futur.';
+    if (!this.entretien) return 'Choisissez une date et une heure pour l’entretien.';
+    if (!Number.isFinite(Date.parse(this.entretien)) || this.entretien.slice(0, 10) < this.aujourdHui) {
+      return 'La date d’entretien doit être aujourd’hui ou dans le futur.';
     }
     return '';
   }
@@ -82,10 +81,10 @@ export class CandidatureForm implements OnInit {
     if (this.role !== 'RECRUTEUR') { demande.lettre = this.lettre.trim(); demande.cvId = this.cvId!; }
     if (this.role !== 'CANDIDAT') {
       if (this.statut !== this.candidature.statut) demande.statut = this.statut;
-      // N'envoie pas une ancienne date inchangée : le backend valide les nouvelles dates futures.
-      if (this.entretien && this.entretien !== (this.candidature.dateEntretien?.slice(0, 16) || '')) demande.dateEntretien = this.entretien.length === 16 ? this.entretien + ':00' : this.entretien;
+      // Envoie les champs validés, y compris pour ADMIN.
+      demande.dateEntretien = this.entretien.length === 16 ? this.entretien + ':00' : this.entretien;
       if (this.note !== null) demande.noteRecruteur = this.note;
-      demande.commentaireRecruteur = this.commentaire;
+      demande.commentaireRecruteur = this.commentaire.trim();
     }
     this.valider.emit(demande);
   }

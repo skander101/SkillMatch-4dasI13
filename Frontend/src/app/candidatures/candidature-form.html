@@ -16,8 +16,8 @@
         </label>
       }
       @if (role !== 'RECRUTEUR') {
-        <label class="large">Lettre de motivation *<textarea name="lettre" #motivation="ngModel" [(ngModel)]="lettre" required pattern="[\s\S]*\S[\s\S]*" maxlength="10000" rows="5"></textarea>
-          @if (motivation.invalid && (motivation.touched || form.submitted)) { <small class="champ-erreur" role="alert">Saisissez une lettre non vide, de 10000 caractères maximum.</small> }
+        <label class="large">Lettre de motivation *<textarea name="lettre" #motivation="ngModel" [(ngModel)]="lettre" required saisieValide="texte" minlength="20" maxlength="10000" rows="5"></textarea>
+          @if (motivation.invalid && (motivation.touched || form.submitted)) { <small class="champ-erreur" role="alert">Lettre obligatoire : 20 à 10000 caractères, hors espaces autour.</small> }
         </label>
         <label class="large">Référence CV *<input name="cvId" #cv="ngModel" type="number" [(ngModel)]="cvId" saisieValide="entier" required min="1" step="1"><small>Phase 1 : référence numérique de test. Aucun fichier CV n'est envoyé.</small>
           @if (cv.invalid && (cv.touched || form.submitted)) { <small class="champ-erreur" role="alert">La référence CV doit être un entier positif, par exemple 1.</small> }
@@ -27,15 +27,15 @@
         <label>Statut *<select name="statut" #etat="ngModel" [(ngModel)]="statut" required>@if (!statuts.includes(candidature.statut)) { <option [value]="candidature.statut" disabled>{{ candidature.statut }}</option> }@for (s of statuts; track s) { <option [value]="s">{{ s }}</option> }</select>
           @if (etat.invalid && (etat.touched || form.submitted)) { <small class="champ-erreur" role="alert">Choisissez un statut autorisé.</small> }
         </label>
-        <label>Date d'entretien{{ statut === 'ENTRETIEN_PLANIFIE' ? ' *' : '' }}<input name="entretien" #date="ngModel" type="datetime-local" [(ngModel)]="entretien" saisieValide="date" [required]="statut === 'ENTRETIEN_PLANIFIE'" [attr.aria-invalid]="(date.invalid || !!erreurEntretien()) && (date.touched || form.submitted)">
+        <label>Date d'entretien *<input name="entretien" #date="ngModel" type="datetime-local" [(ngModel)]="entretien" saisieValide="date" required [min]="aujourdHui + 'T00:00'" [attr.aria-invalid]="(date.invalid || !!erreurEntretien()) && (date.touched || form.submitted)">
           @if ((date.invalid || erreurEntretien()) && (date.touched || form.submitted)) { <small class="champ-erreur" role="alert">{{ erreurEntretien() || 'Saisissez une date et une heure valides.' }}</small> }
-          <small>Une nouvelle date doit être future. La date existante est conservée si elle n'est pas modifiée.</small>
+          <small>Date obligatoire : aujourd’hui ou une date future.</small>
         </label>
-        <label>Note recruteur<input name="note" #evaluation="ngModel" type="number" [(ngModel)]="note" saisieValide="entier" min="0" max="2147483647" step="1">
-          @if (evaluation.invalid && (evaluation.touched || form.submitted)) { <small class="champ-erreur" role="alert">La note doit être un entier positif ou nul (maximum 2147483647).</small> }
+        <label>Note recruteur *<input name="note" #evaluation="ngModel" type="number" [(ngModel)]="note" saisieValide="entier" required min="0" max="2147483647" step="1">
+          @if (evaluation.invalid && (evaluation.touched || form.submitted)) { <small class="champ-erreur" role="alert">La note est obligatoire et doit être un entier positif ou nul (maximum 2147483647).</small> }
         </label>
-        <label class="large">Commentaire recruteur<textarea name="commentaire" #avis="ngModel" [(ngModel)]="commentaire" maxlength="10000" rows="3"></textarea>
-          @if (avis.invalid && (avis.touched || form.submitted)) { <small class="champ-erreur" role="alert">Le commentaire ne peut pas dépasser 10000 caractères.</small> }
+        <label class="large">Commentaire recruteur *<textarea name="commentaire" #avis="ngModel" [(ngModel)]="commentaire" required saisieValide="texte" minlength="5" maxlength="10000" rows="3"></textarea>
+          @if (avis.invalid && (avis.touched || form.submitted)) { <small class="champ-erreur" role="alert">Commentaire obligatoire : 5 à 10000 caractères.</small> }
         </label>
       }
       @if (erreur) { <p class="auth-error large" role="alert">{{ erreur }}</p> }

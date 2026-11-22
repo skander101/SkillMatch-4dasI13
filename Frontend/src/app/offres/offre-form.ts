@@ -23,7 +23,7 @@ export class OffreForm implements OnChanges, OnInit {
   readonly recruteurs = signal<User[]>([]);
   readonly chargement = signal(false);
   readonly erreurChoix = signal('');
-  readonly statuts: OffreStatut[] = ['BROUILLON', 'PUBLIEE', 'FERMEE', 'EXPIREE'];
+  readonly statuts: OffreStatut[] = ['BROUILLON', 'PUBLIEE', 'FERMEE'];
   competences = ''; // Saisie simple séparée par des virgules.
   readonly aujourdHui = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
   formulaire: OffreRequest = {
@@ -49,15 +49,16 @@ export class OffreForm implements OnChanges, OnInit {
 
   erreurDate(): string { // Même cohérence de statut et de date que le backend.
     const { dateExpiration, statut } = this.formulaire;
+    if (statut === 'EXPIREE') return 'Choisissez un autre statut et une date actuelle ou future pour modifier cette offre.';
     if (!dateExpiration) return "La date d'expiration est obligatoire.";
-    if (['BROUILLON', 'PUBLIEE'].includes(statut) && dateExpiration < this.aujourdHui) return 'Choisissez aujourd’hui ou une date future.';
-    if (statut === 'EXPIREE' && dateExpiration >= this.aujourdHui) return 'Une offre expirée doit avoir une date passée.';
+    if (dateExpiration < this.aujourdHui) return 'Choisissez aujourd’hui ou une date future.';
     return '';
   }
 
   enregistrer(valide = true): void {
     if (!valide || this.erreurDate() || !this.formulaire.titre.trim() || this.enCours || this.chargement() || this.erreurChoix()) return;
     const competences = this.competences.split(',').map(valeur => valeur.trim()).filter(Boolean);
-    this.valider.emit({ ...this.formulaire, titre: this.formulaire.titre.trim(), competences: [...new Set(competences)] });
+    if (!competences.length) return;
+    this.valider.emit({ ...this.formulaire, titre: this.formulaire.titre.trim(), description: (this.formulaire.description || '').trim(), localisation: (this.formulaire.localisation || '').trim(), competences: [...new Set(competences)] });
   }
 }

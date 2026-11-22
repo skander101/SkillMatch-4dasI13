@@ -120,8 +120,8 @@ public class OffreService { // Un seul service pour les trois rôles.
 
     private void verifierDonnees(OffreRequest demande) { // Vérifie la cohérence des données métier.
         boolean expiree = demande.dateExpiration().isBefore(LocalDate.now()); // Aujourd'hui reste valide.
-        if ((demande.statut() == OffreStatut.PUBLIEE || demande.statut() == OffreStatut.BROUILLON) && expiree) { // Une offre ouverte ou un nouveau brouillon ne doit pas être périmé.
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La date d'expiration ne peut pas être passée pour ce statut"); // Réponse 400.
+        if (expiree) { // Toute date saisie doit être actuelle ou future, pour tous les statuts.
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La date d'expiration doit être aujourd’hui ou dans le futur"); // Réponse 400.
         } // Fin du contrôle des offres ouvertes.
         if (demande.statut() == OffreStatut.EXPIREE && !expiree) { // Le statut EXPIREE doit correspondre à une date passée.
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Une offre expirée doit avoir une date passée"); // Réponse 400.

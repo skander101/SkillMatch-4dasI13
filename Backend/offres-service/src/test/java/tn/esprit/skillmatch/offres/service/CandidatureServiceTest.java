@@ -44,6 +44,11 @@ class CandidatureServiceTest {
         candidature = new Candidature();
         candidature.setOffre(offre);
         candidature.setUserId(1L);
+        candidature.setCvId(3L);
+        candidature.setLettre("Je suis motivé pour rejoindre votre équipe Java.");
+        candidature.setDateEntretien(LocalDateTime.now().plusDays(1));
+        candidature.setNoteRecruteur(8);
+        candidature.setCommentaireRecruteur("Profil intéressant");
     }
 
     @Test
@@ -81,9 +86,11 @@ class CandidatureServiceTest {
         connecter("RECRUTEUR", 2L);
         erreur(403, () -> service.supprimer(5L, token)); // Même le propriétaire de l'offre ne peut pas supprimer.
         erreur(403, () -> service.creer(demande(), token)); // Il ne peut pas postuler non plus.
+        candidature.setDateEntretien(null);
         erreur(400, () -> service.modifier(5L, new CandidatureUpdate(null, null, CandidatureStatut.ENTRETIEN_PLANIFIE, null, null, null), token));
+        candidature.setDateEntretien(LocalDateTime.now().plusDays(1));
         when(candidatures.save(candidature)).thenReturn(candidature);
-        assertEquals(8, service.modifier(5L, new CandidatureUpdate(null, null, CandidatureStatut.PRESELECTIONNEE, null, 8, "Avis"), token).noteRecruteur()); // Traitement autorisé.
+        assertEquals(8, service.modifier(5L, new CandidatureUpdate(null, null, CandidatureStatut.PRESELECTIONNEE, null, 8, "Avis favorable"), token).noteRecruteur()); // Traitement autorisé.
         candidature.setStatut(CandidatureStatut.RETIREE);
         erreur(409, () -> service.modifier(5L, new CandidatureUpdate(null, null, CandidatureStatut.ACCEPTEE, null, null, null), token)); // Retrait respecté.
     }
@@ -132,13 +139,13 @@ class CandidatureServiceTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"RECRUTEUR", "ADMIN"})
-    void permetUnCommentaireSansReplanifierUnAncienEntretien(String role) {
+    void refuseUnAncienEntretienMemeInchange(String role) {
         connecter(role, 2L);
         candidature.setStatut(CandidatureStatut.ENTRETIEN_PLANIFIE);
         candidature.setDateEntretien(LocalDateTime.now().minusDays(1));
         when(candidatures.findById(5L)).thenReturn(Optional.of(candidature));
-        when(candidatures.save(candidature)).thenReturn(candidature);
-        assertEquals("Avis", service.modifier(5L, new CandidatureUpdate(null, null, null, null, null, "Avis"), token).commentaireRecruteur());
+        erreur(400, () -> service.modifier(5L, new CandidatureUpdate(null, null, null, null, null, "Avis favorable"), token));
+        verify(candidatures, never()).save(any());
     }
 
     @Test

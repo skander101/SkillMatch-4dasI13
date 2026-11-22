@@ -3,6 +3,8 @@ package tn.esprit.skillmatch.offres.controller; // Tests HTTP sans base ni serve
 import com.fasterxml.jackson.databind.ObjectMapper; // Écriture JSON des formulaires.
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule; // Support des dates Java.
 import org.junit.jupiter.api.BeforeEach; // Préparation commune.
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.api.Test; // Tests JUnit.
 import org.junit.jupiter.api.extension.ExtendWith; // Active Mockito.
 import org.mockito.Mock; // Repositories et identité simulés.
@@ -152,7 +154,28 @@ class OffreControllerTest { // Teste contrôleur, validations et vrai service en
         return offre; // Retourne l'objet.
     } // Fin du helper.
 
+    @ParameterizedTest
+    @ValueSource(strings = {"POST", "PUT"})
+    void ajoutEtModificationRefusentLesChampsVidesEtLesLongueursInvalides(String methode) throws Exception {
+        var base = json.readTree(formulaire());
+        for (String champ : List.of("titre", "description", "localisation", "salaire", "competences", "contrat", "dateExpiration", "statut", "entrepriseId", "testRequisId")) {
+            var corps = base.deepCopy(); ((com.fasterxml.jackson.databind.node.ObjectNode) corps).putNull(champ);
+            var route = methode.equals("POST") ? post("/skillmatch/offres") : put("/skillmatch/offres/10");
+            mvc.perform(route.contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(corps))).andExpect(status().isBadRequest());
+        }
+        for (String champ : List.of("titre", "description")) {
+            int minimum = champ.equals("titre") ? 3 : 20;
+            int maximum = champ.equals("titre") ? 255 : 10000;
+            for (String texte : List.of(" ", "a".repeat(minimum - 1), "a".repeat(maximum + 1))) {
+                var corps = base.deepCopy(); ((com.fasterxml.jackson.databind.node.ObjectNode) corps).put(champ, texte);
+                var route = methode.equals("POST") ? post("/skillmatch/offres") : put("/skillmatch/offres/10");
+                mvc.perform(route.contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(corps))).andExpect(status().isBadRequest());
+            }
+        }
+        verifyNoInteractions(identites, offres);
+    }
+
     private String formulaire() throws Exception { // Formulaire valide commun.
-        return json.writeValueAsString(new OffreRequest("Java", "Description", List.of("Java"), "Tunis", ContratType.CDI, 2000.0, LocalDate.now().plusDays(5), OffreStatut.BROUILLON, null, null, null)); // Génère un vrai JSON.
+        return json.writeValueAsString(new OffreRequest("Java", "Description détaillée du poste Java", List.of("Java"), "Tunis", ContratType.CDI, 2000.0, LocalDate.now().plusDays(5), OffreStatut.BROUILLON, 1L, 1L, null)); // Génère un vrai JSON.
     } // Fin du formulaire.
 } // Fin des tests HTTP.

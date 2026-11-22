@@ -14,38 +14,40 @@
         @if (chargement()) { <p class="large" role="status">Chargement des recruteurs…</p> }
         @if (erreurChoix()) { <p class="auth-error large" role="alert">{{ erreurChoix() }}</p> }
       }
-      <label class="large">Titre *<input name="titre" #titre="ngModel" [(ngModel)]="formulaire.titre" required pattern=".*\S.*" maxlength="255" placeholder="Ex. Développeur Java" autofocus>
-        @if (titre.invalid && (titre.touched || form.submitted)) { <small class="champ-erreur" role="alert">Saisissez un titre, pas uniquement des espaces (255 caractères maximum).</small> }
+      <label class="large">Titre *<input name="titre" #titre="ngModel" [(ngModel)]="formulaire.titre" required saisieValide="texte" minlength="3" maxlength="255" placeholder="Ex. Développeur Java" autofocus>
+        @if (titre.invalid && (titre.touched || form.submitted)) { <small class="champ-erreur" role="alert">Titre obligatoire : 3 à 255 caractères, hors espaces autour.</small> }
       </label>
-      <label class="large">Description<textarea name="description" #description="ngModel" [(ngModel)]="formulaire.description" rows="4" maxlength="10000" placeholder="Présentez le poste, les missions et votre équipe."></textarea>
-        @if (description.invalid && (description.touched || form.submitted)) { <small class="champ-erreur" role="alert">La description est limitée à 10000 caractères.</small> }
+      <label class="large">Description *<textarea name="description" #description="ngModel" [(ngModel)]="formulaire.description" rows="4" required saisieValide="texte" minlength="20" maxlength="10000" placeholder="Présentez le poste, les missions et votre équipe."></textarea>
+        @if (description.invalid && (description.touched || form.submitted)) { <small class="champ-erreur" role="alert">Description obligatoire : 20 à 10000 caractères.</small> }
       </label>
-      <label class="large">Compétences<input name="competences" [(ngModel)]="competences" placeholder="Java, Spring Boot, SQL"><small>Séparez les compétences par des virgules.</small></label>
-      <label>Localisation<input name="localisation" #localisation="ngModel" [(ngModel)]="formulaire.localisation" maxlength="255" placeholder="Ex. Tunis">
-        @if (localisation.invalid && (localisation.touched || form.submitted)) { <small class="champ-erreur" role="alert">La localisation est limitée à 255 caractères.</small> }
+      <label class="large">Compétences *<input name="competences" #competence="ngModel" [(ngModel)]="competences" required saisieValide="competences" placeholder="Java, Spring Boot, SQL"><small>Séparez les compétences par des virgules (255 caractères maximum par compétence).</small>
+        @if (competence.invalid && (competence.touched || form.submitted)) { <small class="champ-erreur" role="alert">Saisissez au moins une compétence, de 1 à 255 caractères chacune.</small> }
+      </label>
+      <label>Localisation *<input name="localisation" #localisation="ngModel" [(ngModel)]="formulaire.localisation" required saisieValide="texte" maxlength="255" placeholder="Ex. Tunis">
+        @if (localisation.invalid && (localisation.touched || form.submitted)) { <small class="champ-erreur" role="alert">Localisation obligatoire : 255 caractères maximum.</small> }
       </label>
       <label>Contrat *<select name="contrat" #contrat="ngModel" [(ngModel)]="formulaire.contrat" required><option>CDI</option><option>CDD</option><option value="STAGE">Stage</option><option value="FREELANCE">Freelance</option></select>
         @if (contrat.invalid && (contrat.touched || form.submitted)) { <small class="champ-erreur" role="alert">Choisissez un contrat.</small> }
       </label>
-      <label>Salaire mensuel (DT)<input name="salaire" #salaire="ngModel" type="number" [(ngModel)]="formulaire.salaire" saisieValide="decimal" min="0" step="0.01" placeholder="Facultatif">
-        @if (salaire.invalid && (salaire.touched || form.submitted)) { <small class="champ-erreur" role="alert">Le salaire doit être un nombre positif ou nul.</small> }
+      <label>Salaire mensuel (DT) *<input name="salaire" #salaire="ngModel" type="number" [(ngModel)]="formulaire.salaire" saisieValide="decimal" required min="0" step="0.01" placeholder="Ex. 1500">
+        @if (salaire.invalid && (salaire.touched || form.submitted)) { <small class="champ-erreur" role="alert">Le salaire est obligatoire et doit être positif ou nul.</small> }
       </label>
-      <label>Date d'expiration *<input name="dateExpiration" #expiration="ngModel" type="date" [(ngModel)]="formulaire.dateExpiration" saisieValide="date" required [attr.aria-invalid]="(expiration.invalid || !!erreurDate()) && (expiration.touched || form.submitted)">
+      <label>Date d'expiration *<input name="dateExpiration" #expiration="ngModel" type="date" [(ngModel)]="formulaire.dateExpiration" saisieValide="date" required [min]="aujourdHui" [attr.aria-invalid]="(expiration.invalid || !!erreurDate()) && (expiration.touched || form.submitted)">
         @if ((expiration.invalid || erreurDate()) && (expiration.touched || form.submitted)) { <small class="champ-erreur" role="alert">{{ erreurDate() || 'Saisissez une date valide.' }}</small> }
       </label>
       @if (offre) {
-        <label class="large">Statut *<select name="statut" #etat="ngModel" [(ngModel)]="formulaire.statut" required>@for (statut of statuts; track statut) { <option [value]="statut">{{ statut }}</option> }</select>
+        <label class="large">Statut *<select name="statut" #etat="ngModel" [(ngModel)]="formulaire.statut" required>@if (formulaire.statut === 'EXPIREE') { <option value="EXPIREE" disabled>EXPIREE</option> }@for (statut of statuts; track statut) { <option [value]="statut">{{ statut }}</option> }</select>
           @if (etat.invalid && (etat.touched || form.submitted)) { <small class="champ-erreur" role="alert">Choisissez un statut.</small> }
         </label>
       }
-      <details class="large references">
-        <summary>Références complémentaires (facultatif)</summary>
+      <details class="large references" open>
+        <summary>Références complémentaires obligatoires *</summary>
         <div class="offre-champs">
-          <label>Référence entreprise<input name="entrepriseId" #entreprise="ngModel" type="number" [(ngModel)]="formulaire.entrepriseId" saisieValide="entier" min="1" step="1">
-            @if (entreprise.invalid && (entreprise.touched || form.submitted)) { <small class="champ-erreur" role="alert">Saisissez un entier positif ou laissez vide.</small> }
+          <label>Référence entreprise *<input name="entrepriseId" #entreprise="ngModel" type="number" [(ngModel)]="formulaire.entrepriseId" saisieValide="entier" required min="1" step="1">
+            @if (entreprise.invalid && (entreprise.touched || form.submitted)) { <small class="champ-erreur" role="alert">Saisissez un entier positif obligatoire.</small> }
           </label>
-          <label>Référence du test requis<input name="testRequisId" #test="ngModel" type="number" [(ngModel)]="formulaire.testRequisId" saisieValide="entier" min="1" step="1">
-            @if (test.invalid && (test.touched || form.submitted)) { <small class="champ-erreur" role="alert">Saisissez un entier positif ou laissez vide.</small> }
+          <label>Référence du test requis *<input name="testRequisId" #test="ngModel" type="number" [(ngModel)]="formulaire.testRequisId" saisieValide="entier" required min="1" step="1">
+            @if (test.invalid && (test.touched || form.submitted)) { <small class="champ-erreur" role="alert">Saisissez un entier positif obligatoire.</small> }
           </label>
         </div>
       </details>

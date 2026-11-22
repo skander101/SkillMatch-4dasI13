@@ -121,10 +121,23 @@ public class CandidatureService {
             if (d.statut() != null && !Set.of(CandidatureStatut.PRESELECTIONNEE, CandidatureStatut.ENTRETIEN_PLANIFIE,
                     CandidatureStatut.ACCEPTEE, CandidatureStatut.REFUSEE).contains(d.statut())) throw erreur(403, "Statut réservé au candidat ou à ADMIN");
         }
-        if (d.lettre() != null && d.lettre().isBlank()) throw erreur(400, "La lettre ne peut pas être vide");
+        if (!"RECRUTEUR".equals(u.role())) { // Même contrôle pour le candidat et ADMIN.
+            String lettre = d.lettre() == null ? c.getLettre() : d.lettre();
+            Long cv = d.cvId() == null ? c.getCvId() : d.cvId();
+            if (lettre == null || lettre.trim().length() < 20 || lettre.trim().length() > 10000)
+                throw erreur(400, "La lettre est obligatoire : 20 à 10000 caractères");
+            if (cv == null || cv <= 0) throw erreur(400, "La référence CV est obligatoire et positive");
+        }
         LocalDateTime entretien = d.dateEntretien() == null ? c.getDateEntretien() : d.dateEntretien(); // Date effective.
-        if (d.statut() == CandidatureStatut.ENTRETIEN_PLANIFIE && (entretien == null || !entretien.isAfter(LocalDateTime.now())))
-            throw erreur(400, "Planifier un entretien exige une date future");
+        if (!"CANDIDAT".equals(u.role())) { // Traitement obligatoire pour ADMIN et RECRUTEUR.
+            Integer note = d.noteRecruteur() == null ? c.getNoteRecruteur() : d.noteRecruteur();
+            String commentaire = d.commentaireRecruteur() == null ? c.getCommentaireRecruteur() : d.commentaireRecruteur();
+            if (entretien == null || entretien.toLocalDate().isBefore(LocalDateTime.now().toLocalDate()))
+                throw erreur(400, "La date d'entretien est obligatoire, aujourd'hui ou dans le futur");
+            if (note == null || note < 0) throw erreur(400, "La note est obligatoire et positive ou nulle");
+            if (commentaire == null || commentaire.trim().length() < 5 || commentaire.trim().length() > 10000)
+                throw erreur(400, "Le commentaire est obligatoire : 5 à 10000 caractères");
+        }
     }
 
     private List<CandidatureResponse> rechercherEtTrier(List<Candidature> liste, String search, String sort) {
