@@ -2,20 +2,22 @@ package tn.esprit.skillmatch.tests.catalogue;
 
 import java.util.List;
 
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import tn.esprit.skillmatch.tests.tentatives.ResultatTestRepository;
 
 @Service
 public class CatalogueTests {
 
     private final TestTechniqueRepository repository;
+    private final ResultatTestRepository resultats;
 
-    public CatalogueTests(TestTechniqueRepository repository) {
+    public CatalogueTests(TestTechniqueRepository repository, ResultatTestRepository resultats) {
         this.repository = repository;
+        this.resultats = resultats;
     }
 
     @Transactional(readOnly = true)
@@ -45,7 +47,7 @@ public class CatalogueTests {
 
     @Transactional
     public VueTest modifier(Long id, DefinitionTest definition) {
-        TestTechnique test = repository.findLockedById(id).orElseThrow(CatalogueTests::testIntrouvable);
+        TestTechnique test = verrouillerTestSansResultat(id);
         try {
             test.modifier(definition.titre(), definition.competence(), definition.dureeMinutes(),
                     definition.seuilReussite(), definition.construireQuestions());
@@ -57,14 +59,16 @@ public class CatalogueTests {
 
     @Transactional
     public void supprimer(Long id) {
+        repository.delete(verrouillerTestSansResultat(id));
+    }
+
+    private TestTechnique verrouillerTestSansResultat(Long id) {
         TestTechnique test = repository.findLockedById(id).orElseThrow(CatalogueTests::testIntrouvable);
-        try {
-            repository.delete(test);
-            repository.flush();
-        } catch (DataIntegrityViolationException exception) {
+        if (resultats.existsByTest_Id(id)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Ce test possède des résultats et ne peut pas être supprimé.", exception);
+                    "Les résultats existants verrouillent ce test.");
         }
+        return test;
     }
 
     private static ResponseStatusException testIntrouvable() {
