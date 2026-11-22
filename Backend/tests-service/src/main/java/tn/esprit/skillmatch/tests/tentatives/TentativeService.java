@@ -1,5 +1,6 @@
 package tn.esprit.skillmatch.tests.tentatives;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -7,8 +8,11 @@ import org.springframework.web.server.ResponseStatusException;
 import tn.esprit.skillmatch.tests.catalogue.Question;
 import tn.esprit.skillmatch.tests.catalogue.TestTechnique;
 import tn.esprit.skillmatch.tests.catalogue.TestTechniqueRepository;
+import tn.esprit.skillmatch.tests.events.TestPassed;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -20,10 +24,13 @@ public class TentativeService {
 
     private final TestTechniqueRepository tests;
     private final ResultatTestRepository resultats;
+    private final ApplicationEventPublisher evenements;
 
-    public TentativeService(TestTechniqueRepository tests, ResultatTestRepository resultats) {
+    public TentativeService(TestTechniqueRepository tests, ResultatTestRepository resultats,
+                            ApplicationEventPublisher evenements) {
         this.tests = tests;
         this.resultats = resultats;
+        this.evenements = evenements;
     }
 
     @Transactional
@@ -41,6 +48,10 @@ public class TentativeService {
 
         int score = corriger(test.getQuestions(), reponses);
         ResultatTest resultat = resultats.save(new ResultatTest(test, candidatId, score, utilisees + 1, Instant.now()));
+        if (resultat.isReussi()) {
+            evenements.publishEvent(new TestPassed(resultat.getId(), test.getId(), candidatId,
+                    resultat.getCompetence(), score, LocalDateTime.ofInstant(resultat.getDate(), ZoneOffset.UTC)));
+        }
         return ResultatTestVue.de(resultat);
     }
 
