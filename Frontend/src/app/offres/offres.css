@@ -53,14 +53,14 @@ button:focus-visible, summary:focus-visible { outline: 3px solid #10b981; outlin
 .offres-entete .section-overline { color: #8ce7bc; font-size: 10px; letter-spacing: 2px; }
 .offres-entete p { color: #c8dfd5; max-width: 560px; line-height: 1.7; }
 .offres-entete .btn-outline { color: #e4f8ec; border-color: #ffffff40; background: #ffffff0a; }
-.offres-entete .btn-solid { background: #e3f6ac; color: #16452e; box-shadow: 0 5px 16px #00000012; }
+.offres-entete .btn-solid { background: #ffffff; color: #075a38; box-shadow: 0 5px 16px #00000012; }
 .job-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 350px), 1fr)); gap: 24px; }
 .offre-card { position: relative; isolation: isolate; overflow: hidden; padding: 66px 26px 26px; border: 1px solid #e2f0e8; border-radius: 32px; background: linear-gradient(150deg, #fff 72%, #f4fcf7); box-shadow: 0 18px 42px #075b3e14, 0 4px 12px #075b3e09; }
-.offre-card::before { content: ''; position: absolute; inset: 0 0 auto; height: 38px; background: linear-gradient(110deg, #004c3a 0%, #008653 42%, #13bb67 75%, #80e441 100%); }
-.offre-card::after { content: ''; position: absolute; z-index: 0; top: -30px; right: -14px; width: 75%; height: 70px; border-radius: 50%; background: linear-gradient(100deg, #00d99550, #baff5ddb); filter: blur(18px); pointer-events: none; }
+.offre-card::before { content: ''; position: absolute; inset: 0 0 auto; height: 38px; background: linear-gradient(110deg, #043d2e 0%, #075a38 42%, #087c4b 75%, #129465 100%); }
+.offre-card::after { content: ''; position: absolute; z-index: 0; top: -30px; right: -14px; width: 75%; height: 70px; border-radius: 50%; background: linear-gradient(100deg, #15956a30, #63b49b70); filter: blur(22px); pointer-events: none; }
 .offre-card > * { position: relative; z-index: 1; }
 .offre-card:hover { border-color: #95cbb0; box-shadow: 0 16px 36px #15452b14; transform: translateY(-4px); }
-.offre-card .job-icon { width: 60px; height: 60px; border-radius: 20px; color: white; background: radial-gradient(circle at 15% 0%, #68eb79, transparent 58%), linear-gradient(145deg, #00a95a, #006746); box-shadow: 0 9px 20px #08754225, inset 0 1px 2px #ffffff70; }
+.offre-card .job-icon { width: 60px; height: 60px; border-radius: 20px; color: white; background: radial-gradient(circle at 15% 0%, #ffffff24, transparent 58%), linear-gradient(145deg, #087c4b, #064b32); box-shadow: 0 9px 20px #08754225, inset 0 1px 2px #ffffff70; }
 .offre-card h3 { margin: 22px 0 14px; font-size: 25px; letter-spacing: -.7px; }
 .offre-badge { max-width: 75%; font-size: 9px; letter-spacing: .6px; line-height: 1.5; text-align: center; }
 .offre-badge[data-statut="RECUE"] { color: #076746; background: #def7ec; }
@@ -101,8 +101,8 @@ button:focus-visible, summary:focus-visible { outline: 3px solid #10b981; outlin
 .offre-reperes > span, .offre-reperes b { display: flex; align-items: center; gap: 10px; }
 .offre-reperes b { font-size: 18px; color: #123c2e; }
 .repere-icone { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; flex-shrink: 0; border-radius: 10px; background: #e9fbf1; color: #008650; }
-.offre-card .see-job { width: 100%; padding: 15px; border: 0; border-radius: 14px; font-size: 16px; color: white; background: linear-gradient(110deg, #00543c, #079455 65%, #28bf52); box-shadow: 0 8px 18px #00875121; }
-.offre-card .see-job:hover { background: linear-gradient(110deg, #004731, #087c49 65%, #21a947); }
+.offre-card .see-job { width: 100%; padding: 15px; border: 0; border-radius: 14px; font-size: 16px; color: white; background: linear-gradient(110deg, #064b32, #087644 65%, #0a8951); box-shadow: 0 8px 18px #00875121; }
+.offre-card .see-job:hover { background: linear-gradient(110deg, #043b28, #06633b 65%, #087644); }
 .offre-card.inactive .see-job { background: linear-gradient(110deg, #637c6e, #91a69b); box-shadow: none; }
 .offre-card .gestion { border-top: 1px solid #dcece4; padding-top: 18px; margin-top: 20px; }
 .offre-card .offre-badge { display: inline-flex; align-items: center; gap: 7px; font-size: 10px; padding: 9px 12px; }
