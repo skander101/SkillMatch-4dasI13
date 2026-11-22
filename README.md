@@ -64,7 +64,7 @@ Le détail des contrats, des entités, des appels synchrones et des événements
 
 État d'intégration : `commun-service` (utilisateur + auth JWT + CRUD ADMIN, sans notifications) et `api-gateway` sont implémentés ; le frontend consomme les endpoints `/skillmatch/auth/*` et `/skillmatch/utilisateurs/*` via la gateway. Un back office s'ouvre automatiquement après connexion avec le rôle `ADMIN`.
 
-Sur `skander_entreprise+avis`, le service `entreprises-service` fournit désormais le CRUD de l'entité `Entreprise` sur `http://localhost:8083/skillmatch/entreprises`, avec Swagger UI sur `http://localhost:8083/swagger-ui.html`. Les avis, la modération, la sécurité via gateway et le frontend associé restent à implémenter dans les commits suivants du plan.
+Sur `skander_entreprise+avis`, le service `entreprises-service` fournit le CRUD de l'entité `Entreprise` et la publication d'avis avec contrainte d'unicité sur `http://localhost:8083/skillmatch/entreprises`, avec Swagger UI sur `http://localhost:8083/swagger-ui.html`. La modération, la sécurité via gateway et le frontend associé restent à implémenter dans les commits suivants du plan.
 
 ## Technologies
 

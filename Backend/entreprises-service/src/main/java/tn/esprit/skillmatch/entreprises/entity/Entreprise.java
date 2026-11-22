@@ -1,11 +1,16 @@
 package tn.esprit.skillmatch.entreprises.entity;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "entreprises")
@@ -29,6 +34,9 @@ public class Entreprise {
 
     @Column(nullable = false)
     private double noteMoyenne;
+
+    @OneToMany(mappedBy = "entreprise", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<AvisEntreprise> avis = new ArrayList<>();
 
     public Entreprise() {
     }
@@ -87,5 +95,13 @@ public class Entreprise {
 
     public void setNoteMoyenne(double noteMoyenne) {
         this.noteMoyenne = noteMoyenne;
+    }
+
+    public List<AvisEntreprise> getAvis() {
+        return avis;
+    }
+
+    public void setAvis(List<AvisEntreprise> avis) {
+        this.avis = avis;
     }
 }

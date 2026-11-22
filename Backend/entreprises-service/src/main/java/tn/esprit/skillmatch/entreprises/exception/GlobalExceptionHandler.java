@@ -1,5 +1,7 @@
 package tn.esprit.skillmatch.entreprises.exception;
 
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -28,5 +30,11 @@ public class GlobalExceptionHandler {
                 .map(error -> error.getField() + " : " + error.getDefaultMessage())
                 .collect(Collectors.joining(", "));
         return ResponseEntity.badRequest().body(new ApiError(400, message));
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiError> handleDataIntegrityViolationException(DataIntegrityViolationException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ApiError(409, "Contrainte d'intégrité violée"));
     }
 }
