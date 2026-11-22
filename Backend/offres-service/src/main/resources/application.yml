@@ -29,7 +29,11 @@ eureka:
     register-with-eureka: ${EUREKA_REGISTER:false}
     fetch-registry: ${EUREKA_FETCH:false}
 
-# Adresse du service existant qui valide le JWT et retourne l'utilisateur.
+# Clé locale obligatoire, identique à celle de commun-service ; aucun secret dans Git.
+jwt:
+  secret: ${JWT_SECRET}
+
+# Adresse du service existant qui retourne l'utilisateur réel.
 commun-service:
   url: ${COMMUN_SERVICE_URL:http://localhost:8087}
 

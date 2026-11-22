@@ -10,8 +10,8 @@ Spring Boot 3.3.5, Spring Cloud 2023.0.3. Aucun POM parent dans `Backend`.
 - Les entités `Offre` et `Candidature` et le CRUD REST des offres sont présents.
   La recherche simple par titre et le tri des offres sont présents.
   Le CRUD Candidature est présent ; les interfaces Angular restent à faire.
-  L'identité est vérifiée auprès de `commun-service` ; la vérification locale
-  des signatures JWT dans `offres-service` reste prévue à l'étape sécurité.
+  Le JWT est vérifié localement, puis l'identité est résolue auprès de
+  `commun-service`. Les droits sont appliqués dans les services métier.
 - Les dépendances AMQP et Eureka du template sont conservées. L'autoconfiguration
   RabbitMQ est exclue ; l'enregistrement Eureka et la récupération du registre
   sont désactivés par défaut. Aucun serveur RabbitMQ, Eureka ou Config Server
@@ -40,6 +40,7 @@ Spring Boot 3.3.5, Spring Cloud 2023.0.3. Aucun POM parent dans `Backend`.
 | `EUREKA_REGISTER` | `false` |
 | `EUREKA_FETCH` | `false` |
 | `COMMUN_SERVICE_URL` | `http://localhost:8087` |
+| `JWT_SECRET` | obligatoire : même valeur dans les deux services, au moins 32 octets UTF-8 |
 
 Ne pas enregistrer de mot de passe dans Git. Spring Boot ne charge pas
 automatiquement un fichier `.env`. Garder les deux variables Eureka à `false`
@@ -174,17 +175,15 @@ Les nouveaux fichiers Java sont commentés pour expliquer chaque ligne utile.
 
 ### Authentification minimale de cette étape
 
-Chaque opération transmet `Authorization: Bearer ...` à `/skillmatch/auth/me`.
-Le service commun vérifie réellement le JWT et retourne l'identifiant et le rôle
-depuis sa base ; ils ne sont pas déduits du formulaire ou du stockage Angular.
-Une réponse auth HTTP en erreur est traitée comme un refus 401. Cela couvre
-aussi le comportement actuel de commun-service qui peut répondre 500 pour un
-JWT malformé ; une autre panne HTTP interne de `/me` apparaîtrait donc aussi en
-401. Une connexion impossible ou un délai dépassé renvoie 503. Aucun accès
-n'est accordé si l'identité ne peut pas être vérifiée.
+Chaque opération vérifie d'abord la signature, l'expiration, le subject et le
+rôle du JWT localement. Elle transmet ensuite le même Bearer à `/skillmatch/auth/me`.
+Le service commun retourne l'identifiant et le rôle depuis sa base ; ils ne
+sont pas déduits du formulaire, d'un éventuel userId du JWT ou du stockage Angular.
+L'email et le rôle retournés doivent correspondre aux claims signés.
+Un JWT invalide ou une identité refusée renvoie 401 ; une panne du service commun
+renvoie 503. Aucun accès n'est accordé en cas d'échec.
 
-La vérification locale du JWT et ses tests cryptographiques seront ajoutés à
-l'étape sécurité. Aucun secret JWT n'est ajouté ici. La faille existante de
+Aucun secret réel n'est enregistré dans Git. La faille existante de
 l'inscription publique acceptant ADMIN reste à signaler au responsable de
 `commun-service` : elle n'est pas corrigée par ce CRUD.
 
@@ -235,8 +234,8 @@ mvn package
 
 - `OffreServiceTest` : rôles, propriétaires, dates, brouillon/publication et suppression.
 - `OffreControllerTest` : routes HTTP via MockMvc, validation et codes d'erreur.
-- `IdentiteServiceTest` : vrai client HTTP contre un petit serveur local simulant
-  le contrat de commun-service ; aucune vraie signature JWT n'est testée ici.
+- `IdentiteServiceTest` : JWT réellement signé et vrai client HTTP vers un
+  serveur local simulant commun-service ; vérifie aussi la cohérence des claims.
 - `OffreCrudIT` : un seul scénario court avec le vrai service et MySQL : créer,
   lire, modifier et supprimer. L'identité distante est simulée et les données
   sont annulées après le test. Les routes HTTP sont testées dans `OffreControllerTest`.
@@ -247,8 +246,8 @@ n'est créé. Les compteurs d'identifiants peuvent avancer malgré le rollback.
 Vérifications de cette étape : 49 tests sans MySQL réussis et 5 tests
 d'intégration MySQL réussis (3 parcours CRUD et 2 tests du mapping JPA).
 Une lecture de contrôle confirme zéro offre et zéro candidature résiduelles
-après ces tests. La connexion HTTP à un vrai `commun-service` avec de vrais
-comptes et les signatures JWT restent à vérifier à l'étape sécurité.
+après ces tests. Le login avec les vrais comptes du projet et l'appel au
+`commun-service` déployé restent à vérifier manuellement.
 
 ## Recherche et tri simples
 
@@ -331,7 +330,7 @@ mvn "-Dtest=CandidatureCrudIT,OffreCrudIT,EntityPersistenceIT" test
 ```
 
 Les tests MySQL annulent leurs données. L'identité distante y est simulée ;
-les vrais comptes et signatures JWT seront vérifiés à l'étape sécurité.
+les tests cryptographiques séparés utilisent des JWT réellement signés.
 
 Résultat de cette étape : 59 tests sans MySQL et 5 tests d'intégration MySQL
 réussis, JAR généré. La contrainte anti-doublon est présente dans MySQL et
@@ -349,3 +348,45 @@ Exemple : `/skillmatch/candidatures?search=java&sort=dateCandidatureDesc`.
 La petite méthode `rechercherEtTrier` utilise uniquement les candidatures déjà
 autorisées par le rôle. Comme pour les offres, la recherche et le tri se font
 en Java sur cette liste. Aucun filtre supplémentaire ni nouvelle classe.
+
+## Vérification locale du JWT
+
+`JwtVerifier` utilise JJWT 0.12.5, comme commun-service, et la même clé HMAC
+encodée en UTF-8. Il refuse les JWT non signés, expirés, malformés, signés avec
+une autre clé, sans email/expiration ou avec un rôle inconnu. `IdentiteService`
+récupère ensuite le vrai userId via `/auth/me` ; si l'email ou le rôle a changé,
+l'utilisateur doit se reconnecter. Les contrôles de propriétaire et de rôle
+des deux CRUD restent dans leurs services.
+
+### Configuration obligatoire pour lancer les deux services
+
+Définir **la même valeur** `JWT_SECRET` dans les configurations IntelliJ de
+`CommunServiceApplication` et `OffresServiceApplication` (Environment variables).
+Utiliser au moins 32 octets UTF-8. Le service Offres n'a aucun secret par défaut :
+une valeur absente ou trop courte empêche son démarrage.
+Redémarrer les deux services et se reconnecter pour obtenir un nouveau JWT.
+Ne pas utiliser la valeur de développement écrite dans la configuration commune.
+
+Pour générer une valeur locale dans un terminal PowerShell, sans fichier :
+
+```powershell
+$env:JWT_SECRET = [Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+```
+
+Cette commande ne définit la variable que dans ce terminal et ses processus
+enfants. Pour IntelliJ, reporter la même valeur dans les deux configurations ;
+ne pas générer deux clés différentes, ne pas les commiter.
+
+### Tests
+
+`mvn test` vérifie les vraies signatures, les trois rôles, l'expiration, les
+claims manquants et les erreurs de clé. Les clés de test sont générées en mémoire.
+Les tests MySQL `*IT` exigent aussi `JWT_SECRET` dans le terminal, comme un
+démarrage normal ; leurs identités distantes restent simulées.
+
+Le risque d'inscription publique permettant ADMIN existe toujours dans
+`commun-service` ; ce code appartient à son responsable et n'a pas été modifié.
+
+Vérification de cette étape : 68 tests sans MySQL et 5 tests d'intégration MySQL
+réussis, JAR généré. Les tests MySQL ont utilisé une clé éphémère dans la variable
+d'environnement du processus ; aucune clé réelle n'a été ajoutée aux fichiers.

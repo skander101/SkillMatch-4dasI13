@@ -1,5 +1,10 @@
 package tn.esprit.skillmatch.offres.security; // Tests du contrat HTTP avec le service commun.
 
+import io.jsonwebtoken.Jwts; // Crée de vrais JWT de test, comme commun-service.
+import io.jsonwebtoken.security.Keys; // Signature HMAC.
+import java.time.Instant;
+import java.util.Date;
+import java.util.UUID;
 import com.sun.net.httpserver.HttpServer; // Petit serveur local réservé au test.
 import org.junit.jupiter.api.AfterEach; // Ferme le serveur après chaque test.
 import org.junit.jupiter.api.BeforeEach; // Prépare le serveur.
@@ -11,12 +16,13 @@ import java.nio.charset.StandardCharsets; // Encodage UTF-8.
 import java.util.concurrent.atomic.AtomicInteger; // Compte les appels.
 import static org.junit.jupiter.api.Assertions.*; // Vérifications JUnit.
 
-class IdentiteServiceTest { // Ce faux serveur ne signe pas de JWT ; il teste les échanges HTTP et le refus d'accès.
+class IdentiteServiceTest { // JWT réellement signé ; le serveur commun est simulé.
     private HttpServer serveur; // Serveur de test temporaire.
     private IdentiteService service; // Vrai service d'identité.
     private final AtomicInteger appels = new AtomicInteger(); // Nombre d'appels distants.
     private int code; // Statut HTTP simulé.
     private String reponse; // Corps JSON simulé.
+    private String authorization; // JWT signé pour chaque test.
     private String authorizationRecue; // En-tête réellement transmis.
 
     @BeforeEach // Prépare un port différent pour chaque test.
@@ -34,7 +40,11 @@ class IdentiteServiceTest { // Ce faux serveur ne signe pas de JWT ; il teste le
             echange.close(); // Termine la réponse.
         }); // Fin du faux serveur.
         serveur.start(); // Démarre uniquement pour ce test.
-        service = new IdentiteService(RestClient.builder(), "http://127.0.0.1:" + serveur.getAddress().getPort()); // Client vers le faux serveur.
+        String secret = UUID.randomUUID().toString(); // Clé éphémère, jamais un vrai secret.
+        authorization = "Bearer " + Jwts.builder().subject("test@example.invalid").claim("role", "RECRUTEUR")
+                .claim("userId", 999).expiration(Date.from(Instant.now().plusSeconds(120))) // Cet id fictif doit être ignoré.
+                .signWith(Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8))).compact();
+        service = new IdentiteService(RestClient.builder(), "http://127.0.0.1:" + serveur.getAddress().getPort(), new JwtVerifier(secret));
     } // Fin de la préparation.
 
     @AfterEach // Libère le port après le test.
@@ -44,8 +54,8 @@ class IdentiteServiceTest { // Ce faux serveur ne signe pas de JWT ; il teste le
 
     @Test // JWT transmis tel quel.
     void litLidentiteDuServeurEtTransmetLeBearer() { // Ne fait pas confiance à un rôle du formulaire.
-        assertEquals(7L, service.courante("Bearer exemple").id()); // Lit l'identifiant distant.
-        assertEquals("Bearer exemple", authorizationRecue); // Vérifie l'en-tête transmis.
+        assertEquals(7L, service.courante(authorization).id()); // Lit l'identifiant distant.
+        assertEquals(authorization, authorizationRecue); // Vérifie l'en-tête transmis.
     } // Fin du test.
 
     @Test // Demande anonyme.
@@ -57,18 +67,20 @@ class IdentiteServiceTest { // Ce faux serveur ne signe pas de JWT ; il teste le
     } // Fin du test.
 
     @Test // Refus du service commun.
-    void reponseAuthEnErreurNeDonneJamaisAcces() { // commun-service peut répondre 500 pour un JWT invalide.
-        code = 500; // Simule ce comportement existant.
+    void reponseAuthEnErreurNeDonneJamaisAcces() { // Le JWT est valide localement, mais le serveur peut refuser ou tomber en panne.
+        code = 401; // Session refusée.
         reponse = "{}"; // Pas d'identité valide.
-        erreur(401, () -> service.courante("Bearer invalide")); // Notre API refuse l'accès.
+        erreur(401, () -> service.courante(authorization)); // Notre API refuse l'accès.
+        code = 500; // Panne interne du service commun.
+        erreur(503, () -> service.courante(authorization)); // Aucun accès accordé en cas de panne.
     } // Fin du test.
 
     @Test // Réponse incohérente.
     void roleInconnuOuIdentiteVideSontRefuses() { // Refuse de fabriquer un utilisateur.
         reponse = "{\"id\":7,\"role\":\"SUPERUSER\"}"; // Rôle non autorisé.
-        erreur(401, () -> service.courante("Bearer exemple")); // Refus.
+        erreur(401, () -> service.courante(authorization)); // Refus.
         reponse = "{}"; // Identifiant et rôle absents.
-        erreur(401, () -> service.courante("Bearer exemple")); // Refus.
+        erreur(401, () -> service.courante(authorization)); // Refus.
     } // Fin du test.
 
     @Test // Propriétaire ADMIN.
@@ -91,6 +103,20 @@ class IdentiteServiceTest { // Ce faux serveur ne signe pas de JWT ; il teste le
         erreur(400, () -> service.verifierCandidat(7L, "Bearer admin")); // Le faux serveur retourne d'abord RECRUTEUR.
         reponse = reponse.replace("RECRUTEUR", "CANDIDAT"); // Retourne maintenant un vrai candidat.
         service.verifierCandidat(7L, "Bearer admin"); // Vérification acceptée.
+    }
+
+    @Test
+    void jwtMalformeEstRefuseAvantLappelDistant() {
+        erreur(401, () -> service.courante("Bearer faux"));
+        assertEquals(0, appels.get()); // Aucun appel au serveur commun.
+    }
+
+    @Test
+    void emailOuRoleDifferentDuJwtEstRefuse() {
+        reponse = reponse.replace("test@example.invalid", "autre@example.invalid");
+        erreur(401, () -> service.courante(authorization)); // Autre identité.
+        reponse = reponse.replace("autre@example.invalid", "test@example.invalid").replace("RECRUTEUR", "CANDIDAT");
+        erreur(401, () -> service.courante(authorization)); // Rôle changé après le login.
     }
 
     private void erreur(int codeAttendu, Runnable operation) { // Vérification commune.

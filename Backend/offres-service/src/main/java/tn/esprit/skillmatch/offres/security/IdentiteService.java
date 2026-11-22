@@ -13,24 +13,26 @@ import java.util.Set; // Liste fixe des rôles autorisés.
 @Service // Réutilisable par les futurs services métier.
 public class IdentiteService { // Ne lit jamais un rôle envoyé par le formulaire.
     private final RestClient client; // Client vers commun-service.
+    private final JwtVerifier jwt; // Vérification locale avant la résolution de l'identité.
 
-    public IdentiteService(RestClient.Builder builder, @Value("${commun-service.url}") String url) { // Injection des dépendances.
+    public IdentiteService(RestClient.Builder builder, @Value("${commun-service.url}") String url, JwtVerifier jwt) { // Injection des dépendances.
+        this.jwt = jwt;
         var factory = new SimpleClientHttpRequestFactory(); // Prépare la connexion HTTP.
         factory.setConnectTimeout(3000); // Attend au maximum trois secondes pour se connecter.
         factory.setReadTimeout(3000); // Attend au maximum trois secondes pour lire la réponse.
         client = builder.baseUrl(url).requestFactory(factory).build(); // Utilise l'adresse configurée du service commun.
     } // Fin du constructeur.
 
-    public Identite courante(String authorization) { // Vérifie le JWT auprès du service qui l'a émis.
-        if (authorization == null || !authorization.startsWith("Bearer ") || authorization.substring(7).isBlank()) { // Refuse un en-tête absent ou vide.
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentification requise"); // Réponse 401.
-        } // Fin du contrôle.
+    public Identite courante(String authorization) { // JWT local puis identité réelle dans commun-service.
+        var claims = jwt.verifier(authorization); // Refuse immédiatement un jeton faux ou expiré.
         Identite identite; // Identité provenant exclusivement du serveur commun.
         try { // Appelle l'authentification existante.
             identite = client.get().uri("/skillmatch/auth/me").header("Authorization", authorization) // Transmet le JWT sans le modifier.
                     .retrieve().body(Identite.class); // Le service commun vérifie la signature et l'expiration.
-        } catch (RestClientResponseException exception) { // Le service commun refuse l'authentification.
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Session refusée par le service commun"); // Refuse l'accès, même si commun répond 500 pour un JWT invalide.
+        } catch (RestClientResponseException exception) { // Réponse en erreur du service commun.
+            if (exception.getStatusCode().is4xxClientError())
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Session refusée par le service commun"); // Identité refusée.
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Service d'authentification indisponible"); // Panne serveur, aucun accès accordé.
         } catch (RestClientException exception) { // Service commun inaccessible ou réponse illisible.
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Service d'authentification indisponible"); // Aucun accès accordé en cas de panne.
         } // Fin de l'appel HTTP.
@@ -38,6 +40,8 @@ public class IdentiteService { // Ne lit jamais un rôle envoyé par le formulai
                 || !Set.of("ADMIN", "RECRUTEUR", "CANDIDAT").contains(identite.role())) { // Accepte uniquement les trois rôles du projet.
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Identité invalide"); // Ne fait pas confiance à une réponse incomplète.
         } // Fin du contrôle.
+        if (!claims.getSubject().equals(identite.email()) || !claims.get("role", String.class).equals(identite.role()))
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Identité ou rôle modifié : reconnectez-vous"); // Refuse un JWT devenu incohérent.
         return identite; // Retourne l'identité vérifiée côté serveur.
     } // Fin de la résolution.
 
