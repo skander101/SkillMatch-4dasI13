@@ -158,7 +158,7 @@ class OffreControllerTest { // Teste contrôleur, validations et vrai service en
     @ValueSource(strings = {"POST", "PUT"})
     void ajoutEtModificationRefusentLesChampsVidesEtLesLongueursInvalides(String methode) throws Exception {
         var base = json.readTree(formulaire());
-        for (String champ : List.of("titre", "description", "localisation", "salaire", "competences", "contrat", "dateExpiration", "statut", "entrepriseId", "testRequisId")) {
+        for (String champ : List.of("titre", "description", "localisation", "salaire", "competences", "contrat", "dateExpiration", "statut", "entrepriseId")) {
             var corps = base.deepCopy(); ((com.fasterxml.jackson.databind.node.ObjectNode) corps).putNull(champ);
             var route = methode.equals("POST") ? post("/skillmatch/offres") : put("/skillmatch/offres/10");
             mvc.perform(route.contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(corps))).andExpect(status().isBadRequest());
@@ -173,6 +173,17 @@ class OffreControllerTest { // Teste contrôleur, validations et vrai service en
             }
         }
         verifyNoInteractions(identites, offres);
+    }
+
+    @Test
+    void creationSansTestRequisEstAutorisee() throws Exception {
+        connecter("RECRUTEUR");
+        when(offres.save(any())).thenAnswer(appel -> appel.getArgument(0));
+        var corps = (com.fasterxml.jackson.databind.node.ObjectNode) json.readTree(formulaire());
+        corps.putNull("testRequisId");
+        mvc.perform(post("/skillmatch/offres").header("Authorization", "Bearer test")
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(corps)))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.testRequisId").isEmpty());
     }
 
     private String formulaire() throws Exception { // Formulaire valide commun.

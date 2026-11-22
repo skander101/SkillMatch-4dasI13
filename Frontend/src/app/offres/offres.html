@@ -36,10 +36,9 @@
               <span class="offre-badge" [attr.data-statut]="offre.statut">{{ offre.statut }}</span>
             </div>
             <h3>{{ offre.titre }}</h3>
-            <p class="offre-meta">{{ offre.localisation || 'Localisation non précisée' }} <span>·</span> {{ offre.contrat }}</p>
-            <p class="offre-description">{{ offre.description || 'Consultez les détails de cette opportunité.' }}</p>
+            <p class="offre-meta carte-meta"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 6-8 11-8 11S4 16 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>{{ offre.localisation || 'Localisation non précisée' }}</span><span class="separateur">·</span><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h18v14H3zM8 7V3h8v4M3 12h18M10 12v3h4v-3"/></svg>{{ offre.contrat }}</span></p>
             <div class="job-tags">@for (competence of offre.competences; track $index) { <span>{{ competence }}</span> }</div>
-            <div class="offre-reperes"><b>{{ offre.salaire === null ? 'Salaire à discuter' : (offre.salaire | number:'1.0-2') + ' DT / mois' }}</b><span>Jusqu’au {{ offre.dateExpiration | date:'dd/MM/yyyy' }}</span></div>
+            <div class="offre-reperes"><b><span class="repere-icone"><svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="9" cy="7" rx="6" ry="3"/><path d="M3 7v9c0 4 12 4 12 0V7M3 12c0 4 12 4 12 0M17 4c5 0 6 4 1 6M18 10v7c4 0 4-3 4-3V7"/></svg></span>{{ offre.salaire === null ? 'Salaire à discuter' : (offre.salaire | number:'1.0-2') + ' DT / mois' }}</b><span><span class="repere-icone"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v5M17 3v5M3 11h18M7 15h2M12 15h2M7 18h2"/></svg></span>Jusqu’au {{ offre.dateExpiration | date:'dd/MM/yyyy' }}</span></div>
             <button class="see-job" (click)="selection.set(offre)">Voir l’offre →</button>
             @if (auth.currentUser()?.role === 'CANDIDAT') {
               @if (dejaPostule().has(offre.id)) { <p class="deja-postule"><span aria-hidden="true">✓</span> Déjà postulé</p> }
@@ -47,10 +46,10 @@
             }
             @if (gestion()) {
               <div class="offre-actions gestion">
-                <button class="action-lien" (click)="ouvrirFormulaire(offre)" [disabled]="operation()">Modifier</button>
-                @if (offre.statut === 'BROUILLON') { <button class="action-lien" (click)="changerStatut(offre, 'PUBLIEE')" [disabled]="operation()">Publier</button> }
-                @if (offre.statut === 'PUBLIEE') { <button class="action-lien" title="Conserver l'offre et ses candidatures, arrêter les nouveaux dépôts" (click)="changerStatut(offre, 'FERMEE')" [disabled]="operation()">Fermer</button> }
-                <button class="action-lien danger" (click)="suppression.set(offre)" [disabled]="operation()">Supprimer</button>
+                <button class="action-lien" (click)="ouvrirFormulaire(offre)" [disabled]="operation()"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 4 5 5M4 20l5-1L21 7l-5-5L4 14Z"/></svg>Modifier</button>
+                @if (offre.statut === 'BROUILLON') { <button class="action-lien" (click)="changerStatut(offre, 'PUBLIEE')" [disabled]="operation()"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 18-7-7 18-4-7-7-4ZM10 14 21 3"/></svg>Publier</button> }
+                @if (offre.statut === 'PUBLIEE') { <button class="action-lien" title="Conserver l'offre et ses candidatures, arrêter les nouveaux dépôts" (click)="changerStatut(offre, 'FERMEE')" [disabled]="operation()"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h18v14H3zM8 7V3h8v4M3 12h18M10 12v3h4v-3"/></svg>Fermer</button> }
+                <button class="action-lien danger" (click)="suppression.set(offre)" [disabled]="operation()"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7M14 10v7"/></svg>Supprimer</button>
               </div>
             }
           </article>

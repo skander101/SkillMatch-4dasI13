@@ -31,7 +31,8 @@ Les espaces autour des textes ne comptent pas dans les longueurs.
 | Contrat et statut | Valeurs autorisées obligatoires ; création BROUILLON |
 | Salaire | Obligatoire, nombre fini positif ou nul |
 | Expiration | Obligatoire, aujourd'hui ou dans le futur, quel que soit le statut |
-| Entreprise et test requis | Références obligatoires, entiers positifs |
+| Entreprise | Choix obligatoire ; identifiant entier positif |
+| Test requis | Choix facultatif, Aucun test transmet null ; identifiant positif si fourni |
 | Recruteur | Session RECRUTEUR ; choix obligatoire et vérifié pour une création ADMIN |
 
 | Candidature | Règle |

@@ -16,7 +16,7 @@ public record OffreRequest( // Un record évite d'écrire des getters et setters
         @NotNull @FutureOrPresent LocalDate dateExpiration, // La cohérence de la date est vérifiée par le service.
         @NotNull OffreStatut statut, // La création exige BROUILLON.
         @NotNull @Positive Long entrepriseId, // Référence simple, sans appel Entreprise.
-        @NotNull @Positive Long testRequisId, // Référence simple, sans appel Tests.
+        @Positive Long testRequisId, // Référence simple, sans appel Tests.
         @Positive Long recruteurId // Obligatoire pour ADMIN à la création ; jamais une preuve d'identité.
 ) {
     public OffreRequest { // Nettoie les espaces avant de vérifier les longueurs.

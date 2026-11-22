@@ -18,8 +18,8 @@
           @if (c.noteRecruteur !== null) { <p class="offre-meta avec-icone"><span aria-hidden="true">✦</span>Évaluation : {{ c.noteRecruteur }}</p> }
           @if (c.commentaireRecruteur) { <p class="description-complete">{{ c.commentaireRecruteur }}</p> }
           <div class="offre-actions gestion">
-            @if (modifiable(c)) { <button class="action-lien" (click)="ouvrir(c)" [disabled]="operation()">{{ auth.currentUser()?.role === 'RECRUTEUR' ? 'Traiter' : 'Modifier' }}</button> }
-            @if (auth.isAdmin() || (auth.currentUser()?.role === 'CANDIDAT' && c.statut === 'RECUE')) { <button class="action-lien danger" (click)="suppression.set(c)" [disabled]="operation()">{{ auth.isAdmin() ? 'Supprimer' : 'Retirer' }}</button> }
+            @if (modifiable(c)) { <button class="action-lien" (click)="ouvrir(c)" [disabled]="operation()"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 4 5 5M4 20l5-1L21 7l-5-5L4 14Z"/></svg>{{ auth.currentUser()?.role === 'RECRUTEUR' ? 'Traiter' : 'Modifier' }}</button> }
+            @if (auth.isAdmin() || (auth.currentUser()?.role === 'CANDIDAT' && c.statut === 'RECUE')) { <button class="action-lien danger" (click)="suppression.set(c)" [disabled]="operation()"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7M14 10v7"/></svg>{{ auth.isAdmin() ? 'Supprimer' : 'Retirer' }}</button> }
           </div>
         </article>
       } @empty { <div class="no-results aucune-offre"><b>Aucune candidature trouvée.</b><span>{{ auth.currentUser()?.role === 'CANDIDAT' ? 'Choisissez une offre ouverte pour postuler, ou changez votre recherche.' : 'Actualisez la liste ou changez votre recherche.' }}</span></div> }

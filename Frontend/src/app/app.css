@@ -41,3 +41,6 @@
 :host main { min-height: 75vh; }
 .module-actif { color: #08713c; background: #eaf5ee; border-radius: 8px; }
 .acces-connexion { padding: 80px 24px; text-align: center; }
+
+/* Garde la largeur mobile disponible pour les cartes et leurs actions. */
+@media(max-width:480px){.nav-actions .user-avatar{display:none}.user-chip{gap:5px;padding:5px}.user-chip>div{max-width:54px;overflow:hidden}.brand{font-size:19px}.brand-mark{width:28px}}

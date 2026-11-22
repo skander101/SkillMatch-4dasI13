@@ -3,6 +3,8 @@ import { FormsModule } from '@angular/forms';
 import { Offre, OffreRequest, OffreStatut } from './offre.model';
 import { UserService } from '../user/user.service';
 import { User } from '../user/user.model';
+import { forkJoin, of } from 'rxjs';
+import { ReferencesService, ChoixReference } from './references.service';
 import { SaisieValide } from '../saisie-valide';
 
 @Component({
@@ -20,6 +22,9 @@ export class OffreForm implements OnChanges, OnInit {
   @Output() valider = new EventEmitter<OffreRequest>();
   @Output() annuler = new EventEmitter<void>();
   private readonly utilisateurs = inject(UserService);
+  private readonly references = inject(ReferencesService);
+  readonly entreprises = signal<ChoixReference[]>([]);
+  readonly tests = signal<ChoixReference[]>([]);
   readonly recruteurs = signal<User[]>([]);
   readonly chargement = signal(false);
   readonly erreurChoix = signal('');
@@ -31,12 +36,20 @@ export class OffreForm implements OnChanges, OnInit {
     salaire: null, dateExpiration: '', statut: 'BROUILLON', entrepriseId: null, testRequisId: null
   };
 
-  ngOnInit(): void { // ADMIN choisit un recruteur réel pour la création.
-    if (!this.admin || this.offre) return;
+  ngOnInit(): void {
     this.chargement.set(true);
-    this.utilisateurs.list().subscribe({
-      next: users => { this.recruteurs.set(users.filter(u => u.role === 'RECRUTEUR')); this.chargement.set(false); },
-      error: () => { this.erreurChoix.set('Impossible de charger les recruteurs. Fermez puis réessayez.'); this.chargement.set(false); }
+    forkJoin({ references: this.references.charger(), users: this.admin && !this.offre ? this.utilisateurs.list() : of([]) }).subscribe({
+      next: ({ references, users }) => {
+        // Conserve les associations des anciennes offres sans inventer leur nom.
+        if (this.offre?.entrepriseId && !references.entreprises.some(e => e.id === this.offre!.entrepriseId))
+          references.entreprises.push({ id: this.offre.entrepriseId, nom: 'Entreprise associée à cette ancienne offre' });
+        if (this.offre?.testRequisId && !references.tests.some(t => t.id === this.offre!.testRequisId))
+          references.tests.push({ id: this.offre.testRequisId, nom: 'Test associé à cette ancienne offre' });
+        this.entreprises.set(references.entreprises); this.tests.set(references.tests);
+        this.recruteurs.set(users.filter(u => u.role === 'RECRUTEUR'));
+        this.chargement.set(false);
+      },
+      error: () => { this.erreurChoix.set('Impossible de charger les choix. Fermez puis réessayez.'); this.chargement.set(false); }
     });
   }
 

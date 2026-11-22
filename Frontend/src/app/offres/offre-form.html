@@ -7,12 +7,12 @@
 
     <p>Les champs marqués * sont obligatoires.</p>
     <form #form="ngForm" (ngSubmit)="enregistrer(form.valid === true)" class="offre-champs">
+      @if (chargement()) { <p class="large" role="status">Chargement des choix…</p> }
+      @if (erreurChoix()) { <p class="auth-error large" role="alert">{{ erreurChoix() }}</p> }
       @if (admin && !offre) {
         <label class="large">Recruteur *<select name="recruteur" #recruteur="ngModel" [(ngModel)]="formulaire.recruteurId" required><option [ngValue]="null">Choisir un recruteur</option>@for (u of recruteurs(); track u.id) { <option [ngValue]="u.id">{{ u.nom }} — {{ u.email }}</option> }</select>
           @if (recruteur.invalid && (recruteur.touched || form.submitted)) { <small class="champ-erreur" role="alert">Choisissez un recruteur.</small> }
         </label>
-        @if (chargement()) { <p class="large" role="status">Chargement des recruteurs…</p> }
-        @if (erreurChoix()) { <p class="auth-error large" role="alert">{{ erreurChoix() }}</p> }
       }
       <label class="large">Titre *<input name="titre" #titre="ngModel" [(ngModel)]="formulaire.titre" required saisieValide="texte" minlength="3" maxlength="255" placeholder="Ex. Développeur Java" autofocus>
         @if (titre.invalid && (titre.touched || form.submitted)) { <small class="champ-erreur" role="alert">Titre obligatoire : 3 à 255 caractères, hors espaces autour.</small> }
@@ -40,17 +40,17 @@
           @if (etat.invalid && (etat.touched || form.submitted)) { <small class="champ-erreur" role="alert">Choisissez un statut.</small> }
         </label>
       }
-      <details class="large references" open>
-        <summary>Références complémentaires obligatoires *</summary>
-        <div class="offre-champs">
-          <label>Référence entreprise *<input name="entrepriseId" #entreprise="ngModel" type="number" [(ngModel)]="formulaire.entrepriseId" saisieValide="entier" required min="1" step="1">
-            @if (entreprise.invalid && (entreprise.touched || form.submitted)) { <small class="champ-erreur" role="alert">Saisissez un entier positif obligatoire.</small> }
-          </label>
-          <label>Référence du test requis *<input name="testRequisId" #test="ngModel" type="number" [(ngModel)]="formulaire.testRequisId" saisieValide="entier" required min="1" step="1">
-            @if (test.invalid && (test.touched || form.submitted)) { <small class="champ-erreur" role="alert">Saisissez un entier positif obligatoire.</small> }
-          </label>
-        </div>
-      </details>
+      <div class="large catalogue-note">Entreprises et tests de démonstration : ces choix ne sont pas encore reliés aux services de vos collègues.</div>
+      <label>Entreprise *<select name="entrepriseId" #entreprise="ngModel" [(ngModel)]="formulaire.entrepriseId" required>
+        <option [ngValue]="null">Choisir une entreprise</option>
+        @for (e of entreprises(); track e.id) { <option [ngValue]="e.id">{{ e.nom }}</option> }
+      </select>
+        @if (entreprise.invalid && (entreprise.touched || form.submitted)) { <small class="champ-erreur" role="alert">Choisissez une entreprise.</small> }
+      </label>
+      <label>Test requis<select name="testRequisId" [(ngModel)]="formulaire.testRequisId">
+        <option [ngValue]="null">Aucun test</option>
+        @for (t of tests(); track t.id) { <option [ngValue]="t.id">{{ t.nom }}</option> }
+      </select><small>Facultatif : aucun questionnaire n'est exécuté dans cette démonstration.</small></label>
       @if (erreur) { <p class="auth-error large" role="alert">{{ erreur }}</p> }
       @if (form.submitted && form.invalid) { <p class="champ-erreur large" role="alert">Vérifiez les champs obligatoires et les nombres saisis. Les références doivent être des entiers positifs.</p> }
       <div class="offre-actions large">
