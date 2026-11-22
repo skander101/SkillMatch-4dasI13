@@ -1,6 +1,8 @@
 package tn.esprit.skillmatch.offres.service; // Règles essentielles des candidatures.
 
 import org.springframework.http.HttpStatus; // Codes des erreurs.
+import org.springframework.context.ApplicationEventPublisher;
+import tn.esprit.skillmatch.offres.event.EvenementOffres;
 import org.springframework.stereotype.Service; // Service Spring.
 import org.springframework.transaction.annotation.Transactional; // Transactions.
 import org.springframework.web.server.ResponseStatusException; // Erreurs HTTP.
@@ -22,11 +24,13 @@ public class CandidatureService {
     private final CandidatureRepository candidatures;
     private final OffreRepository offres;
     private final IdentiteService identites;
+    private final ApplicationEventPublisher evenements;
 
-    public CandidatureService(CandidatureRepository candidatures, OffreRepository offres, IdentiteService identites) { // Injection.
+    public CandidatureService(CandidatureRepository candidatures, OffreRepository offres, IdentiteService identites, ApplicationEventPublisher evenements) { // Injection.
         this.candidatures = candidatures;
         this.offres = offres;
         this.identites = identites;
+        this.evenements = evenements;
     }
 
     @Transactional(readOnly = true)
@@ -63,20 +67,25 @@ public class CandidatureService {
         c.setUserId(candidat);
         c.setLettre(d.lettre());
         c.setCvId(d.cvId());
-        return CandidatureResponse.depuis(candidatures.saveAndFlush(c)); // Détecte aussi les doublons simultanés.
+        Candidature enregistree = candidatures.saveAndFlush(c); // Détecte aussi les doublons simultanés.
+        evenements.publishEvent(EvenementOffres.candidatureDeposee(enregistree));
+        return CandidatureResponse.depuis(enregistree);
     }
 
     public CandidatureResponse modifier(Long id, CandidatureUpdate d, String token) {
         Identite u = identites.courante(token);
         Candidature c = trouverAccessible(id, u);
         verifierModification(c, d, u); // Vérifie les champs accessibles au rôle.
+        CandidatureStatut ancien = c.getStatut();
         if (d.lettre() != null) c.setLettre(d.lettre()); // Un champ absent est conservé.
         if (d.cvId() != null) c.setCvId(d.cvId());
         if (d.statut() != null) c.changerStatut(d.statut());
         if (d.dateEntretien() != null) c.setDateEntretien(d.dateEntretien());
         if (d.noteRecruteur() != null) c.setNoteRecruteur(d.noteRecruteur());
         if (d.commentaireRecruteur() != null) c.setCommentaireRecruteur(d.commentaireRecruteur());
-        return CandidatureResponse.depuis(candidatures.save(c));
+        Candidature enregistree = candidatures.save(c);
+        if (ancien != c.getStatut()) evenements.publishEvent(EvenementOffres.statutChange(c, ancien));
+        return CandidatureResponse.depuis(enregistree);
     }
 
     public void supprimer(Long id, String token) {
@@ -88,6 +97,7 @@ public class CandidatureService {
             if (c.getStatut() != CandidatureStatut.RECUE) throw erreur(409, "Seule une candidature RECUE peut être retirée");
             c.changerStatut(CandidatureStatut.RETIREE); // Retrait logique du candidat.
             candidatures.save(c);
+            evenements.publishEvent(EvenementOffres.statutChange(c, CandidatureStatut.RECUE));
         }
     }
 

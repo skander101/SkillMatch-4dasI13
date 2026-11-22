@@ -7,6 +7,8 @@ import org.junit.jupiter.api.extension.ExtendWith; // Active Mockito.
 import org.mockito.*; // Faux repositories.
 import org.mockito.junit.jupiter.MockitoExtension; // Support Mockito.
 import org.springframework.web.server.ResponseStatusException; // Erreurs attendues.
+import org.springframework.context.ApplicationEventPublisher;
+import tn.esprit.skillmatch.offres.event.EvenementOffres;
 import tn.esprit.skillmatch.offres.dto.*; // Formulaires.
 import tn.esprit.skillmatch.offres.entity.*; // Entités.
 import tn.esprit.skillmatch.offres.enums.*; // Statuts.
@@ -25,6 +27,7 @@ class CandidatureServiceTest {
     @Mock CandidatureRepository candidatures;
     @Mock OffreRepository offres;
     @Mock IdentiteService identites;
+    @Mock ApplicationEventPublisher evenements;
     CandidatureService service;
     Offre offre;
     Candidature candidature;
@@ -32,7 +35,7 @@ class CandidatureServiceTest {
 
     @BeforeEach
     void preparer() { // Jeu de données local, sans MySQL.
-        service = new CandidatureService(candidatures, offres, identites);
+        service = new CandidatureService(candidatures, offres, identites, evenements);
         offre = new Offre();
         offre.setId(10L);
         offre.setRecruteurId(2L);
@@ -92,6 +95,7 @@ class CandidatureServiceTest {
         when(candidatures.saveAndFlush(any())).thenAnswer(appel -> appel.getArgument(0));
         assertEquals(7L, service.creer(new CandidatureRequest(10L, "Lettre", 3L, 7L), token).userId());
         verify(identites).verifierCandidat(7L, token); // Vérification serveur exigée.
+        verify(evenements).publishEvent(argThat((Object e) -> e instanceof EvenementOffres v && v.type().equals("ApplicationSubmitted")));
     }
 
     @Test
@@ -135,6 +139,26 @@ class CandidatureServiceTest {
         when(candidatures.findById(5L)).thenReturn(Optional.of(candidature));
         when(candidatures.save(candidature)).thenReturn(candidature);
         assertEquals("Avis", service.modifier(5L, new CandidatureUpdate(null, null, null, null, null, "Avis"), token).commentaireRecruteur());
+    }
+
+    @Test
+    void signaleLeChangementDeStatutEtLeRetraitMaisPasUnStatutInchange() {
+        connecter("RECRUTEUR", 2L);
+        when(candidatures.findById(5L)).thenReturn(Optional.of(candidature));
+        when(candidatures.save(candidature)).thenReturn(candidature);
+        var demande = new CandidatureUpdate(null, null, CandidatureStatut.PRESELECTIONNEE, null, null, null);
+        service.modifier(5L, demande, token);
+        ArgumentCaptor<EvenementOffres> capture = ArgumentCaptor.forClass(EvenementOffres.class);
+        verify(evenements).publishEvent(capture.capture());
+        assertEquals("RECUE", ((EvenementOffres.StatutChange) capture.getValue().donnees()).ancienStatut());
+        clearInvocations(evenements);
+        service.modifier(5L, demande, token);
+        verifyNoInteractions(evenements);
+        connecter("CANDIDAT", 1L);
+        candidature.setStatut(CandidatureStatut.RECUE);
+        service.supprimer(5L, token);
+        verify(evenements).publishEvent(capture.capture());
+        assertEquals("RETIREE", ((EvenementOffres.StatutChange) capture.getValue().donnees()).nouveauStatut());
     }
 
     private void connecter(String role, Long id) { when(identites.courante(token)).thenReturn(new Identite(id, "Test", "test@example.invalid", role)); } // Identité de test.

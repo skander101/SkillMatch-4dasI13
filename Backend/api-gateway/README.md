@@ -59,7 +59,9 @@ puis la Gateway pour utiliser les CRUD via `http://localhost:8080/skillmatch`.
 Eureka découvre aussi le port temporaire 18081 d'Offres : aucune modification
 de route n'est nécessaire. Ne pas définir `OFFRES_SERVICE_URL` pour utiliser
 la découverte ; cette variable permet encore de forcer une adresse directe.
-Les ports officiels restent 8080 et 8081. RabbitMQ et Config Server restent inactifs.
+Les ports officiels restent 8080 et 8081. La Gateway n'utilise pas RabbitMQ ;
+Offres publie ses événements selon [ce guide](../offres-service/RABBITMQ.md).
+Config Server reste inactif.
 Voir [le guide Eureka](../discovery-service/README.md).
 
 Test : `mvn test`. `GatewayRoutesTest` démarre deux petits serveurs simulés

@@ -1,6 +1,8 @@
 package tn.esprit.skillmatch.offres.service; // Règles métier des offres.
 
 import org.springframework.http.HttpStatus; // Codes des erreurs métier.
+import org.springframework.context.ApplicationEventPublisher;
+import tn.esprit.skillmatch.offres.event.EvenementOffres;
 import org.springframework.stereotype.Service; // Service Spring.
 import org.springframework.transaction.annotation.Transactional; // Gestion automatique des transactions.
 import org.springframework.web.server.ResponseStatusException; // Erreurs HTTP explicites.
@@ -23,11 +25,13 @@ public class OffreService { // Un seul service pour les trois rôles.
     private final OffreRepository offres; // Repository des offres.
     private final CandidatureRepository candidatures; // Repository des candidatures.
     private final IdentiteService identites; // Contrôle de l'utilisateur connecté.
+    private final ApplicationEventPublisher evenements;
 
-    public OffreService(OffreRepository offres, CandidatureRepository candidatures, IdentiteService identites) { // Injection par constructeur.
+    public OffreService(OffreRepository offres, CandidatureRepository candidatures, IdentiteService identites, ApplicationEventPublisher evenements) { // Injection par constructeur.
         this.offres = offres; // Mémorise l'accès aux offres.
         this.candidatures = candidatures; // Mémorise l'accès aux candidatures.
         this.identites = identites; // Mémorise le service d'identité.
+        this.evenements = evenements;
     } // Fin du constructeur.
 
     @Transactional(readOnly = true) // Cette méthode ne modifie pas la base.
@@ -75,8 +79,13 @@ public class OffreService { // Un seul service pour les trois rôles.
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Le propriétaire d'une offre ne peut pas être changé"); // Évite les transferts implicites.
         } // Fin du contrôle du propriétaire.
         verifierDonnees(demande); // Vérifie la cohérence entre statut et expiration.
+        OffreStatut ancien = offre.getStatut(); // Détecte une vraie publication, pas une simple modification de texte.
         remplir(offre, demande); // Affecte les champs modifiables.
-        return offres.save(offre); // Enregistre les modifications.
+        Offre resultat = offres.save(offre);
+        if (ancien != OffreStatut.PUBLIEE && offre.getStatut() == OffreStatut.PUBLIEE) {
+            evenements.publishEvent(EvenementOffres.offrePubliee(offre));
+        }
+        return resultat;
     } // Fin de la modification.
 
     public void supprimer(Long id, String authorization) { // Supprime physiquement une offre sans candidature.

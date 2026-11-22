@@ -39,7 +39,7 @@ class OffreControllerTest { // Teste contrôleur, validations et vrai service en
 
     @BeforeEach // Avant chaque test.
     void preparer() { // Construit le contrôleur et ses règles réelles.
-        OffreService service = new OffreService(offres, candidatures, identites); // Seule la base et l'identité sont simulées.
+        OffreService service = new OffreService(offres, candidatures, identites, mock(org.springframework.context.ApplicationEventPublisher.class));
         mvc = MockMvcBuilders.standaloneSetup(new OffreController(service)) // Routes du contrôleur.
                 .setControllerAdvice(new GlobalExceptionHandler()) // Gestion des erreurs réelle.
                 .setMessageConverters(new MappingJackson2HttpMessageConverter(json)).build(); // Support JSON.

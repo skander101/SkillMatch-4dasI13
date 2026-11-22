@@ -13,12 +13,13 @@ Spring Boot 3.3.5, Spring Cloud 2023.0.3. Aucun POM parent dans `Backend`.
   Le JWT est vérifié localement, puis l'identité est résolue auprès de
   `commun-service`. Les droits sont appliqués dans les services métier.
 - Le client Eureka est actif : démarrer `discovery-service` sur 8761 avant Offres.
-  L'autoconfiguration RabbitMQ reste exclue ; aucun Config Server n'est nécessaire.
+  RabbitMQ est maintenant actif pour les trois événements ; aucun Config Server n'est nécessaire.
   Voir [le guide Eureka](../discovery-service/README.md).
+  Voir [le guide RabbitMQ](RABBITMQ.md) pour les messages, le lancement et les limites.
 
 ## Démarrage dans IntelliJ
 
-1. Démarrer MySQL dans XAMPP (port 3306) et `DiscoveryServiceApplication` (8761).
+1. Démarrer MySQL dans XAMPP (3306), RabbitMQ (5672) et `DiscoveryServiceApplication` (8761).
 2. Créer `offres_db` dans phpMyAdmin, ou utiliser un compte autorisé à créer la
    base : l'URL JDBC contient `createDatabaseIfNotExist=true`.
 3. Ouvrir **File > Open > Backend/offres-service**, puis importer le `pom.xml`.

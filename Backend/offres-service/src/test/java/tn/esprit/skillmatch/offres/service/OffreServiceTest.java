@@ -8,6 +8,8 @@ import org.junit.jupiter.params.provider.EnumSource; // Fournit les valeurs d'un
 import org.mockito.Mock; // Faux objets sans base ni réseau.
 import org.mockito.junit.jupiter.MockitoExtension; // Intégration Mockito et JUnit.
 import org.springframework.web.server.ResponseStatusException; // Erreurs attendues.
+import org.springframework.context.ApplicationEventPublisher;
+import tn.esprit.skillmatch.offres.event.EvenementOffres;
 import tn.esprit.skillmatch.offres.dto.OffreRequest; // Formulaire testé.
 import tn.esprit.skillmatch.offres.entity.Offre; // Offre testée.
 import tn.esprit.skillmatch.offres.enums.*; // Contrats et statuts.
@@ -25,12 +27,13 @@ class OffreServiceTest { // Vérifie les règles indépendamment de HTTP.
     @Mock OffreRepository offres; // Faux accès aux offres.
     @Mock CandidatureRepository candidatures; // Faux accès aux candidatures.
     @Mock IdentiteService identites; // Fausse réponse d'identité fiable.
+    @Mock ApplicationEventPublisher evenements;
     private OffreService service; // Vrai service métier à tester.
     private static final String TOKEN = "Bearer test"; // Valeur locale, pas un véritable JWT.
 
     @BeforeEach // Exécuté avant chaque scénario.
     void preparer() { // Recrée le service avec les faux objets.
-        service = new OffreService(offres, candidatures, identites); // Aucun serveur démarré.
+        service = new OffreService(offres, candidatures, identites, evenements); // Aucun serveur démarré.
     } // Fin de la préparation.
 
     @Test // Lecture ADMIN.
@@ -248,6 +251,19 @@ class OffreServiceTest { // Vérifie les règles indépendamment de HTTP.
         assertEquals(List.of(z, a, sansSalaire), service.lister(TOKEN, "", "salaireDesc")); // Grand au petit, puis absence.
         assertEquals(List.of(z, sansSalaire, a), service.lister(TOKEN, "", "dateExpirationDesc")); // Date lointaine d'abord.
     } // Fin du test.
+
+    @Test
+    void publieUnEvenementSeulementLorsDuPassageAPubliee() {
+        connecter("RECRUTEUR");
+        Offre offre = existante();
+        offre.setStatut(OffreStatut.BROUILLON);
+        service.modifier(10L, demande(OffreStatut.PUBLIEE, null), TOKEN);
+        verify(evenements).publishEvent(argThat((Object e) -> e instanceof EvenementOffres v && v.type().equals("OfferPublished")));
+        clearInvocations(evenements);
+        service.modifier(10L, demande(OffreStatut.PUBLIEE, null), TOKEN); // Même statut : pas de deuxième publication.
+        service.modifier(10L, demande(OffreStatut.FERMEE, null), TOKEN);
+        verifyNoInteractions(evenements);
+    }
 
     private Offre offreDeListe(String titre, Double salaire) { // Prépare une offre pour la recherche.
         Offre offre = new Offre(); // Objet de test.

@@ -144,6 +144,11 @@ Spring Boot ne charge pas automatiquement `.env` : exporter les variables (`set 
 
 Les événements sont nommés de manière métier et publiés via RabbitMQ.
 
+Offres publie désormais `OfferPublished`, `ApplicationSubmitted` et `StatusChanged`
+après commit MySQL. L'exchange est `skillmatch.events` et les messages sont en JSON.
+Voir le [guide RabbitMQ d'Offres](offres-service/RABBITMQ.md). Les consommateurs
+Alertes/Notifications restent à développer dans les services concernés.
+
 - `OfferPublished` : une offre est publiée.
 - `ApplicationSubmitted` : une candidature est déposée.
 - `StatusChanged` : le statut d'une candidature change.
