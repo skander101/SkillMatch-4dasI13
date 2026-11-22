@@ -12,6 +12,8 @@ import tn.esprit.skillmatch.offres.repository.*; // Repositories simulés.
 import tn.esprit.skillmatch.offres.security.IdentiteService; // Identité simulée.
 import tn.esprit.skillmatch.offres.security.IdentiteService.Identite;
 import java.time.LocalDate; // Date de l'offre.
+import java.time.LocalDateTime; // Dates simulées pour vérifier les deux sens de tri.
+import java.util.List; // Liste des candidatures.
 import java.util.Optional; // Résultats des recherches.
 import static org.junit.jupiter.api.Assertions.*; // Vérifications.
 import static org.mockito.Mockito.*; // Simulation.
@@ -88,6 +90,27 @@ class CandidatureServiceTest {
         when(candidatures.saveAndFlush(any())).thenAnswer(appel -> appel.getArgument(0));
         assertEquals(7L, service.creer(new CandidatureRequest(10L, "Lettre", 3L, 7L), token).userId());
         verify(identites).verifierCandidat(7L, token); // Vérification serveur exigée.
+    }
+
+    @Test
+    void rechercheEtTrieSansChangerLeProprietaire() {
+        connecter("CANDIDAT", 1L);
+        Candidature ancienne = candidatureDatee(1L, LocalDateTime.of(2026, 1, 1, 10, 0));
+        Candidature recente = candidatureDatee(2L, LocalDateTime.of(2026, 2, 1, 10, 0));
+        when(candidatures.findByUserId(1L)).thenReturn(List.of(recente, ancienne)); // Déjà limité à l'utilisateur.
+        assertEquals(1L, service.lister(token, " JAVA ", "dateCandidature").get(0).id()); // Ancienne d'abord.
+        assertEquals(2L, service.lister(token, "java", "dateCandidatureDesc").get(0).id()); // Récente d'abord.
+        assertTrue(service.lister(token, "Python", "dateCandidatureDesc").isEmpty()); // Aucun résultat.
+        erreur(400, () -> service.lister(token, "", "inconnu")); // Tri refusé.
+    }
+
+    private Candidature candidatureDatee(Long id, LocalDateTime date) { // La vraie date est automatique en base.
+        Candidature c = mock(Candidature.class);
+        when(c.getDateCandidature()).thenReturn(date);
+        when(c.getId()).thenReturn(id);
+        when(c.getLettre()).thenReturn("Motivation Java");
+        when(c.getOffre()).thenReturn(offre);
+        return c;
     }
 
     private CandidatureRequest demande() { return new CandidatureRequest(10L, "Lettre", 3L, null); } // Candidat de session.

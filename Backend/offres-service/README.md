@@ -320,8 +320,8 @@ fausse validation de CV, aucun stockage de fichier ajouté.
 
 Les trois petits DTO sont `CandidatureRequest` (création),
 `CandidatureUpdate` (modification) et `CandidatureResponse` (réponse JSON).
-Pas de recherche, de tri supplémentaire, de notifications ou de matching dans
-cette étape. Les routes Gateway et les écrans Angular ne sont pas encore branchés.
+Pas de notifications ou de matching dans cette étape. Les routes Gateway et
+les écrans Angular ne sont pas encore branchés.
 
 Vérification :
 
@@ -336,3 +336,16 @@ les vrais comptes et signatures JWT seront vérifiés à l'étape sécurité.
 Résultat de cette étape : 59 tests sans MySQL et 5 tests d'intégration MySQL
 réussis, JAR généré. La contrainte anti-doublon est présente dans MySQL et
 les deux tables sont revenues à zéro ligne après les tests.
+
+## Recherche et tri simples des candidatures
+
+La liste `GET /skillmatch/candidatures` accepte deux paramètres :
+
+- `search` : texte contenu dans la lettre, sans tenir compte de la casse.
+- `sort=dateCandidature` : anciennes d'abord.
+- `sort=dateCandidatureDesc` : récentes d'abord, valeur par défaut.
+
+Exemple : `/skillmatch/candidatures?search=java&sort=dateCandidatureDesc`.
+La petite méthode `rechercherEtTrier` utilise uniquement les candidatures déjà
+autorisées par le rôle. Comme pour les offres, la recherche et le tri se font
+en Java sur cette liste. Aucun filtre supplémentaire ni nouvelle classe.

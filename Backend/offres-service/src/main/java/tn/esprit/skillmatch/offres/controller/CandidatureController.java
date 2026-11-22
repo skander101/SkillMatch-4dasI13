@@ -17,8 +17,9 @@ public class CandidatureController {
     }
 
     @GetMapping // Liste selon le rôle.
-    public List<CandidatureResponse> lister(@RequestHeader(value = "Authorization", required = false) String token) {
-        return service.lister(token);
+    public List<CandidatureResponse> lister(@RequestParam(defaultValue = "") String search, @RequestParam(defaultValue = "dateCandidatureDesc") String sort, // Deux paramètres de l'URL.
+                                           @RequestHeader(value = "Authorization", required = false) String token) {
+        return service.lister(token, search, sort); // Récentes d'abord par défaut.
     }
 
     @GetMapping("/{id}") // Détail d'une candidature autorisée.

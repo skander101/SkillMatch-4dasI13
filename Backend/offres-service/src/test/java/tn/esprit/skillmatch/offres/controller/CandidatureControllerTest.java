@@ -35,7 +35,7 @@ class CandidatureControllerTest {
 
     @Test
     void retourne401SansSessionEt404SiAbsente() throws Exception {
-        when(service.lister(null)).thenThrow(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentification requise"));
+        when(service.lister(null, "", "dateCandidatureDesc")).thenThrow(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentification requise"));
         mvc.perform(get("/skillmatch/candidatures")).andExpect(status().isUnauthorized()); // Session absente.
         when(service.consulter(99L, "Bearer test")).thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Candidature introuvable"));
         mvc.perform(get("/skillmatch/candidatures/99").header("Authorization", "Bearer test"))

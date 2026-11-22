@@ -13,6 +13,8 @@ import tn.esprit.skillmatch.offres.security.IdentiteService.Identite; // Utilisa
 import java.time.LocalDateTime; // Vérification de l'entretien.
 import java.util.List; // Résultats.
 import java.util.Set; // Statuts accessibles au recruteur.
+import java.util.Comparator; // Compare les dates pour le tri.
+import java.util.Locale; // Recherche sans tenir compte de la casse.
 
 @Service
 @Transactional // Annule l'opération si une règle échoue.
@@ -28,14 +30,14 @@ public class CandidatureService {
     }
 
     @Transactional(readOnly = true)
-    public List<CandidatureResponse> lister(String token) { // Chaque rôle a son périmètre.
+    public List<CandidatureResponse> lister(String token, String search, String sort) { // Deux paramètres simples, comme les offres.
         Identite u = identites.courante(token);
         List<Candidature> liste = switch (u.role()) {
             case "ADMIN" -> candidatures.findAll(); // Toutes.
             case "RECRUTEUR" -> candidatures.findByOffreRecruteurId(u.id()); // Candidatures de ses offres.
             default -> candidatures.findByUserId(u.id()); // Candidatures du candidat connecté.
         };
-        return liste.stream().map(CandidatureResponse::depuis).toList(); // Conversion dans la transaction.
+        return rechercherEtTrier(liste, search, sort); // Recherche seulement dans le périmètre autorisé.
     }
 
     @Transactional(readOnly = true)
@@ -113,6 +115,18 @@ public class CandidatureService {
         LocalDateTime entretien = d.dateEntretien() == null ? c.getDateEntretien() : d.dateEntretien(); // Date effective.
         if (d.statut() == CandidatureStatut.ENTRETIEN_PLANIFIE && (entretien == null || !entretien.isAfter(LocalDateTime.now())))
             throw erreur(400, "Planifier un entretien exige une date future");
+    }
+
+    private List<CandidatureResponse> rechercherEtTrier(List<Candidature> liste, String search, String sort) {
+        String mot = search.trim().toLowerCase(Locale.ROOT); // Ignore casse et espaces autour du mot.
+        Comparator<Candidature> ordre = switch (sort) {
+            case "dateCandidature" -> Comparator.comparing(Candidature::getDateCandidature); // Anciennes d'abord.
+            case "dateCandidatureDesc" -> Comparator.comparing(Candidature::getDateCandidature).reversed(); // Récentes d'abord.
+            default -> throw erreur(400, "Tri : dateCandidature ou dateCandidatureDesc"); // Refuse un tri inconnu.
+        };
+        return liste.stream()
+                .filter(c -> mot.isEmpty() || (c.getLettre() != null && c.getLettre().toLowerCase(Locale.ROOT).contains(mot))) // Recherche dans la lettre.
+                .sorted(ordre).map(CandidatureResponse::depuis).toList(); // Trie et construit la réponse.
     }
 
     private ResponseStatusException erreur(int code, String message) { // Évite de répéter la création des erreurs.
