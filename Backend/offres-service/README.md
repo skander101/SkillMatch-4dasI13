@@ -67,7 +67,7 @@ démarrage ; il ne valide ni la connexion MySQL ni un CRUD. Le démarrage réel 
 le contrôle de santé doivent être vérifiés séparément avec MySQL disponible.
 
 Pour utiliser le CRUD, `commun-service` doit également tourner sur 8087.
-La Gateway sur 8080 sera utilisée après ajout de ses routes. Le service peut
+La Gateway sur 8080 possède les routes offres et candidatures. Le service peut
 toujours démarrer seul avec MySQL ; ses opérations métier nécessitent une
 authentification valide auprès de `commun-service`.
 
@@ -221,8 +221,8 @@ curl.exe -X DELETE -H "Authorization: Bearer $env:SKILLMATCH_TOKEN" http://local
 
 Remplacer `ID` par l'identifiant retourné et passer le statut du formulaire à
 `PUBLIEE` pour publier. Utiliser 18081 seulement si le service a été lancé avec
-le port temporaire de diagnostic. Les routes Gateway et Angular ne sont pas
-modifiées à cette étape.
+le port temporaire de diagnostic. Les routes Gateway sont maintenant présentes ;
+les écrans Angular restent à connecter.
 
 ### Tests du CRUD
 
@@ -319,8 +319,8 @@ fausse validation de CV, aucun stockage de fichier ajouté.
 
 Les trois petits DTO sont `CandidatureRequest` (création),
 `CandidatureUpdate` (modification) et `CandidatureResponse` (réponse JSON).
-Pas de notifications ou de matching dans cette étape. Les routes Gateway et
-les écrans Angular ne sont pas encore branchés.
+Pas de notifications ou de matching dans cette étape. Les routes Gateway sont
+présentes ; les écrans Angular ne sont pas encore branchés aux CRUD.
 
 Vérification :
 
@@ -390,3 +390,15 @@ Le risque d'inscription publique permettant ADMIN existe toujours dans
 Vérification de cette étape : 68 tests sans MySQL et 5 tests d'intégration MySQL
 réussis, JAR généré. Les tests MySQL ont utilisé une clé éphémère dans la variable
 d'environnement du processus ; aucune clé réelle n'a été ajoutée aux fichiers.
+
+## Accès par la Gateway
+
+Les mêmes routes sont accessibles via `http://localhost:8080/skillmatch/offres`
+et `http://localhost:8080/skillmatch/candidatures`, avec le même Bearer,
+les mêmes formulaires, paramètres de recherche et valeurs de tri.
+La Gateway transmet la requête ; les contrôles JWT et métier restent dans
+offres-service. Démarrer aussi commun-service pour les requêtes authentifiées.
+
+Si Offres tourne temporairement sur 18081, définir
+`OFFRES_SERVICE_URL=http://localhost:18081` dans la configuration de la Gateway.
+Aucune modification Angular n'est incluse dans cette étape.
