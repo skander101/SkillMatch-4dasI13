@@ -1,0 +1,255 @@
+<header class="page-heading">
+  <h1>{{ view() === 'catalogue' ? 'Tests & Compétences' : 'Résultats des tests' }}</h1>
+  <div class="actions">
+    @if (view() === 'catalogue') {
+      <button type="button" class="button secondary" (click)="loadCatalogue()" [disabled]="catalogueLoading()">
+        Actualiser
+      </button>
+      <button type="button" class="button" (click)="openEditor(null)" [disabled]="saving() || deleting()">
+        Nouveau test
+      </button>
+    }
+  </div>
+</header>
+
+@if (view() === 'catalogue') {
+  @if (feedback()) {
+    <p class="feedback" role="status">{{ feedback() }}</p>
+  }
+
+  @if (editorOpen()) {
+    <section id="tests-editor" #editorPanel class="panel" tabindex="-1" aria-labelledby="editor-title">
+      <div class="panel-heading">
+        <h2 id="editor-title">{{ editedTest() ? 'Modifier le test' : 'Créer un test' }}</h2>
+        @if (!questions.length) {
+          <button type="button" class="button secondary" (click)="closeEditor()">Fermer</button>
+        }
+      </div>
+      @if (editorLoading()) {
+        <p class="muted" role="status">Chargement de la définition du test…</p>
+      } @else if (!questions.length) {
+        @if (editorError()) {
+          <p class="error" role="alert">{{ editorError() }}</p>
+          <button type="button" class="button secondary" (click)="openEditor(editedTest())">Réessayer</button>
+        }
+      } @else {
+        <form [formGroup]="form" (ngSubmit)="save()">
+          <fieldset class="definition" [disabled]="saving()">
+            <div class="test-fields">
+              <label>Titre
+                <input formControlName="titre" required maxlength="150">
+              </label>
+              <label>Compétence évaluée
+                <input formControlName="competence" required maxlength="100">
+              </label>
+              <label>Durée indicative (minutes)
+                <input formControlName="dureeMinutes" type="number" required min="1" max="240">
+              </label>
+              <label>Seuil de réussite (%)
+                <input formControlName="seuilReussite" type="number" required min="1" max="100">
+              </label>
+            </div>
+
+            <div class="questions">
+              @for (question of questions.controls; track question; let questionIndex = $index) {
+                <fieldset [formGroup]="question" class="question">
+                  <legend>Question {{ questionIndex + 1 }}</legend>
+                  <label>Énoncé
+                    <textarea formControlName="enonce" required maxlength="1000" rows="2"></textarea>
+                  </label>
+                  <div class="options">
+                    @for (option of question.controls.options.controls; track option; let optionIndex = $index) {
+                      <div class="option-row">
+                        <label>Option {{ optionIndex + 1 }}
+                          <input [formControl]="option" required maxlength="300">
+                        </label>
+                        @if (question.controls.options.length > 2) {
+                          <button type="button" class="text-button danger"
+                                  [attr.aria-label]="'Retirer l’option ' + (optionIndex + 1) + ' de la question ' + (questionIndex + 1)"
+                                  (click)="removeOption(question, optionIndex)">Retirer</button>
+                        }
+                      </div>
+                    }
+                  </div>
+                  <label>Bonne réponse
+                    <select formControlName="indexBonneReponse">
+                      <option [ngValue]="-1">Choisir une option</option>
+                      @for (option of question.controls.options.controls; track option; let optionIndex = $index) {
+                        <option [ngValue]="optionIndex">
+                          Option {{ optionIndex + 1 }}{{ option.value ? ' · ' + option.value : '' }}
+                        </option>
+                      }
+                    </select>
+                  </label>
+                  <div class="actions question-actions">
+                    <button type="button" class="text-button" (click)="addOption(question)"
+                            [disabled]="question.controls.options.length >= 8">Ajouter une option</button>
+                    @if (questions.length > 1) {
+                      <button type="button" class="text-button danger" (click)="removeQuestion(questionIndex)">
+                        Retirer la question
+                      </button>
+                    }
+                  </div>
+                </fieldset>
+              }
+            </div>
+            <button type="button" class="button secondary" (click)="addQuestion()"
+                    [disabled]="questions.length >= 100">Ajouter une question</button>
+          </fieldset>
+          @if (editorError()) {
+            <p class="error" role="alert">{{ editorError() }}</p>
+          }
+          <div class="actions form-actions">
+            <button type="submit" class="button" [disabled]="saving() || deleting()">
+              {{ saving() ? 'Enregistrement…' : editedTest() ? 'Mettre à jour' : 'Créer le test' }}
+            </button>
+            <button type="button" class="button secondary" (click)="closeEditor()" [disabled]="saving()">
+              Annuler
+            </button>
+          </div>
+        </form>
+      }
+    </section>
+  }
+
+  <section class="panel" aria-labelledby="catalogue-title">
+    <div class="panel-heading">
+      <h2 id="catalogue-title">Catalogue des tests</h2>
+      <label class="search">Rechercher
+        <input type="search" placeholder="Titre ou compétence" [value]="query()"
+               (input)="query.set($any($event.target).value)">
+      </label>
+    </div>
+    @if (catalogueError()) {
+      <p class="error" role="alert">{{ catalogueError() }}</p>
+    }
+    @if (catalogueLoading()) {
+      <p class="muted" role="status">Chargement des tests…</p>
+    }
+    @if (filtered().length) {
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Test</th>
+              <th scope="col">Compétence</th>
+              <th scope="col">Durée</th>
+              <th scope="col">Seuil</th>
+              <th scope="col">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (test of filtered(); track test.id) {
+              <tr>
+                <td><strong>{{ test.titre }}</strong></td>
+                <td>{{ test.competence }}</td>
+                <td>{{ test.dureeMinutes }} min</td>
+                <td>{{ test.seuilReussite }} %</td>
+                <td>
+                  <div class="actions">
+                    <button type="button" class="text-button" (click)="openResults(test.id)"
+                            [attr.aria-label]="'Voir les résultats de ' + test.titre">Résultats</button>
+                    <button type="button" class="text-button" (click)="openEditor(test)"
+                            [disabled]="saving() || deleting()"
+                            [attr.aria-label]="'Modifier ' + test.titre">Modifier</button>
+                    <button type="button" class="text-button danger" (click)="requestDelete(test)"
+                            [disabled]="saving() || deleting()"
+                            [attr.aria-label]="'Supprimer ' + test.titre">Supprimer</button>
+                  </div>
+                </td>
+              </tr>
+              @if (pendingDelete()?.id === test.id) {
+                <tr class="confirm-row">
+                  <td colspan="5">
+                    <div class="confirm">
+                      <p>Supprimer définitivement <strong>{{ test.titre }}</strong> ?</p>
+                      <div class="actions">
+                        <button type="button" class="button secondary" (click)="cancelDelete()"
+                                [disabled]="deleting()">Annuler</button>
+                        <button type="button" class="button destructive" (click)="confirmDelete()"
+                                [disabled]="deleting() || saving()">
+                          {{ deleting() ? 'Suppression…' : 'Confirmer la suppression' }}
+                        </button>
+                      </div>
+                      @if (deletionError()) {
+                        <p class="error" role="alert">{{ deletionError() }}</p>
+                      }
+                    </div>
+                  </td>
+                </tr>
+              }
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else if (!catalogueLoading() && !catalogueError()) {
+      <p class="muted">{{ query().trim() ? 'Aucun test ne correspond à cette recherche.' : 'Aucun test dans le catalogue.' }}</p>
+    }
+  </section>
+} @else {
+  <section class="panel" aria-labelledby="results-title">
+    <div class="panel-heading">
+      <h2 id="results-title">Tentatives enregistrées</h2>
+      @if (selectedResultId()) {
+        <button type="button" class="button secondary" (click)="selectResults(selectedResultId())"
+                [disabled]="resultsLoading()">Actualiser</button>
+      }
+    </div>
+    @if (catalogueError()) {
+      <p class="error" role="alert">{{ catalogueError() }}</p>
+      <button type="button" class="button secondary" (click)="loadCatalogue()"
+              [disabled]="catalogueLoading()">Réessayer</button>
+    }
+    @if (catalogueLoading()) {
+      <p class="muted" role="status">Chargement des tests…</p>
+    }
+    @if (catalogue().length) {
+      <label class="result-picker">
+        <span id="results-test-label">Test</span>
+        <select aria-labelledby="results-test-label" (change)="selectResults(+$any($event.target).value || null)">
+          <option value="" [selected]="selectedResultId() === null">Sélectionner un test</option>
+          @for (test of catalogue(); track test.id) {
+            <option [value]="test.id" [selected]="test.id === selectedResultId()">{{ test.titre }}</option>
+          }
+        </select>
+      </label>
+    } @else if (!catalogueLoading() && !catalogueError()) {
+      <p class="muted">Aucun test disponible.</p>
+    }
+
+    @if (resultsLoading()) {
+      <p class="muted" role="status">Chargement des résultats…</p>
+    } @else if (resultsError()) {
+      <p class="error" role="alert">{{ resultsError() }}</p>
+    } @else if (selectedResultId()) {
+      @if (resultRows().length) {
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Candidat</th>
+                <th scope="col">Tentative</th>
+                <th scope="col">Score</th>
+                <th scope="col">Résultat</th>
+                <th scope="col">Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (result of resultRows(); track result.id) {
+                <tr>
+                  <td>#{{ result.userId }}</td>
+                  <td>{{ result.tentative }}</td>
+                  <td>{{ result.score }} %</td>
+                  <td><span class="badge" [class.passed]="result.reussi">{{ result.reussi ? 'Réussi' : 'Échoué' }}</span></td>
+                  <td>{{ result.date | date:'dd/MM/yyyy HH:mm' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      } @else {
+        <p class="muted">Aucun résultat pour ce test.</p>
+      }
+    }
+  </section>
+}

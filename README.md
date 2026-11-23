@@ -55,14 +55,14 @@ Le schéma d'architecture complet et les autres diagrammes se trouvent dans [`Do
 | `alertes-service` | 8085 | `alertes_db` | Alertes emploi et offres sauvegardées |
 | `messagerie-service` | 8086 | `messagerie_db` | Conversations et messages |
 | `commun-service` | 8087 | `commun_db` | Utilisateur et authentification JWT (sans notifications pour l'instant) |
-| `api-gateway` | 8080 | — | Routage `/skillmatch/auth/**` et CORS ; validation JWT prévue |
+| `api-gateway` | 8080 | — | Routage vers le service commun et le service des tests, et gestion CORS |
 | `discovery-service` | 8761 | — | Serveur Eureka |
 | `config-service` | 8888 | — | Configuration centralisée |
 | `Frontend` | 4200 | — | Interface candidat, recruteur et administrateur |
 
 Le détail des contrats, des entités, des appels synchrones et des événements est dans [`Backend/README.md`](Backend/README.md).
 
-État d'intégration : `commun-service` (utilisateur + auth JWT + CRUD ADMIN, sans notifications) et `api-gateway` sont implémentés ; le frontend consomme les endpoints `/skillmatch/auth/*` et `/skillmatch/utilisateurs/*` via la gateway. Un back office s'ouvre automatiquement après connexion avec le rôle `ADMIN`.
+Le frontend consomme l’authentification, la gestion des utilisateurs et le service Tests & Compétences via la passerelle. Le parcours des tests est disponible dans le frontoffice et dans le backoffice administrateur. Les instructions de démarrage figurent dans le [README du frontend](Frontend/README.md#tests--compétences).
 
 ## Technologies
 
@@ -130,7 +130,7 @@ mvn spring-boot:run
 
 ### Démarrage minimal de l'authentification
 
-Tant que les microservices métier ne sont pas développés, le socle exécutable est limité à MySQL, `commun-service`, `api-gateway` et au frontend.
+Pour utiliser uniquement l’authentification, démarrer MySQL, `commun-service`, `api-gateway` et le frontend.
 
 ```bash
 cp .env.example .env

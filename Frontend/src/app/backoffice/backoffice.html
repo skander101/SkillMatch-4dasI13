@@ -44,6 +44,10 @@
 
   <div class="bo-main">
     <main class="bo-content">
+      @if (activeSection() === 'tests' || activeSection() === 'tests-results') {
+        <app-tests-backoffice [view]="activeSection() === 'tests-results' ? 'results' : 'catalogue'"
+                              (showResults)="selectSection('tests-results')"/>
+      } @else {
       @switch (activeSection()) {
         @case ('dashboard') {
           <div class="page-head">
@@ -171,6 +175,7 @@
             </section>
           }
         }
+      }
       }
     </main>
   </div>

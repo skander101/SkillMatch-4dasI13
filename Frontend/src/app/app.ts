@@ -1,9 +1,10 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, HostListener, inject, signal } from '@angular/core';
+import { Component, computed, HostListener, inject, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from './user/auth.service';
 import { Role } from './user/user.model';
 import { BackOffice } from './backoffice/backoffice';
+import { FrontofficeTests, FrontofficeTestsView } from './tests/frontoffice-tests';
 
 type Domain = 'Développement' | 'Data' | 'Ressources humaines' | 'Design' | 'Marketing';
 type Contract = 'CDI' | 'CDD' | 'Stage' | 'Freelance';
@@ -29,7 +30,7 @@ interface NavService {
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, FormsModule, BackOffice],
+  imports: [CommonModule, FormsModule, BackOffice, FrontofficeTests],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
@@ -82,12 +83,7 @@ export class App {
       id: 'tests',
       label: 'Tests',
       full: 'Tests & Compétences',
-      items: [
-        'Passer un test technique',
-        'Correction automatique',
-        'Mes résultats',
-        'Tentatives restantes'
-      ]
+      items: ['Tests disponibles']
     },
     {
       id: 'alertes',
@@ -137,6 +133,14 @@ export class App {
   readonly isLoggedIn = this.auth.isLoggedIn;
   readonly isAdmin = this.auth.isAdmin;
   readonly backOfficeOpen = signal(this.auth.isAdmin());
+  readonly testsView = signal<FrontofficeTestsView | null>(null);
+  private readonly testsFrontoffice = viewChild(FrontofficeTests);
+  readonly testsNavigation = computed(() => {
+    const role = this.currentUser()?.role;
+    if (role === 'CANDIDAT') return ['Tests disponibles', 'Mes résultats'];
+    if (role === 'RECRUTEUR' || role === 'ADMIN') return ['Tests disponibles', 'Vérifier une réussite'];
+    return ['Tests disponibles'];
+  });
   readonly authEmail = signal('');
   readonly authPassword = signal('');
   readonly authName = signal('');
@@ -169,9 +173,28 @@ export class App {
   }
   onNavAction(serviceId: string, label: string): void {
     this.closeNav();this.mobileNavOpen.set(false);this.notificationsOpen.set(false);
+    if (serviceId === 'tests') {
+      const vue = label === 'Mes résultats' ? 'resultats'
+        : label === 'Vérifier une réussite' ? 'verification' : 'catalogue';
+      this.openTests(vue);
+      return;
+    }
     const service = this.navServices.find((item) => item.id === serviceId);
     this.showMessage(`${service?.full ?? serviceId} · ${label} — à brancher sur l'API Spring Boot.`);
-    if (serviceId === 'offres') { document.getElementById('offres')?.scrollIntoView({ behavior: 'smooth' }); }
+    if (serviceId === 'offres') {
+      this.testsView.set(null);
+      requestAnimationFrame(() => document.getElementById('offres')?.scrollIntoView({ behavior: 'smooth' }));
+    }
+  }
+  openTests(vue: FrontofficeTestsView): void {
+    this.navMessage.set('');
+    if (vue === 'catalogue') this.testsFrontoffice()?.fermerDetail();
+    this.testsView.set(vue);
+    window.scrollTo(0, 0);
+  }
+  openHome(): void {
+    this.testsView.set(null);
+    window.scrollTo(0, 0);
   }
   private showMessage(text: string): void {
     this.navMessage.set(text);
@@ -237,6 +260,7 @@ export class App {
   logout(): void {
     this.auth.logout();
     this.backOfficeOpen.set(false);
+    this.testsView.set(null);
     this.showMessage('Vous êtes déconnecté.');
   }
 

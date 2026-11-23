@@ -34,6 +34,12 @@ public class CatalogueTests {
         return VueTest.de(test);
     }
 
+    @Transactional(readOnly = true)
+    public DefinitionTest lireDefinition(Long id) {
+        TestTechnique test = repository.findById(id).orElseThrow(CatalogueTests::testIntrouvable);
+        return DefinitionTest.de(test);
+    }
+
     @Transactional
     public VueTest creer(DefinitionTest definition) {
         try {

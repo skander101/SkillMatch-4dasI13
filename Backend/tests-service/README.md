@@ -8,6 +8,7 @@
 2. Démarrer le service commun sur `8087` pour les appels métier et RabbitMQ sur `5672` pour la publication des réussites.
 3. Depuis `Backend/tests-service`, exécuter `mvn spring-boot:run`. Dans IntelliJ, ouvrir le `pom.xml` du service sous JDK 17 puis lancer `TestsServiceApplication`.
 4. Vérifier `GET http://localhost:8084/actuator/health`. Consulter le point d’accès de santé sans jeton, puis utiliser un jeton SkillMatch pour les routes métier.
+5. Pour utiliser les interfaces Angular, démarrer aussi `Backend/api-gateway` sur `8080` et `Frontend` sur `4200`. La passerelle transmet les routes des tests et des résultats à `tests-service`. Renseigner `TESTS_SERVICE_URL` dans la passerelle si le service utilise une autre adresse.
 
 | Variable | Valeur locale par défaut |
 | --- | --- |
@@ -29,6 +30,7 @@ Suivre le dossier technique pour les rôles et les codes HTTP. Les routes sont p
 | `POST /api/tests` | ADMIN | `201` avec en-tête `Location` |
 | `GET /api/tests?competence=Java` | Connecté | `200`, liste avec filtre de compétence facultatif |
 | `GET /api/tests/{id}` | Connecté | `200` avec le QCM, ou `404` |
+| `GET /api/tests/{id}/definition` | ADMIN | `200` avec le corrigé pour l’édition, ou `404` |
 | `PUT /api/tests/{id}` | ADMIN | `200`, ou `409` après une première tentative |
 | `DELETE /api/tests/{id}` | ADMIN | `204`, ou `409` si des résultats existent |
 | `POST /api/tests/{id}/submit` | CANDIDAT | `200` avec le résultat, ou `409` si le test est réussi ou les trois essais épuisés |
@@ -57,7 +59,7 @@ Une entrée invalide renvoie `400`. Un jeton absent ou refusé renvoie `401`. Un
 }
 ```
 
-Le candidat soumet `{"reponses":{"q1":0}}`. Les indices commencent à zéro. Une question omise vaut zéro point. Une soumission vide, une question inconnue ou un indice hors limites renvoie `400` sans consommer de tentative. L’API ne renvoie aucune clé de correction. Le score entier est calculé sur 100 et le seuil est inclus. L’identifiant du candidat provient du jeton validé.
+Le candidat soumet `{"reponses":{"q1":0}}`. Les indices commencent à zéro. Une question omise vaut zéro point. Une soumission vide, une question inconnue ou un indice hors limites renvoie `400` sans consommer de tentative. Le corrigé est accessible uniquement sur la route de définition réservée au rôle `ADMIN`. Le score entier est calculé sur 100 et le seuil est inclus. L’identifiant du candidat provient du jeton validé.
 
 ## Données et événement
 

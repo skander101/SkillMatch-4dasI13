@@ -1,0 +1,313 @@
+<section class="tests-hero" aria-labelledby="tests-title">
+  <div class="tests-wrap hero-layout">
+    <div>
+      <h1 id="tests-title">Tests &amp; <span>compétences</span></h1>
+      @if (role() === 'RECRUTEUR' || role() === 'ADMIN') {
+        <p>Consultez les tests techniques et vérifiez les compétences validées par les candidats.</p>
+      } @else {
+        <p>Passez des tests techniques et retrouvez vos résultats en un seul endroit.</p>
+      }
+    </div>
+    @if (nombreReussites() !== null && role() === 'CANDIDAT') {
+      <div class="hero-progress">
+        <strong>{{ nombreReussites() }}</strong>
+        <span>{{ nombreReussites() === 1 ? 'test réussi' : 'tests réussis' }}</span>
+        <button type="button" class="hero-link" (click)="ouvrirVue('resultats')">
+          Mes résultats <span aria-hidden="true">→</span>
+        </button>
+      </div>
+    }
+  </div>
+</section>
+
+<div class="tests-wrap tests-content">
+  @if (!role()) {
+    <section class="surface empty-state" aria-labelledby="tests-auth">
+      <h2 id="tests-auth">Accédez à votre espace de tests</h2>
+      <p>Connectez-vous pour consulter les tests et accéder à vos résultats.</p>
+      <button type="button" class="action primary" (click)="connexion.emit()">Se connecter</button>
+    </section>
+  } @else {
+    <nav class="tests-nav" aria-label="Navigation des tests">
+      <button type="button" [attr.aria-current]="vueActive() === 'catalogue' ? 'page' : null"
+        (click)="ouvrirVue('catalogue')">Catalogue des tests</button>
+      @if (role() === 'CANDIDAT') {
+        <button type="button" [attr.aria-current]="vueActive() === 'resultats' ? 'page' : null"
+          (click)="ouvrirVue('resultats')">Mes résultats</button>
+      } @else {
+        <button type="button" [attr.aria-current]="vueActive() === 'verification' ? 'page' : null"
+          (click)="ouvrirVue('verification')">Vérifier une réussite</button>
+      }
+    </nav>
+
+    @switch (vueActive()) {
+      @case ('catalogue') {
+        @let contenu = detail();
+        @if (contenu.state === 'idle') {
+          <div class="section-bar">
+            <h2>Tests disponibles</h2>
+            <form class="filter-form" (ngSubmit)="chargerCatalogue()">
+              <label class="control">
+                <span>Compétence</span>
+                <input type="search" name="competence" maxlength="100" placeholder="Ex. Java"
+                  [ngModel]="competence()" (ngModelChange)="competence.set($event)">
+              </label>
+              <button type="submit" class="action primary">Filtrer</button>
+              @if (filtreApplique()) {
+                <button type="button" class="action secondary" (click)="effacerFiltre()">Effacer</button>
+              }
+            </form>
+          </div>
+          @let liste = catalogue();
+          @switch (liste.state) {
+            @case ('loading') {
+              <p class="surface empty-state" role="status">Chargement des tests…</p>
+            }
+            @case ('error') {
+              <div class="surface empty-state">
+                <p role="alert">{{ liste.message }}</p>
+                <button type="button" class="action secondary" (click)="chargerCatalogue()">Réessayer</button>
+              </div>
+            }
+            @case ('ready') {
+              <div class="catalogue-grid">
+                @for (test of liste.value; track test.id) {
+                  <article class="surface catalogue-card">
+                    <span class="skill">{{ test.competence }}</span>
+                    <h3>{{ test.titre }}</h3>
+                    <dl class="test-facts">
+                      <div><dt>Durée indicative</dt><dd>{{ test.dureeMinutes }} min</dd></div>
+                      @if (test.seuilReussite !== undefined) {
+                        <div><dt>Seuil de réussite</dt><dd>{{ test.seuilReussite }} %</dd></div>
+                      }
+                    </dl>
+                    @if (role() === 'CANDIDAT' && progression()) {
+                      <p class="attempt-line">
+                        @if (progression()?.get(test.id)?.reussi) {
+                          <span class="status passed">Réussi</span>
+                        } @else {
+                          {{ tentativesRestantes(test.id) }} sur 3 tentatives restantes
+                        }
+                      </p>
+                    }
+                    <button type="button" class="action secondary" (click)="ouvrirTest(test.id)">
+                      Consulter le test <span aria-hidden="true">→</span>
+                    </button>
+                  </article>
+                } @empty {
+                  <div class="surface empty-state wide">
+                    <h3>Aucun test {{ filtreApplique() ? 'pour cette compétence' : 'disponible' }}</h3>
+                    @if (filtreApplique()) {
+                      <button type="button" class="action secondary" (click)="effacerFiltre()">Voir tous les tests</button>
+                    }
+                  </div>
+                }
+              </div>
+            }
+          }
+        } @else {
+          <button type="button" class="back-link" [disabled]="envoi().state === 'loading'" (click)="fermerDetail()">
+            <span aria-hidden="true">←</span> Retour au catalogue
+          </button>
+          @switch (contenu.state) {
+            @case ('loading') {
+              <p class="surface empty-state" role="status">Chargement du test…</p>
+            }
+            @case ('error') {
+              <p class="surface empty-state" role="alert">{{ contenu.message }}</p>
+            }
+            @case ('ready') {
+              @let test = contenu.value;
+              @let resultat = envoi();
+              @let restantes = tentativesRestantes(test.id);
+              @let mesTentatives = historique();
+              <div class="surface test-header">
+                <div>
+                  <span class="skill">{{ test.competence }}</span>
+                  <h2>{{ test.titre }}</h2>
+                </div>
+                <dl class="test-facts">
+                  <div><dt>Durée indicative</dt><dd>{{ test.dureeMinutes }} min</dd></div>
+                  <div><dt>Questions</dt><dd>{{ test.questions.length }}</dd></div>
+                  @if (test.seuilReussite !== undefined) {
+                    <div><dt>Seuil de réussite</dt><dd>{{ test.seuilReussite }} %</dd></div>
+                  }
+                </dl>
+              </div>
+
+              @if (resultat.state === 'ready') {
+                <section class="surface result-card" role="status">
+                  <span class="status" [class.passed]="resultat.value.reussi" [class.failed]="!resultat.value.reussi">
+                    {{ resultat.value.reussi ? 'Test réussi' : 'Score inférieur au seuil' }}
+                  </span>
+                  <p class="result-score">{{ resultat.value.score }} <span>%</span></p>
+                  <p class="attempt-line">Tentative {{ resultat.value.tentative }} sur 3</p>
+                  <div class="row-actions">
+                    <button type="button" class="action primary" (click)="ouvrirVue('resultats')">Voir mes résultats</button>
+                    @if (!resultat.value.reussi && resultat.value.tentative < 3) {
+                      <button type="button" class="action secondary" (click)="recommencer()">Réessayer</button>
+                    }
+                  </div>
+                </section>
+              } @else if (role() === 'CANDIDAT' && progression()?.get(test.id)?.reussi) {
+                <div class="surface test-notice">
+                  <span class="status passed">Test réussi</span>
+                  <button type="button" class="action secondary" (click)="ouvrirVue('resultats')">Voir mon résultat</button>
+                </div>
+              } @else if (role() === 'CANDIDAT' && restantes === 0) {
+                <div class="surface test-notice">
+                  <p>Vous avez utilisé vos trois tentatives pour ce test.</p>
+                  <button type="button" class="action secondary" (click)="ouvrirVue('resultats')">Voir mes résultats</button>
+                </div>
+              } @else {
+                <form class="quiz" (ngSubmit)="soumettre(test.id)">
+                  @for (question of test.questions; track question.id; let numero = $index) {
+                    <fieldset class="surface question"
+                      [disabled]="role() !== 'CANDIDAT' || resultat.state === 'loading'">
+                      <legend>{{ numero + 1 }}. {{ question.enonce }}</legend>
+                      @for (option of question.options; track $index; let index = $index) {
+                        @if (role() === 'CANDIDAT') {
+                          <label class="question-option" [class.selected]="reponses()[question.id] === index">
+                            <input type="radio" [name]="'test-' + test.id + '-' + question.id"
+                              [checked]="reponses()[question.id] === index" (change)="choisir(question.id, index)">
+                            <span>{{ option }}</span>
+                          </label>
+                        } @else {
+                          <div class="question-option">{{ option }}</div>
+                        }
+                      }
+                    </fieldset>
+                  }
+                  @if (role() === 'CANDIDAT') {
+                    <div class="surface submit-row">
+                      <div>
+                        <p><strong>{{ nombreReponses() }} / {{ test.questions.length }} réponses sélectionnées</strong></p>
+                        <p class="attempt-line">Les questions laissées vides comptent comme incorrectes.</p>
+                        @if (restantes !== null) {
+                          <p class="attempt-line">{{ restantes }} sur 3 tentatives restantes</p>
+                        }
+                      </div>
+                      <button type="submit" class="action primary"
+                        [disabled]="!nombreReponses() || resultat.state === 'loading' || mesTentatives.state !== 'ready'">
+                        {{ resultat.state === 'loading' ? 'Correction en cours…' : 'Envoyer mes réponses' }}
+                      </button>
+                      @if (resultat.state === 'error') {
+                        <p class="error wide" role="alert">{{ resultat.message }}</p>
+                      }
+                      @if (mesTentatives.state === 'loading') {
+                        <p class="attempt-line wide" role="status">Vérification des tentatives…</p>
+                      } @else if (mesTentatives.state === 'error') {
+                        <div class="wide">
+                          <p class="error" role="alert">{{ mesTentatives.message }}</p>
+                          <button type="button" class="action secondary" (click)="chargerHistorique()">Recharger mes tentatives</button>
+                        </div>
+                      }
+                    </div>
+                  }
+                </form>
+              }
+            }
+          }
+        }
+      }
+      @case ('resultats') {
+        <div class="section-bar"><h2>Mes résultats</h2></div>
+        @let resultats = historique();
+        @switch (resultats.state) {
+          @case ('loading') {
+            <p class="surface empty-state" role="status">Chargement de vos résultats…</p>
+          }
+          @case ('error') {
+            <div class="surface empty-state">
+              <p role="alert">{{ resultats.message }}</p>
+              <button type="button" class="action secondary" (click)="chargerHistorique()">Réessayer</button>
+            </div>
+          }
+          @case ('ready') {
+            @if (resultats.value.length) {
+              <div class="surface results-table" tabindex="0" aria-label="Tableau de mes résultats">
+                <table>
+                  <thead>
+                    <tr><th scope="col">Test</th><th scope="col">Score</th><th scope="col">Statut</th><th scope="col">Tentative</th><th scope="col">Date</th></tr>
+                  </thead>
+                  <tbody>
+                    @for (resultat of resultats.value; track resultat.id) {
+                      <tr>
+                        <th scope="row">
+                          {{ nomsTests().get(resultat.testId) ?? 'Test n° ' + resultat.testId }}
+                          <small>{{ resultat.competence }}</small>
+                        </th>
+                        <td>{{ resultat.score }} %</td>
+                        <td><span class="status" [class.passed]="resultat.reussi" [class.failed]="!resultat.reussi">
+                          {{ resultat.reussi ? 'Réussi' : 'Seuil non atteint' }}
+                        </span></td>
+                        <td>{{ resultat.tentative }} / 3</td>
+                        <td>{{ resultat.date | date:"dd/MM/yyyy 'à' HH:mm" }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            } @else {
+              <div class="surface empty-state">
+                <h3>Aucun résultat enregistré</h3>
+                <button type="button" class="action primary" (click)="ouvrirVue('catalogue')">Voir les tests</button>
+              </div>
+            }
+          }
+        }
+      }
+      @case ('verification') {
+        <div class="section-bar"><h2>Vérifier une réussite</h2></div>
+        @let tests = catalogue();
+        @let preuve = verification();
+        <form class="surface verify-form" (ngSubmit)="verifier()">
+          <label class="control">
+            <span>Identifiant du candidat</span>
+            <input type="number" min="1" step="1" name="candidat" required
+              [disabled]="preuve.state === 'loading'"
+              [ngModel]="candidatAVerifier()" (ngModelChange)="candidatAVerifier.set($event)">
+          </label>
+          <label class="control">
+            <span>Test technique</span>
+            <select name="test" required [disabled]="tests.state !== 'ready' || preuve.state === 'loading'"
+              [ngModel]="testAVerifier()" (ngModelChange)="testAVerifier.set($event)">
+              <option [ngValue]="null">{{ tests.state === 'loading' ? 'Chargement des tests…' : 'Sélectionner un test' }}</option>
+              @if (tests.state === 'ready') {
+                @for (test of tests.value; track test.id) {
+                  <option [ngValue]="test.id">{{ test.titre }} (n° {{ test.id }})</option>
+                }
+              }
+            </select>
+          </label>
+          <button type="submit" class="action primary" [disabled]="!peutVerifier() || preuve.state === 'loading' || tests.state !== 'ready'">
+            {{ preuve.state === 'loading' ? 'Vérification…' : 'Vérifier' }}
+          </button>
+          @if (tests.state === 'error') {
+            <div class="wide">
+              <p class="error" role="alert">{{ tests.message }}</p>
+              <button type="button" class="action secondary" (click)="effacerFiltre()">Recharger les tests</button>
+            </div>
+          }
+        </form>
+        @switch (preuve.state) {
+          @case ('error') {
+            <p class="surface test-notice error" role="alert">{{ preuve.message }}</p>
+          }
+          @case ('ready') {
+            @if (preuve.value; as resultat) {
+              <section class="surface verification-result" role="status">
+                <span class="status passed">Compétence validée</span>
+                <h3>{{ nomsTests().get(resultat.testId) ?? resultat.competence }}</h3>
+                <p>Candidat n° {{ resultat.userId }} · Score de {{ resultat.score }} % · Tentative {{ resultat.tentative }}</p>
+                <p>{{ resultat.date | date:"dd/MM/yyyy 'à' HH:mm" }}</p>
+              </section>
+            } @else {
+              <p class="surface test-notice" role="status">Aucune réussite enregistrée pour ce candidat et ce test.</p>
+            }
+          }
+        }
+      }
+    }
+  }
+</div>

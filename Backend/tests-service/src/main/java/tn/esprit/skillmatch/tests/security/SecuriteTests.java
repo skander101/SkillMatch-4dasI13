@@ -27,7 +27,7 @@ class SecuriteTests {
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/tests/*/submit").hasRole("CANDIDAT")
                         .requestMatchers(HttpMethod.GET, "/api/results/me").hasRole("CANDIDAT")
-                        .requestMatchers(HttpMethod.GET, "/api/tests/*/results").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/tests/*/results", "/api/tests/*/definition").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/results/check").hasAnyRole("RECRUTEUR", "ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/tests").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/tests/*").hasRole("ADMIN")

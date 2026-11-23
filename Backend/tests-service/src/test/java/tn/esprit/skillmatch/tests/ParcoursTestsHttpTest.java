@@ -137,7 +137,17 @@ class ParcoursTestsHttpTest {
     @Test
     void permetALAdministrateurDeModifierEtSupprimerUnTestSansResultat() {
         String chemin = CATALOGUE + "/" + creerTest();
+        String cheminDefinition = chemin + "/definition";
         String nouvelleDefinition = DEFINITION.replace("Introduction à Java", "Java express");
+
+        assertThat(get(cheminDefinition, null).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(get(cheminDefinition, CANDIDAT).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(get(cheminDefinition, RECRUTEUR).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        var definition = get(cheminDefinition, ADMIN);
+        assertThat(definition.getHeaders().getCacheControl()).isEqualTo("no-store");
+        assertThat(reponse(definition, HttpStatus.OK).findValues("indexBonneReponse"))
+                .extracting(JsonNode::asInt)
+                .containsExactly(0, 1);
 
         assertThat(envoyer(HttpMethod.PUT, chemin, CANDIDAT, nouvelleDefinition).getStatusCode())
                 .isEqualTo(HttpStatus.FORBIDDEN);

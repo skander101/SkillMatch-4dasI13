@@ -132,13 +132,21 @@ La rubrique « Utilisateurs & rôles » est connectée au service commun :
 
 Toutes ces requêtes passent par l'API Gateway et portent l'en-tête `Authorization: Bearer <jwt>` ajouté par l'intercepteur. Le backend vérifie le rôle `ADMIN` et répond `401` ou `403` si nécessaire.
 
-Pour essayer le panneau :
+L’inscription avec le rôle `ADMIN` est disponible dans l’environnement de démonstration locale.
 
 ```bash
 curl -X POST http://localhost:8080/skillmatch/auth/register \
   -H 'Content-Type: application/json' \
   -d '{"nom":"Admin BO","email":"admin.bo.test@skillmatch.tn","password":"123456","role":"ADMIN"}'
 ```
+
+## Tests & Compétences
+
+Démarrer `commun-service`, `tests-service` et l’[API Gateway](../Backend/api-gateway/README.md) avant de lancer Angular. La configuration et les prérequis du service sont détaillés dans le [README de `tests-service`](../Backend/tests-service/README.md).
+
+- Avec un compte `CANDIDAT`, ouvrir « Tests & Compétences » pour consulter le catalogue, passer un test et retrouver ses résultats et tentatives.
+- Avec un compte `RECRUTEUR`, ouvrir « Vérifier une réussite » pour rechercher un résultat réussi pour un candidat et un test.
+- Avec un compte `ADMIN`, ouvrir le back office pour créer, modifier ou supprimer des tests et consulter leurs résultats. Un test avec des tentatives est verrouillé par le service.
 
 ## Configuration de l'API
 
@@ -158,7 +166,7 @@ En développement, l'API Gateway autorise toutes les origines (`allowedOriginPat
 - Recherche par compétence, domaine et ville : fonctionnelle sur les données fictives.
 - Liste des offres, favoris et détails d'offre : démonstration locale.
 - Authentification et inscription : connectées à l'API.
-- Profils, tests, alertes, entreprises et messagerie : à brancher progressivement sur les microservices.
+- Profils, alertes, entreprises et messagerie : à brancher progressivement sur les microservices.
 
 Les offres affichées restent fictives tant que `GET /skillmatch/offres/all` n'est pas branché.
 

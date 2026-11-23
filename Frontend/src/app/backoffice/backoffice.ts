@@ -5,6 +5,7 @@ import { NAV_SERVICES, NOTIFICATIONS, AppNotification } from './nav.data';
 import { AuthService } from '../user/auth.service';
 import { CreateUserRequest, Role, UpdateUserRequest, User } from '../user/user.model';
 import { UserService } from '../user/user.service';
+import { TestsBackoffice } from '../tests/backoffice-tests';
 
 interface SideItem {
   id: string;
@@ -33,7 +34,7 @@ interface AdminTable {
 @Component({
   selector: 'app-back-office',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, TestsBackoffice],
   templateUrl: './backoffice.html',
   styleUrl: './backoffice.css'
 })
@@ -76,7 +77,7 @@ export class BackOffice implements OnInit {
     ] },
     { id: 'tests', label: 'Tests & Compétences', path: 'M4 6l2 2 4-4M4 14l2 2 4-4M13 7h7M13 15h7', children: [
       { id: 'tests', label: 'Tests' },
-      { id: 'tests', label: 'Résultats' }
+      { id: 'tests-results', label: 'Résultats' }
     ] },
     { id: 'alertes', label: 'Alertes & Favoris', path: 'M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8ZM10 20a2 2 0 0 0 4 0', children: [
       { id: 'alertes', label: 'Alertes' },
@@ -155,17 +156,6 @@ export class BackOffice implements OnInit {
         { cells: ['DataPlus', 'Data & Analytics', 'Sfax', '4,2 / 5', '26'], status: 'Vérifiée', tone: 'green' },
         { cells: ['PixelLab', 'Design', 'Tunis', '4,8 / 5', '19'], status: 'Vérifiée', tone: 'green' },
         { cells: ['Nouvelle Entreprise', 'Conseil', 'Ariana', '-', '1'], status: 'À modérer', tone: 'amber' }
-      ]
-    },
-    tests: {
-      title: 'Tests & Compétences',
-      subtitle: 'Correction automatique et tentatives',
-      columns: ['Test', 'Compétence', 'Questions', 'Tentatives', 'Réussite', 'Statut', 'Actions'],
-      rows: [
-        { cells: ['Test Angular', 'Développement', '12', '3 max', '84 %'], status: 'Publié', tone: 'green' },
-        { cells: ['Test SQL avancé', 'Data', '15', '3 max', '71 %'], status: 'Publié', tone: 'green' },
-        { cells: ['Test Figma', 'Design', '10', '3 max', '90 %'], status: 'Brouillon', tone: 'gray' },
-        { cells: ['Test Spring Boot', 'Développement', '18', '3 max', '66 %'], status: 'Publié', tone: 'green' }
       ]
     },
     alertes: {

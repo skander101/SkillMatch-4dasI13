@@ -5,6 +5,7 @@ import java.util.List;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
+import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -34,6 +35,11 @@ public class CatalogueController {
     @GetMapping("/{id}")
     public VueTest lire(@PathVariable @Positive Long id) {
         return catalogue.lire(id);
+    }
+
+    @GetMapping("/{id}/definition")
+    public ResponseEntity<DefinitionTest> lireDefinition(@PathVariable @Positive Long id) {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(catalogue.lireDefinition(id));
     }
 
     @PostMapping

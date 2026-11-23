@@ -18,6 +18,11 @@ public record DefinitionTest(
         @NotNull @Min(1) @Max(100) Integer seuilReussite,
         @NotEmpty @Size(max = 100) List<@NotNull @Valid DefinitionQuestion> questions) {
 
+    static DefinitionTest de(TestTechnique test) {
+        return new DefinitionTest(test.getTitre(), test.getCompetence(), test.getDureeMinutes(),
+                test.getSeuilReussite(), test.getQuestions().stream().map(DefinitionQuestion::de).toList());
+    }
+
     List<Question> construireQuestions() {
         return questions.stream().map(DefinitionQuestion::construire).toList();
     }
@@ -27,6 +32,11 @@ public record DefinitionTest(
             @NotBlank @Size(max = 1000) String enonce,
             @NotNull @Size(min = 2, max = 8) List<@NotBlank @Size(max = 300) String> options,
             @NotNull @Min(0) @Max(7) Integer indexBonneReponse) {
+
+        private static DefinitionQuestion de(Question question) {
+            return new DefinitionQuestion(question.id(), question.enonce(), question.options(),
+                    question.indexBonneReponse());
+        }
 
         Question construire() {
             return new Question(id, enonce, options, indexBonneReponse);
