@@ -159,7 +159,7 @@ En développement, l'API Gateway autorise toutes les origines (`allowedOriginPat
 - Liste des offres, favoris et détails d'offre : démonstration locale.
 - Authentification et inscription : connectées à l'API.
 - Profils, tests, alertes et messagerie : à brancher progressivement sur les microservices.
-- Entreprises & avis : backend CRUD et Swagger disponibles sur `http://localhost:8083`, mais affichage public, annuaire, modération et publication d'avis encore à brancher dans le frontend (commits 6 et 7 du plan).
+- Entreprises & avis : backend CRUD, publication/modération des avis et moyenne calculée disponibles sur `http://localhost:8083`, mais affichage public, annuaire, écran de modération du back office et publication d'avis depuis l'UI encore à brancher dans le frontend (commits 6 et 7 du plan).
 
 Les offres affichées restent fictives tant que `GET /skillmatch/offres/all` n'est pas branché.
 

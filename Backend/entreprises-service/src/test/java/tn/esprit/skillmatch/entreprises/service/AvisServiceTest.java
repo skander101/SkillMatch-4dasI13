@@ -9,6 +9,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 import tn.esprit.skillmatch.entreprises.dto.AvisRequest;
 import tn.esprit.skillmatch.entreprises.dto.AvisResponse;
+import tn.esprit.skillmatch.entreprises.dto.ModerationRequest;
 import tn.esprit.skillmatch.entreprises.entity.AvisEntreprise;
 import tn.esprit.skillmatch.entreprises.entity.Entreprise;
 import tn.esprit.skillmatch.entreprises.entity.StatutModeration;
@@ -123,6 +124,100 @@ class AvisServiceTest {
         assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
     }
 
+    @Test
+    void moderateApprovesAvisAndRecalculatesAverage() {
+        Entreprise entreprise = entreprise(1L);
+        AvisEntreprise avis = avis(2L, entreprise);
+
+        when(avisEntrepriseRepository.findById(2L)).thenReturn(Optional.of(avis));
+        when(avisEntrepriseRepository.saveAndFlush(avis)).thenReturn(avis);
+        when(avisEntrepriseRepository.findByEntreprise_IdAndStatut(1L, StatutModeration.APPROUVE))
+                .thenReturn(List.of(
+                        avis(3L, entreprise, 4, StatutModeration.APPROUVE),
+                        avis(4L, entreprise, 5, StatutModeration.APPROUVE)
+                ));
+        when(entrepriseRepository.findById(1L)).thenReturn(Optional.of(entreprise));
+        when(entrepriseRepository.save(entreprise)).thenReturn(entreprise);
+
+        AvisResponse response = avisService.moderate(2L, new ModerationRequest(StatutModeration.APPROUVE));
+
+        assertEquals(StatutModeration.APPROUVE, response.statut());
+        assertEquals(4.5, entreprise.getNoteMoyenne());
+        verify(entrepriseRepository).save(entreprise);
+    }
+
+    @Test
+    void moderateRejectsAvisAndResetsAverageToZero() {
+        Entreprise entreprise = entreprise(1L);
+        AvisEntreprise avis = avis(2L, entreprise, 5, StatutModeration.APPROUVE);
+
+        when(avisEntrepriseRepository.findById(2L)).thenReturn(Optional.of(avis));
+        when(avisEntrepriseRepository.saveAndFlush(avis)).thenReturn(avis);
+        when(avisEntrepriseRepository.findByEntreprise_IdAndStatut(1L, StatutModeration.APPROUVE)).thenReturn(List.of());
+        when(entrepriseRepository.findById(1L)).thenReturn(Optional.of(entreprise));
+        when(entrepriseRepository.save(entreprise)).thenReturn(entreprise);
+
+        AvisResponse response = avisService.moderate(2L, new ModerationRequest(StatutModeration.REJETE));
+
+        assertEquals(StatutModeration.REJETE, response.statut());
+        assertEquals(0.0, entreprise.getNoteMoyenne());
+    }
+
+    @Test
+    void moderateRejectsEnAttenteStatus() {
+        Entreprise entreprise = entreprise(1L);
+        AvisEntreprise avis = avis(2L, entreprise);
+
+        when(avisEntrepriseRepository.findById(2L)).thenReturn(Optional.of(avis));
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class, () ->
+                avisService.moderate(2L, new ModerationRequest(StatutModeration.EN_ATTENTE))
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
+        verify(avisEntrepriseRepository, never()).saveAndFlush(any(AvisEntreprise.class));
+    }
+
+    @Test
+    void moderateRejectsUnknownAvis() {
+        when(avisEntrepriseRepository.findById(2L)).thenReturn(Optional.empty());
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class, () ->
+                avisService.moderate(2L, new ModerationRequest(StatutModeration.APPROUVE))
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
+    }
+
+    @Test
+    void deleteAvisRecalculatesAverage() {
+        Entreprise entreprise = entreprise(1L);
+        AvisEntreprise avis = avis(2L, entreprise, 5, StatutModeration.APPROUVE);
+
+        when(avisEntrepriseRepository.findById(2L)).thenReturn(Optional.of(avis));
+        when(avisEntrepriseRepository.findByEntreprise_IdAndStatut(1L, StatutModeration.APPROUVE))
+                .thenReturn(List.of(avis(3L, entreprise, 3, StatutModeration.APPROUVE)));
+        when(entrepriseRepository.findById(1L)).thenReturn(Optional.of(entreprise));
+        when(entrepriseRepository.save(entreprise)).thenReturn(entreprise);
+
+        avisService.delete(2L);
+
+        verify(avisEntrepriseRepository).delete(avis);
+        verify(avisEntrepriseRepository).flush();
+        assertEquals(3.0, entreprise.getNoteMoyenne());
+    }
+
+    @Test
+    void deleteRejectsUnknownAvis() {
+        when(avisEntrepriseRepository.findById(2L)).thenReturn(Optional.empty());
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class, () ->
+                avisService.delete(2L)
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
+    }
+
     private Entreprise entreprise(Long id) {
         Entreprise entreprise = new Entreprise("TechNova", "Informatique", "Tunis", "Recrutement tech");
         entreprise.setId(id);
@@ -130,14 +225,18 @@ class AvisServiceTest {
     }
 
     private AvisEntreprise avis(Long id, Entreprise entreprise) {
+        return avis(id, entreprise, 5, StatutModeration.EN_ATTENTE);
+    }
+
+    private AvisEntreprise avis(Long id, Entreprise entreprise, int note, StatutModeration statut) {
         AvisEntreprise avis = new AvisEntreprise();
         avis.setId(id);
         avis.setEntreprise(entreprise);
-        avis.setUtilisateurId(10L);
+        avis.setUtilisateurId(10L + id);
         avis.setNomUtilisateur("Alice Martin");
-        avis.setNote(5);
+        avis.setNote(note);
         avis.setCommentaire("Super");
-        avis.setStatut(StatutModeration.EN_ATTENTE);
+        avis.setStatut(statut);
         avis.setDateCreation(LocalDateTime.of(2026, 11, 22, 10, 0));
         return avis;
     }
