@@ -111,6 +111,24 @@ class AuthInterceptorTest {
     }
 
     @Test
+    @DisplayName("JWT sans claim exp → 401")
+    void tokenWithoutExpiration_returns401() throws Exception {
+        SecretKey key = Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8));
+        String token = Jwts.builder()
+                .subject("candidat@test.com")
+                .claim("role", "CANDIDAT")
+                .issuedAt(new Date())
+                .signWith(key)
+                .compact();
+        when(request.getHeader(HttpHeaders.AUTHORIZATION)).thenReturn("Bearer " + token);
+
+        boolean result = interceptor.preHandle(request, response, new Object());
+
+        assertFalse(result);
+        verify(response).setStatus(401);
+    }
+
+    @Test
     @DisplayName("commun-service indisponible → 503")
     void communServiceUnavailable_returns503() throws Exception {
         String token = generateValidToken("candidat@test.com", "CANDIDAT");
@@ -124,5 +142,35 @@ class AuthInterceptorTest {
         assertFalse(result);
         verify(response).setStatus(503);
         assertTrue(responseWriter.toString().contains("503"));
+    }
+
+    @Test
+    @DisplayName("Erreur 401 avec Origin localhost → en-têtes CORS ajoutés")
+    void missingHeader_withLocalhostOrigin_addsCorsHeaders() throws Exception {
+        when(request.getHeader(HttpHeaders.AUTHORIZATION)).thenReturn(null);
+        when(request.getHeader(HttpHeaders.ORIGIN)).thenReturn("http://localhost:4200");
+
+        boolean result = interceptor.preHandle(request, response, new Object());
+
+        assertFalse(result);
+        verify(response).setStatus(401);
+        verify(response).setHeader(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "http://localhost:4200");
+        verify(response).setHeader(HttpHeaders.VARY, HttpHeaders.ORIGIN);
+    }
+
+    @Test
+    @DisplayName("Erreur 503 avec Origin 127.0.0.1 → en-têtes CORS ajoutés")
+    void communServiceUnavailable_withLoopbackOrigin_addsCorsHeaders() throws Exception {
+        String token = generateValidToken("candidat@test.com", "CANDIDAT");
+        when(request.getHeader(HttpHeaders.AUTHORIZATION)).thenReturn("Bearer " + token);
+        when(request.getHeader(HttpHeaders.ORIGIN)).thenReturn("http://127.0.0.1:4200");
+        when(communClient.resolveUser("candidat@test.com", token))
+                .thenThrow(new ServiceUnavailableException("commun-service est injoignable"));
+
+        boolean result = interceptor.preHandle(request, response, new Object());
+
+        assertFalse(result);
+        verify(response).setStatus(503);
+        verify(response).setHeader(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "http://127.0.0.1:4200");
     }
 }

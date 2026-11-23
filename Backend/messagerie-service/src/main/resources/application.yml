@@ -24,6 +24,11 @@ spring:
     port: ${RABBITMQ_PORT:5672}
     username: ${RABBITMQ_USER:guest}
     password: ${RABBITMQ_PASSWORD:guest}
+    connection-timeout: ${RABBITMQ_CONNECTION_TIMEOUT:3s}
+    listener:
+      simple:
+        auto-startup: ${RABBITMQ_LISTENER_AUTO_STARTUP:false}
+        missing-queues-fatal: false
 
 # JWT — secret partagé avec commun-service, validé localement (jamais généré ici)
 jwt:
@@ -34,6 +39,11 @@ jwt:
 commun:
   service:
     url: ${COMMUN_SERVICE_URL:http://localhost:8087}
+
+# Stockage des fichiers joints (CV, PDF, images) — répertoire local de messagerie-service uniquement
+messagerie:
+  fichiers:
+    dir: ${MESSAGERIE_FICHIERS_DIR:./uploads}
 
 eureka:
   client:

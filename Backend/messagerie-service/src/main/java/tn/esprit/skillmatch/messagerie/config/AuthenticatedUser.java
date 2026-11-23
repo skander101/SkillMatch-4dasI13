@@ -7,8 +7,13 @@ package tn.esprit.skillmatch.messagerie.config;
 public record AuthenticatedUser(
         Long id,
         String email,
-        String role
+        String role,
+        String token
 ) {
+    public AuthenticatedUser(Long id, String email, String role) {
+        this(id, email, role, null);
+    }
+
     public boolean isAdmin() {
         return "ADMIN".equalsIgnoreCase(role);
     }

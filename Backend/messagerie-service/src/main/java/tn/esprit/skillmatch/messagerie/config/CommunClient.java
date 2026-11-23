@@ -17,34 +17,43 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Client HTTP vers commun-service GET /skillmatch/auth/me.
- * Cache en mémoire (ConcurrentHashMap, TTL 5 min, clé = email).
+ * Cache en mémoire (ConcurrentHashMap, TTL 10 min, clé = email).
  * Aucune dépendance externe ajoutée (java.net.http standard JDK 11+).
  */
 @Component
 public class CommunClient {
 
     private static final Logger log = LoggerFactory.getLogger(CommunClient.class);
-    private static final long CACHE_TTL_MS = 5 * 60 * 1000L; // 5 minutes
+    private static final long CACHE_TTL_MS = 10 * 60 * 1000L; // 10 minutes
 
     private final String communServiceUrl;
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
     private final ConcurrentHashMap<String, CacheEntry> cache = new ConcurrentHashMap<>();
 
+    @org.springframework.beans.factory.annotation.Autowired
     public CommunClient(
             @Value("${commun.service.url}") String communServiceUrl,
             ObjectMapper objectMapper
     ) {
+        this(
+                communServiceUrl,
+                objectMapper,
+                HttpClient.newBuilder()
+                        .connectTimeout(Duration.ofSeconds(5))
+                        .build()
+        );
+    }
+
+    CommunClient(String communServiceUrl, ObjectMapper objectMapper, HttpClient httpClient) {
         this.communServiceUrl = communServiceUrl;
         this.objectMapper = objectMapper;
-        this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(5))
-                .build();
+        this.httpClient = httpClient;
     }
 
     /**
      * Résout l'id numérique d'un utilisateur à partir de son token JWT.
-     * Vérifie le cache d'abord (clé = email, TTL 5 min).
+     * Vérifie le cache d'abord (clé = email, TTL 10 min).
      *
      * @param email  email extrait du JWT (sub)
      * @param token  le JWT complet (sans "Bearer ")
@@ -55,7 +64,8 @@ public class CommunClient {
         // Vérifier le cache
         CacheEntry cached = cache.get(email);
         if (cached != null && !cached.isExpired()) {
-            return cached.user();
+            // Attacher le JWT courant à l'identité résolue.
+            return new AuthenticatedUser(cached.user().id(), cached.user().email(), cached.user().role(), token);
         }
 
         // Appel HTTP vers commun-service
@@ -76,11 +86,11 @@ public class CommunClient {
             }
 
             MeResponse meResponse = objectMapper.readValue(response.body(), MeResponse.class);
-            AuthenticatedUser user = new AuthenticatedUser(meResponse.id(), meResponse.email(), meResponse.role());
+            AuthenticatedUser cachedIdentity = new AuthenticatedUser(meResponse.id(), meResponse.email(), meResponse.role());
 
-            // Mettre en cache
-            cache.put(email, new CacheEntry(user, System.currentTimeMillis()));
-            return user;
+            // Mettre en cache l'identité (sans figer un ancien JWT) et retourner avec le token courant
+            cache.put(email, new CacheEntry(cachedIdentity, System.currentTimeMillis()));
+            return new AuthenticatedUser(meResponse.id(), meResponse.email(), meResponse.role(), token);
 
         } catch (ServiceUnavailableException e) {
             throw e;
