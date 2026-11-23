@@ -1,17 +1,20 @@
 <section class="jobs-section" id="offres">
   <div class="wrap">
     <div class="section-heading offres-entete">
-      <div><span class="section-overline">{{ recruteur() ? 'VOTRE ESPACE RECRUTEMENT' : 'VOTRE PROCHAINE OPPORTUNITÉ' }}</span>
-        <h2>{{ recruteur() ? 'Mes offres' : "Offres d’emploi" }}</h2>
-        <p>{{ recruteur() ? 'Créez, publiez et gérez vos offres en un seul endroit.' : 'Découvrez les opportunités proposées sur SkillMatch.' }}</p>
+      <div><span class="section-overline">{{ auth.isAdmin() ? 'ADMINISTRATION' : recruteur() ? 'VOTRE ESPACE RECRUTEMENT' : 'VOTRE PROCHAINE OPPORTUNITÉ' }}</span>
+        <h2>{{ auth.isAdmin() ? 'Toutes les offres' : recruteur() ? 'Mes offres' : "Offres d’emploi" }}</h2>
+        <p>{{ gestion() ? 'Créez, publiez et gérez les offres accessibles à votre compte.' : 'Découvrez les opportunités proposées sur SkillMatch.' }}</p>
       </div>
       @if (auth.isLoggedIn()) {
         <div class="offre-actions">
           <button class="btn btn-outline" (click)="charger()" [disabled]="loading() || operation()">↻ Actualiser</button>
-          @if (recruteur()) { <button class="btn btn-solid" (click)="ouvrirFormulaire()" [disabled]="operation()">＋ Nouvelle offre</button> }
+          @if (gestion()) { <button class="btn btn-solid" (click)="ouvrirFormulaire()" [disabled]="operation()">＋ Nouvelle offre</button> }
         </div>
       }
     </div>
+    @if (auth.isAdmin()) {
+      <form class="offre-actions recherche-admin" (ngSubmit)="charger()"><input aria-label="Rechercher une offre par titre" name="search" [(ngModel)]="rechercheAdmin" placeholder="Rechercher par titre…"><select aria-label="Trier les offres" name="sort" [(ngModel)]="triAdmin" (change)="charger()"><option value="titre">Titre : A → Z</option><option value="titreDesc">Titre : Z → A</option><option value="salaire">Salaire croissant</option><option value="salaireDesc">Salaire décroissant</option><option value="dateExpiration">Expiration la plus proche</option><option value="dateExpirationDesc">Expiration la plus lointaine</option></select><button class="btn btn-solid" type="submit">Rechercher</button></form>
+    }
 
     @if (message()) { <p class="offre-succes" role="status">{{ message() }}</p> }
     @if (erreur()) {
@@ -33,11 +36,13 @@
             </div>
             <h3>{{ offre.titre }}</h3>
             <p class="offre-meta">{{ offre.localisation || 'Localisation non précisée' }} <span>·</span> {{ offre.contrat }}</p>
+            @if (auth.isAdmin()) { <p class="offre-meta">Recruteur #{{ offre.recruteurId }}</p> }
             <p class="offre-description">{{ offre.description || 'Consultez les détails de cette opportunité.' }}</p>
             <div class="job-tags">@for (competence of offre.competences; track $index) { <span>{{ competence }}</span> }</div>
             <div class="offre-reperes"><b>{{ offre.salaire === null ? 'Salaire à discuter' : (offre.salaire | number:'1.0-2') + ' DT / mois' }}</b><span>Jusqu’au {{ offre.dateExpiration | date:'dd/MM/yyyy' }}</span></div>
             <button class="see-job" (click)="selection.set(offre)">Voir l’offre →</button>
-            @if (recruteur()) {
+            @if (auth.currentUser()?.role === 'CANDIDAT') { <button class="btn btn-solid" (click)="ouvrirCandidature(offre)" [disabled]="operation()">Postuler</button> }
+            @if (gestion()) {
               <div class="offre-actions gestion">
                 <button class="action-lien" (click)="ouvrirFormulaire(offre)" [disabled]="operation()">Modifier</button>
                 @if (offre.statut === 'BROUILLON') { <button class="action-lien" (click)="changerStatut(offre, 'PUBLIEE')" [disabled]="operation()">Publier</button> }
@@ -63,12 +68,14 @@
     <div class="job-tags">@for (competence of offre.competences; track $index) { <span>{{ competence }}</span> }</div>
     <p><b>Salaire :</b> {{ offre.salaire === null ? 'À discuter' : (offre.salaire | number:'1.0-2') + ' DT / mois' }}</p>
     <p><b>Date d’expiration :</b> {{ offre.dateExpiration | date:'dd/MM/yyyy' }}</p>
+    @if (auth.currentUser()?.role === 'CANDIDAT') { <button class="btn btn-solid modal-cta" (click)="ouvrirCandidature(offre)">Postuler</button> }
     <button class="btn btn-solid modal-cta" (click)="selection.set(null)">Fermer</button>
   </section></div>
 }
 @if (formulaireOuvert()) {
-  <app-offre-form [offre]="edition()" [enCours]="operation()" [erreur]="erreurFormulaire()" (valider)="enregistrer($event)" (annuler)="fermerFormulaire()" />
+  <app-offre-form [admin]="auth.isAdmin()" [offre]="edition()" [enCours]="operation()" [erreur]="erreurFormulaire()" (valider)="enregistrer($event)" (annuler)="fermerFormulaire()" />
 }
+@if (postulation(); as offre) { <app-candidature-form [offreId]="offre.id" [enCours]="operation()" [erreur]="erreurPostulation()" (valider)="postuler($event)" (annuler)="fermer()" /> }
 @if (suppression(); as offre) {
   <div class="overlay"><section class="modal confirmation" role="dialog" aria-modal="true" aria-labelledby="suppression-titre">
     <span class="section-overline">CONFIRMATION</span><h2 id="suppression-titre">Supprimer cette offre ?</h2><p>« {{ offre.titre }} » sera supprimée si elle ne possède aucune candidature.</p>

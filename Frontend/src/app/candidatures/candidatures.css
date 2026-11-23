@@ -1,0 +1,10 @@
+/* Les cartes et modales réutilisent les styles Offres et le thème existant. */
+.candidature-recherche { display: flex; flex-wrap: wrap; gap: 12px; margin: 0 0 24px; }
+.candidature-recherche input, .candidature-recherche select { min-width: 0; padding: 12px; border: 1px solid #cbddd1; border-radius: 9px; background: white; color: #193b2b; font: inherit; }
+.candidature-recherche input { flex: 1; }
+.candidature-lettre { margin: 20px 0; line-height: 1.7; overflow-wrap: anywhere; }
+.candidature-lettre summary { cursor: pointer; font-size: 13px; font-weight: 700; color: #08713c; }
+.offre-meta { line-height: 1.8; }
+.offre-badge[data-statut="ACCEPTEE"] { background: #dcfce7; color: #166534; }
+.offre-badge[data-statut="REFUSEE"], .offre-badge[data-statut="RETIREE"] { background: #fee2e2; color: #991b1b; }
+@media(max-width: 600px) { .candidature-recherche > * { width: 100%; flex: auto; } }

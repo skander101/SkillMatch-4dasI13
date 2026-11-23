@@ -5,6 +5,8 @@ import { NAV_SERVICES, NOTIFICATIONS, AppNotification } from './nav.data';
 import { AuthService } from '../user/auth.service';
 import { CreateUserRequest, Role, UpdateUserRequest, User } from '../user/user.model';
 import { UserService } from '../user/user.service';
+import { Offres } from '../offres/offres';
+import { Candidatures } from '../candidatures/candidatures';
 
 interface SideItem {
   id: string;
@@ -33,7 +35,7 @@ interface AdminTable {
 @Component({
   selector: 'app-back-office',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, Offres, Candidatures],
   templateUrl: './backoffice.html',
   styleUrl: './backoffice.css'
 })
@@ -64,8 +66,8 @@ export class BackOffice implements OnInit {
   readonly dashboardItem: SideItem = this.gestionItems[0];
   readonly sideGroups: SideGroup[] = [
     { id: 'offres', label: 'Offres & Candidatures', path: 'M3 8h18v12H3zM8 8V5h8v3M3 13h18', children: [
-      { id: 'offres', label: 'Offres publiées' },
-      { id: 'candidatures', label: 'Candidatures reçues' }
+      { id: 'offres', label: 'Toutes les offres' },
+      { id: 'candidatures', label: 'Toutes les candidatures' }
     ] },
     { id: 'profils', label: 'Profils & CV', path: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM4 21c0-4.5 3.6-7 8-7s8 2.5 8 7', children: [
       { id: 'profils', label: 'Profils & CV' }
@@ -378,6 +380,7 @@ export class BackOffice implements OnInit {
   }
   onNavAction(serviceId: string, label: string): void {
     this.closeNav();
+    if (serviceId === 'offres') { this.selectSection(label.toLowerCase().includes('candidature') ? 'candidatures' : 'offres'); return; }
     const service = this.navServices.find((item) => item.id === serviceId);
     this.showMessage(`${service?.full ?? serviceId} · ${label} — module back office à brancher sur l'API.`);
   }

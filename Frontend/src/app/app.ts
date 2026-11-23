@@ -5,6 +5,7 @@ import { AuthService } from './user/auth.service';
 import { Role } from './user/user.model';
 import { BackOffice } from './backoffice/backoffice';
 import { Offres } from './offres/offres'; // Liste connectée à l’API existante.
+import { Candidatures } from './candidatures/candidatures';
 
 interface NavService {
   id: string;
@@ -16,7 +17,7 @@ interface NavService {
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, FormsModule, BackOffice, Offres],
+  imports: [CommonModule, FormsModule, BackOffice, Offres, Candidatures],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
@@ -27,7 +28,7 @@ export class App {
       label: 'Offres',
       full: 'Offres & Candidatures',
       items: [
-        'Voir les offres'
+        'Voir les offres', 'Voir les candidatures'
       ]
     },
     {
@@ -101,6 +102,7 @@ export class App {
   readonly searchTerm = signal('');
   readonly rechercheOffres = signal(''); // Recherche envoyée lorsque l'utilisateur valide.
   readonly offreSort = signal('titre');
+  readonly candidaturesVersion = signal(0); // Recharge le suivi après un dépôt réussi.
   readonly authMode = signal<'connexion' | 'inscription' | null>(null);
   readonly infoMessage = signal('');
   private readonly auth = inject(AuthService);
@@ -129,7 +131,12 @@ export class App {
   }
   onNavAction(serviceId: string, label: string): void {
     this.closeNav();this.mobileNavOpen.set(false);this.notificationsOpen.set(false);
-    if (serviceId === 'offres') { this.onSearch(); return; } // Ouvre la vraie liste selon le rôle.
+    if (serviceId === 'offres') {
+      if (label === 'Voir les offres') this.onSearch();
+      else if (!this.isLoggedIn()) this.openAuth('connexion');
+      else document.getElementById('candidatures')?.scrollIntoView({ behavior: 'smooth' });
+      return;
+    }
     const service = this.navServices.find((item) => item.id === serviceId);
     this.showMessage(`${service?.full ?? serviceId} · ${label} — à brancher sur l'API Spring Boot.`);
   }

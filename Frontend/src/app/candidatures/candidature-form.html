@@ -1,0 +1,27 @@
+<div class="overlay" (click)="!enCours && annuler.emit()">
+  <section class="modal offre-form" role="dialog" aria-modal="true" aria-labelledby="candidature-titre" (click)="$event.stopPropagation()">
+    <button class="close" aria-label="Fermer le formulaire de candidature" [disabled]="enCours" (click)="annuler.emit()">×</button>
+    <span class="section-overline">{{ role === 'RECRUTEUR' ? 'ESPACE RECRUTEUR' : 'CANDIDATURE' }}</span>
+    <h2 id="candidature-titre">{{ candidature ? 'Modifier la candidature' : 'Déposer une candidature' }}</h2>
+    @if (chargement()) { <p role="status">Chargement des choix…</p> }
+    @if (erreurChoix()) { <p class="auth-error" role="alert">{{ erreurChoix() }}</p> }
+    <form #form="ngForm" class="offre-champs" (ngSubmit)="form.valid && enregistrer()">
+      @if (!candidature && role === 'ADMIN') {
+        <label>Offre ouverte *<select name="offre" [(ngModel)]="offreId" required><option [ngValue]="null">Choisir une offre</option>@for (o of offres(); track o.id) { <option [ngValue]="o.id">{{ o.titre }} (#{{ o.id }})</option> }</select></label>
+        <label>Candidat *<select name="candidat" [(ngModel)]="userId" required><option [ngValue]="null">Choisir un candidat</option>@for (u of candidats(); track u.id) { <option [ngValue]="u.id">{{ u.nom }} — {{ u.email }}</option> }</select></label>
+      }
+      @if (role !== 'RECRUTEUR') {
+        <label class="large">Lettre de motivation *<textarea name="lettre" [(ngModel)]="lettre" required maxlength="10000" rows="5"></textarea></label>
+        <label class="large">Référence CV *<input name="cvId" type="number" [(ngModel)]="cvId" required min="1" step="1"><small>Phase 1 : référence numérique de test. Aucun fichier CV n'est envoyé.</small></label>
+      }
+      @if (candidature && role !== 'CANDIDAT') {
+        <label>Statut<select name="statut" [(ngModel)]="statut">@if (!statuts.includes(candidature.statut)) { <option [value]="candidature.statut" disabled>{{ candidature.statut }}</option> }@for (s of statuts; track s) { <option [value]="s">{{ s }}</option> }</select></label>
+        <label>Date d'entretien<input name="entretien" type="datetime-local" [(ngModel)]="entretien" [required]="statut === 'ENTRETIEN_PLANIFIE'"><small>Une nouvelle planification exige une date future.</small></label>
+        <label>Note recruteur<input name="note" type="number" [(ngModel)]="note" min="0" step="1"></label>
+        <label class="large">Commentaire recruteur<textarea name="commentaire" [(ngModel)]="commentaire" maxlength="10000" rows="3"></textarea></label>
+      }
+      @if (erreur) { <p class="auth-error large" role="alert">{{ erreur }}</p> }
+      <div class="offre-actions large"><button type="button" class="btn btn-outline" [disabled]="enCours" (click)="annuler.emit()">Annuler</button><button class="btn btn-solid" type="submit" [disabled]="form.invalid || enCours || chargement() || !!erreurChoix() || (role !== 'RECRUTEUR' && !lettre.trim())">{{ enCours ? 'Enregistrement…' : 'Enregistrer' }}</button></div>
+    </form>
+  </section>
+</div>

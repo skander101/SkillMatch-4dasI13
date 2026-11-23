@@ -1,0 +1,30 @@
+<section class="jobs-section" id="candidatures"><div class="wrap">
+  <div class="section-heading offres-entete"><div><span class="section-overline">SUIVI DES CANDIDATURES</span><h2>{{ auth.isAdmin() ? 'Toutes les candidatures' : auth.currentUser()?.role === 'RECRUTEUR' ? 'Candidatures reçues' : 'Mes candidatures' }}</h2><p>{{ auth.currentUser()?.role === 'CANDIDAT' ? 'Suivez vos demandes et leur statut.' : 'Consultez et gérez les demandes accessibles à votre compte.' }}</p></div>
+    <div class="offre-actions"><button class="btn btn-outline" (click)="charger()" [disabled]="loading() || operation()">↻ Actualiser</button>@if (auth.isAdmin()) { <button class="btn btn-solid" (click)="ouvrir()" [disabled]="operation()">＋ Nouvelle candidature</button> }</div>
+  </div>
+  <form class="candidature-recherche" (ngSubmit)="charger()"><input aria-label="Rechercher dans les lettres" name="search" [(ngModel)]="search" placeholder="Rechercher dans les lettres…"><select aria-label="Trier les candidatures" name="sort" [(ngModel)]="sort" (change)="charger()"><option value="dateCandidatureDesc">Plus récentes d'abord</option><option value="dateCandidature">Plus anciennes d'abord</option></select><button class="btn btn-solid" type="submit" [disabled]="operation()">Rechercher</button></form>
+  @if (message()) { <p class="offre-succes" role="status">{{ message() }}</p> }
+  @if (erreur()) { <p class="auth-error" role="alert">{{ erreur() }}</p> }
+  @if (loading()) { <p class="offre-attente" role="status">Chargement des candidatures…</p> } @else {
+    <p class="offre-compteur">{{ liste().length }} candidature(s)</p>
+    <div class="job-grid">
+      @for (c of liste(); track c.id) {
+        <article class="job-card offre-card"><div class="job-head"><span class="job-icon" aria-hidden="true">▤</span><span class="offre-badge" [attr.data-statut]="c.statut">{{ c.statut }}</span></div>
+          <h3>Candidature #{{ c.id }}</h3><p class="offre-meta">Offre #{{ c.offreId }} · Candidat #{{ c.userId }} · CV #{{ c.cvId }}</p><p class="offre-meta">Déposée le {{ c.dateCandidature | date:'dd/MM/yyyy HH:mm' }}</p>
+          <details class="candidature-lettre"><summary>Lire la lettre de motivation</summary><p class="description-complete">{{ c.lettre }}</p></details>
+          @if (c.dateEntretien) { <p class="offre-meta">Entretien : {{ c.dateEntretien | date:'dd/MM/yyyy HH:mm' }}</p> }
+          @if (c.noteRecruteur !== null) { <p class="offre-meta">Note recruteur : {{ c.noteRecruteur }}</p> }
+          @if (c.commentaireRecruteur) { <p class="description-complete">{{ c.commentaireRecruteur }}</p> }
+          <div class="offre-actions gestion">
+            @if (modifiable(c)) { <button class="action-lien" (click)="ouvrir(c)" [disabled]="operation()">{{ auth.currentUser()?.role === 'RECRUTEUR' ? 'Traiter' : 'Modifier' }}</button> }
+            @if (auth.isAdmin() || (auth.currentUser()?.role === 'CANDIDAT' && c.statut === 'RECUE')) { <button class="action-lien danger" (click)="suppression.set(c)" [disabled]="operation()">{{ auth.isAdmin() ? 'Supprimer' : 'Retirer' }}</button> }
+          </div>
+        </article>
+      } @empty { <div class="no-results aucune-offre"><b>Aucune candidature trouvée.</b><span>{{ auth.currentUser()?.role === 'CANDIDAT' ? 'Choisissez une offre ouverte pour postuler, ou changez votre recherche.' : 'Actualisez la liste ou changez votre recherche.' }}</span></div> }
+    </div>
+  }
+</div></section>
+@if (formulaire()) { <app-candidature-form [candidature]="edition()" [enCours]="operation()" [erreur]="erreurFormulaire()" (valider)="enregistrer($event)" (annuler)="fermer()" /> }
+@if (suppression(); as c) {
+  <div class="overlay"><section class="modal confirmation" role="dialog" aria-modal="true" aria-labelledby="retrait-titre"><span class="section-overline">CONFIRMATION</span><h2 id="retrait-titre">{{ auth.isAdmin() ? 'Supprimer cette candidature ?' : 'Retirer cette candidature ?' }}</h2><p>{{ auth.isAdmin() ? 'La candidature #' + c.id + ' sera définitivement supprimée.' : 'Votre candidature restera visible avec le statut RETIREE. Vous ne pourrez pas postuler à nouveau à cette offre.' }}</p><div class="offre-actions"><button class="btn btn-outline" (click)="fermer()" [disabled]="operation()">Annuler</button><button class="btn btn-solid bouton-danger" (click)="supprimer()" [disabled]="operation()">{{ operation() ? 'Patientez…' : 'Confirmer' }}</button></div></section></div>
+}

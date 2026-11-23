@@ -1,11 +1,16 @@
 <div class="overlay" (click)="annuler.emit()">
   <section class="modal offre-form" role="dialog" aria-modal="true" aria-labelledby="form-titre" (click)="$event.stopPropagation()">
     <button type="button" class="close" aria-label="Fermer le formulaire" [disabled]="enCours" (click)="annuler.emit()">×</button>
-    <span class="section-overline">ESPACE RECRUTEUR</span>
-    <h2 id="form-titre">{{ offre ? 'Modifier mon offre' : 'Créer une offre' }}</h2>
+    <span class="section-overline">{{ admin ? 'ADMINISTRATION' : 'ESPACE RECRUTEUR' }}</span>
+    <h2 id="form-titre">{{ offre ? 'Modifier une offre' : 'Créer une offre' }}</h2>
     <p>{{ offre ? 'Actualisez les informations de votre offre.' : 'Enregistrez un brouillon, puis publiez-le depuis vos offres.' }}</p>
 
     <form #form="ngForm" (ngSubmit)="form.valid && enregistrer()" class="offre-champs">
+      @if (admin && !offre) {
+        <label class="large">Recruteur *<select name="recruteur" [(ngModel)]="formulaire.recruteurId" required><option [ngValue]="null">Choisir un recruteur</option>@for (u of recruteurs(); track u.id) { <option [ngValue]="u.id">{{ u.nom }} — {{ u.email }}</option> }</select></label>
+        @if (chargement()) { <p class="large" role="status">Chargement des recruteurs…</p> }
+        @if (erreurChoix()) { <p class="auth-error large" role="alert">{{ erreurChoix() }}</p> }
+      }
       <label class="large">Titre *<input name="titre" [(ngModel)]="formulaire.titre" required maxlength="255" placeholder="Ex. Développeur Java" autofocus></label>
       <label class="large">Description<textarea name="description" [(ngModel)]="formulaire.description" rows="4" maxlength="10000" placeholder="Présentez le poste, les missions et votre équipe."></textarea></label>
       <label class="large">Compétences<input name="competences" [(ngModel)]="competences" placeholder="Java, Spring Boot, SQL"><small>Séparez les compétences par des virgules.</small></label>
@@ -26,7 +31,7 @@
       @if (erreur) { <p class="auth-error large" role="alert">{{ erreur }}</p> }
       <div class="offre-actions large">
         <button type="button" class="btn btn-outline" [disabled]="enCours" (click)="annuler.emit()">Annuler</button>
-        <button type="submit" class="btn btn-solid" [disabled]="form.invalid || enCours || !formulaire.titre.trim()">{{ enCours ? 'Enregistrement…' : 'Enregistrer' }}</button>
+        <button type="submit" class="btn btn-solid" [disabled]="form.invalid || enCours || chargement() || !!erreurChoix() || !formulaire.titre.trim()">{{ enCours ? 'Enregistrement…' : 'Enregistrer' }}</button>
       </div>
     </form>
   </section>

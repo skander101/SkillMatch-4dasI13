@@ -115,7 +115,7 @@ Authorization: Bearer <jwt>
 
 L'en-tête affiche le nom et le rôle de l'utilisateur connecté, avec un bouton de déconnexion. Les boutons « Se connecter » et « S'inscrire » sont affichés uniquement lorsque aucun utilisateur n'est connecté.
 
-L'interface de candidature sera ajoutée dans une étape suivante, sur `POST /skillmatch/candidatures`.
+Le bouton « Postuler » dépose une candidature sur `POST /skillmatch/candidatures`.
 
 ## Offres candidat et recruteur
 
@@ -137,7 +137,38 @@ Les appels utilisent `/skillmatch/offres` et `/skillmatch/offres/{id}` ; la list
 du recruteur utilise `/skillmatch/offres/mes-offres`. Les paramètres sont `search`
 et `sort` : `titre`, `titreDesc`, `salaire`, `salaireDesc`, `dateExpiration`,
 `dateExpirationDesc`. Le serveur vérifie les rôles et la propriété des offres.
-La gestion ADMIN des offres et l'interface des candidatures restent à intégrer.
+ADMIN réutilise ce composant dans le back-office et choisit un recruteur réel à
+la création. Le propriétaire d'une offre existante reste inchangé.
+
+## Candidatures et administration
+
+- CANDIDAT : « Postuler » depuis une offre ouverte, consulter ses candidatures,
+  modifier lettre/CV et retirer une candidature au statut `RECUE`.
+- RECRUTEUR : consulter les candidatures de ses offres et modifier le statut,
+  la date d'entretien, la note et le commentaire. Aucune suppression recruteur.
+- ADMIN : rubriques « Toutes les offres » et « Toutes les candidatures » dans
+  le back-office ; création, consultation, modification et suppression réelles.
+  Pour créer une candidature, choisir une offre ouverte et un candidat existant.
+- Recherche dans la lettre et tri par date de candidature dans les deux sens.
+
+Le dossier `src/app/candidatures/` contient le modèle, le service HTTP, la liste,
+le formulaire et leur présentation. Les styles et le login existants sont réutilisés.
+Le menu Offres donne accès aux candidatures ; elles apparaissent aussi sous les
+offres après connexion. Après un dépôt réussi, leur liste est rechargée.
+
+Les appels utilisent `/skillmatch/candidatures` (`GET`, `POST`) et
+`/skillmatch/candidatures/{id}` (`PUT`, `DELETE`). Le backend fixe le périmètre
+selon le JWT : le navigateur ne choisit pas l'identité du candidat connecté.
+`search` cherche dans la lettre ; `sort` vaut `dateCandidature` ou
+`dateCandidatureDesc` (récentes d'abord par défaut).
+
+Limites de phase 1 : saisir une référence CV numérique de test, sans envoi de
+fichier ni connexion à Profils. Un retrait conserve la candidature et interdit
+un nouveau dépôt sur la même offre. Une suppression ADMIN est définitive.
+Une offre ayant des candidatures doit être fermée ; sa suppression est refusée.
+Les champs d'entretien et note laissés vides conservent leur valeur backend.
+Le tableau de bord et les autres modules de démonstration du collègue restent
+distincts des rubriques Offres/Candidatures connectées.
 
 ### Vérification de cette étape
 
@@ -148,6 +179,23 @@ voit l'offre publiée sans boutons de gestion. Les six tris, la fermeture et la
 suppression ont aussi été vérifiés par HTTP via la Gateway. Les deux comptes et
 les deux offres temporaires ont été supprimés après le test.
 Le projet ne dispose pas encore d'un lanceur de tests Angular automatisés.
+
+### Vérification candidatures et ADMIN
+
+Avec trois comptes locaux temporaires et MySQL, le navigateur a vérifié : dépôt
+candidat, mise à jour de la lettre, erreur de doublon, traitement recruteur avec
+entretien/note/commentaire, création et publication d'offre ADMIN, création et
+modification de candidature ADMIN, recherche et tri, confirmations et annulations.
+La rubrique Utilisateurs existante reste accessible. Par HTTP : retrait logique,
+suppression définitive ADMIN (puis lecture 404), refus de création recruteur (403),
+protection d'offre liée et de candidature traitée (409), les deux tris par date.
+Les données et les trois comptes de test ont été nettoyés. Aucun secret n'est commité.
+
+Pour refaire une démonstration : créer/publier une offre avec RECRUTEUR, se
+connecter avec CANDIDAT et postuler, puis revenir au RECRUTEUR pour la traiter.
+Avec un compte ADMIN existant, ouvrir « Offres & Candidatures » dans le menu
+latéral du back-office. La suppression définitive des candidatures est réservée
+à ADMIN ; le candidat utilise le retrait.
 
 ## Back office ADMIN
 

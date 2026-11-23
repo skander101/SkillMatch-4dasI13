@@ -40,4 +40,7 @@ button:focus-visible, summary:focus-visible { outline: 3px solid #10b981; outlin
 .description-complete { white-space: pre-line; overflow-wrap: anywhere; }
 .confirmation .offre-actions, .offre-champs > .offre-actions { justify-content: flex-end; }
 .overlay { backdrop-filter: blur(4px); }
+.recherche-admin { margin-bottom: 24px; }
+.recherche-admin input, .recherche-admin select { min-width: 0; padding: 12px; border: 1px solid #cbddd1; border-radius: 9px; background: white; color: #193b2b; font: inherit; }
+.offre-card > .btn { margin-top: 10px; }
 @media(max-width: 700px) { .offres-entete { padding: 20px; } .offre-champs { grid-template-columns: 1fr; } .offre-form, .offre-detail { padding: 28px 20px; } .offre-actions .btn { flex: 1; } .section-heading { align-items: stretch; } }

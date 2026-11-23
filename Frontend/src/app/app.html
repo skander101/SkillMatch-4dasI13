@@ -83,7 +83,8 @@
       <div class="feature"><div class="feature-ico"><svg viewBox="0 0 40 40"><path d="M12 16a8 8 0 0 1 16 0v7l4 5H8l4-5v-7ZM17 32a3 3 0 0 0 6 0M20 8V4"/></svg></div><div><b>Alertes personnalisées</b><span>Soyez informé des nouvelles offres</span></div></div>
     </div>
   </section>
-  <app-offres [search]="rechercheOffres()" [sort]="offreSort()" (connexion)="openAuth('connexion')" />
+  <app-offres [search]="rechercheOffres()" [sort]="offreSort()" (connexion)="openAuth('connexion')" (candidatureEnvoyee)="candidaturesVersion.set(candidaturesVersion() + 1)" />
+  @if (isLoggedIn()) { <app-candidatures [refresh]="candidaturesVersion()" /> }
   <section class="how-section" id="comment-ca-marche"><div class="wrap how-inner"><div><span class="section-overline">UN RECRUTEMENT PLUS JUSTE</span><h2>Les compétences passent en premier.</h2><p>SkillMatch rapproche candidats et recruteurs grâce aux profils, aux tests techniques et aux offres adaptées.</p></div><div class="how-items"><div><b>01</b><span>Créez votre profil</span></div><div><b>02</b><span>Validez vos compétences</span></div><div><b>03</b><span>Postulez aux bonnes offres</span></div></div></div></section>
 </main>
 <footer class="footer" id="apropos"><div class="wrap footer-content"><div class="brand footer-brand"><span class="brand-dot">●</span> Skill<span>Match</span></div><p>On recrute sur les compétences, pas sur le CV.</p><small>SkillMatch · Des talents, des rencontres, des opportunités</small></div></footer>

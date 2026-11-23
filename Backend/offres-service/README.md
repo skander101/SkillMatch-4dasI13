@@ -403,3 +403,8 @@ Si Offres tourne temporairement sur 18081, définir
 `OFFRES_SERVICE_URL=http://localhost:18081` dans la configuration de la Gateway.
 L'interface Angular des offres candidat et recruteur utilise ces routes.
 Voir [le guide frontend](../../Frontend/README.md) pour les écrans et leur démarrage.
+
+L'interface des candidatures est aussi connectée : dépôt et suivi candidat,
+traitement recruteur, ainsi que les deux CRUD ADMIN dans le back-office existant.
+Les contrôles métier restent dans ce service ; aucun nouveau backend ADMIN.
+En phase 1, `cvId` est une référence numérique de test, sans dépôt de fichier.
