@@ -1,13 +1,13 @@
-package tn.esprit.skillmatch.template;
+package tn.esprit.skillmatch.profils;
 
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-class TemplateServiceApplicationTests {
+class ProfilsServiceApplicationTests {
 
     @Test
     void applicationClassIsAvailable() {
-        assertNotNull(TemplateServiceApplication.class);
+        assertNotNull(ProfilsServiceApplication.class);
     }
 }

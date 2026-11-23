@@ -1,12 +1,12 @@
 server:
-  port: ${SERVER_PORT:8080}
+  port: ${SERVER_PORT:8082}
 
 spring:
   application:
-    name: template-service
+    name: profils-service
 
   datasource:
-    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:template_db}?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:profils_db}?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
     username: ${MYSQL_USER:root}
     password: ${MYSQL_PASSWORD:}
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -32,8 +32,26 @@ eureka:
     register-with-eureka: ${EUREKA_REGISTER:false}
     fetch-registry: ${EUREKA_FETCH:false}
 
+jwt:
+  secret: ${JWT_SECRET:skillmatch-local-development-secret-key-change-me}
+  expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+
+profils:
+  cv:
+    max-size-bytes: ${CV_MAX_SIZE_BYTES:5242880}
+
+messaging:
+  enabled: ${MESSAGING_ENABLED:true}
+  exchange: ${SKILLMATCH_EXCHANGE:skillmatch.events}
+  queue: ${PROFILS_TEST_PASSED_QUEUE:profils.test-passed}
+  routing-key: ${TEST_PASSED_ROUTING_KEY:test.passed}
+  published-routing-key: ${PROFILE_UPDATED_ROUTING_KEY:profile.updated}
+
 management:
   endpoints:
     web:
       exposure:
         include: health,info
+  health:
+    rabbit:
+      enabled: ${MESSAGING_ENABLED:true}
