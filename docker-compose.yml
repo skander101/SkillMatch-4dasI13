@@ -1,0 +1,64 @@
+# SkillMatch - infrastructure locale (responsable : Amir Khemissi)
+#
+#   docker compose up -d rabbitmq            -> RabbitMQ seul (MySQL reste sous XAMPP)
+#   docker compose --profile mysql up -d     -> RabbitMQ + MySQL + phpMyAdmin (si XAMPP n'est pas utilisé)
+#   docker compose down                      -> tout arrêter
+#
+# Ne pas lancer le profil "mysql" si XAMPP occupe déjà le port 3306.
+
+name: skillmatch
+
+services:
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: skillmatch-rabbitmq
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"   # AMQP, utilisé par les microservices
+      - "15672:15672"                   # interface web http://localhost:15672
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8.0
+    container_name: skillmatch-mysql
+    profiles: ["mysql"]
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"   # même comportement que XAMPP : root sans mot de passe
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  phpmyadmin:
+    image: phpmyadmin:5
+    container_name: skillmatch-phpmyadmin
+    profiles: ["mysql"]
+    ports:
+      - "8000:80"                         # http://localhost:8000
+    environment:
+      PMA_HOST: mysql
+      PMA_USER: root
+      PMA_PASSWORD: ""
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+volumes:
+  rabbitmq-data:
+  mysql-data:

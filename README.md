@@ -118,7 +118,7 @@ Les dossiers de microservices sont créés par leurs responsables sur leurs bran
 1. Démarrer MySQL dans XAMPP.
 2. Créer les bases `offres_db`, `profils_db`, `entreprises_db`, `tests_db`, `alertes_db`, `messagerie_db` et `commun_db`.
 3. Copier `.env.example` vers `.env` et adapter les valeurs locales.
-4. Démarrer RabbitMQ. Le fichier `docker-compose.yml` sera ajouté par le responsable Docker/CI.
+4. Démarrer RabbitMQ : `docker compose up -d rabbitmq` (interface sur http://localhost:15672, `guest`/`guest`). Sans XAMPP : `docker compose --profile mysql up -d` démarre aussi MySQL et phpMyAdmin (http://localhost:8000).
 5. Démarrer `discovery-service`, `config-service`, les microservices, puis `api-gateway`.
 6. Démarrer le frontend avec `npm install` puis `npm start` (ou `ng serve`).
 

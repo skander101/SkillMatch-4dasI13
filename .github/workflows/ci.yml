@@ -1,0 +1,97 @@
+# Intégration continue SkillMatch (responsable : Amir Khemissi)
+# - compile et teste chaque microservice de Backend/ (détection automatique des pom.xml)
+# - construit le frontend Angular
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  detect:
+    name: Détecter les microservices
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.list.outputs.services }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: list
+        run: |
+          services=$(find Backend -mindepth 2 -maxdepth 2 -name pom.xml -printf '%h\n' \
+            | xargs -n1 basename | sort | jq -R . | jq -sc .)
+          echo "services=$services" >> "$GITHUB_OUTPUT"
+          echo "Services détectés : $services"
+
+  backend:
+    name: Backend - ${{ matrix.service }}
+    needs: detect
+    if: needs.detect.outputs.services != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJSON(needs.detect.outputs.services) }}
+
+    # MySQL pour les tests qui démarrent le contexte Spring (ex. commun-service)
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      MYSQL_HOST: 127.0.0.1
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
+      MYSQL_PASSWORD: root
+      JWT_SECRET: ci-only-secret-key-for-tests-at-least-32-characters
+      EUREKA_REGISTER: "false"
+      EUREKA_FETCH: "false"
+      MESSAGING_ENABLED: "false"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+          cache-dependency-path: Backend/${{ matrix.service }}/pom.xml
+
+      - name: Compiler et tester
+        working-directory: Backend/${{ matrix.service }}
+        run: |
+          if [ -f mvnw ]; then chmod +x mvnw && ./mvnw -B -ntp verify; else mvn -B -ntp verify; fi
+
+  frontend:
+    name: Frontend Angular
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: Frontend/package-lock.json
+
+      - name: Installer et construire
+        run: |
+          npm ci
+          npm run build
