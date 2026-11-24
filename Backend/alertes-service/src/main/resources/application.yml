@@ -1,0 +1,64 @@
+server:
+  port: ${SERVER_PORT:8085}
+
+spring:
+  application:
+    name: alertes-service
+
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:alertes_db}?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: ${MYSQL_USER:root}
+    password: ${MYSQL_PASSWORD:}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+
+# Même secret que commun-service : le JWT est vérifié localement
+jwt:
+  secret: ${JWT_SECRET:skillmatch-local-development-secret-key-change-me}
+
+alertes:
+  # Règle métier : 5 alertes actives maximum par candidat (422 au-delà)
+  max-actives: ${ALERTES_MAX_ACTIVES:5}
+  commun:
+    # Utilisé pour retrouver l'id de l'utilisateur à partir du JWT (GET /skillmatch/auth/me)
+    url: ${COMMUN_SERVICE_URL:http://localhost:8087}
+  offres:
+    url: ${OFFRES_SERVICE_URL:http://localhost:8081}
+    # true quand offres-service est démarré : une offre doit être PUBLIEE pour être sauvegardée
+    verification-enabled: ${OFFRES_VERIFICATION_ENABLED:false}
+  messaging:
+    # true quand RabbitMQ est démarré (docker compose up -d rabbitmq)
+    enabled: ${MESSAGING_ENABLED:false}
+    exchange: ${RABBITMQ_EXCHANGE:skillmatch.events}
+    queue-offer-published: ${ALERTES_QUEUE:alertes.offer-published}
+    routing-key-offer-published: offer.published
+    routing-key-alert-matched: alert.matched
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+    register-with-eureka: ${EUREKA_REGISTER:false}
+    fetch-registry: ${EUREKA_FETCH:false}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  health:
+    rabbit:
+      enabled: ${MESSAGING_ENABLED:false}

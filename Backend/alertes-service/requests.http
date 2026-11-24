@@ -1,0 +1,60 @@
+### 1. Créer un candidat (commun-service via la gateway) puis copier le token
+POST http://localhost:8080/skillmatch/auth/register
+Content-Type: application/json
+
+{"nom":"Amir","email":"amir.candidat@esprit.tn","password":"123456","role":"CANDIDAT"}
+
+### 2. Se connecter
+# @name login
+POST http://localhost:8080/skillmatch/auth/login
+Content-Type: application/json
+
+{"email":"amir.candidat@esprit.tn","password":"123456"}
+
+> {% client.global.set("token", response.body.token); %}
+
+### 3. Créer une alerte -> 201
+POST http://localhost:8080/skillmatch/alerts
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"motsCles":["java","spring boot"],"localisation":"Tunis","contrat":"CDI","frequence":"IMMEDIATE"}
+
+### 4. Même alerte -> 409
+POST http://localhost:8080/skillmatch/alerts
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"motsCles":["Spring Boot","JAVA"],"localisation":"tunis","contrat":"CDI"}
+
+### 5. Mes alertes -> 200
+GET http://localhost:8080/skillmatch/alerts/me
+Authorization: Bearer {{token}}
+
+### 6. Désactiver l'alerte 1 -> 200
+PUT http://localhost:8080/skillmatch/alerts/1/active
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"active":false}
+
+### 7. Sauvegarder l'offre 10 -> 201 (puis 409 la deuxième fois)
+POST http://localhost:8080/skillmatch/favorites
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"offerId":10}
+
+### 8. Mes favoris -> 200
+GET http://localhost:8080/skillmatch/favorites/me
+Authorization: Bearer {{token}}
+
+### 9. Sans token -> 401
+GET http://localhost:8080/skillmatch/alerts/me
+
+### 10. Données invalides -> 400
+POST http://localhost:8080/skillmatch/alerts
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"motsCles":[]}

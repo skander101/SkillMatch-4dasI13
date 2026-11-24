@@ -14,6 +14,7 @@ Passerelle Spring Cloud Gateway de SkillMatch.
 |---|---|
 | `/skillmatch/auth/**` | `commun-service` |
 | `/skillmatch/utilisateurs/**` | `commun-service` |
+| `/skillmatch/alerts/**`, `/skillmatch/favorites/**` | `alertes-service` (`ALERTES_SERVICE_URL`, défaut `http://localhost:8085`) |
 
 ## Configuration
 
@@ -25,6 +26,7 @@ Variables possibles :
 
 - `SERVER_PORT`
 - `COMMUN_SERVICE_URL`
+- `ALERTES_SERVICE_URL`
 - `EUREKA_URL`, `EUREKA_REGISTER`, `EUREKA_FETCH`
 
 ## Démarrage

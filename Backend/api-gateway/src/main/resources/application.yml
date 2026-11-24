@@ -28,6 +28,10 @@ spring:
           uri: ${COMMUN_SERVICE_URL:http://localhost:8087}
           predicates:
             - Path=/skillmatch/utilisateurs/**
+        - id: alertes-service
+          uri: ${ALERTES_SERVICE_URL:http://localhost:8085}
+          predicates:
+            - Path=/skillmatch/alerts/**,/skillmatch/favorites/**
 
 eureka:
   client:
