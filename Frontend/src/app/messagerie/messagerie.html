@@ -1,0 +1,865 @@
+<div class="messagerie-page">
+  <!-- En-tête de page -->
+  <header class="section-header">
+    <div class="section-titles">
+      <span class="section-overline">ÉCHANGES</span>
+      <h1>Messagerie</h1>
+    </div>
+
+    <div class="header-actions">
+      <button
+        type="button"
+        class="btn-group-outline"
+        (click)="openGroupModal()"
+        title="Créer un groupe">
+        <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <line x1="19" y1="8" x2="19" y2="14" />
+          <line x1="22" y1="11" x2="16" y2="11" />
+        </svg>
+        <span>Créer un groupe</span>
+      </button>
+      <button
+        type="button"
+        class="btn-new-conversation"
+        (click)="openNewModal()"
+        title="Démarrer une nouvelle conversation">
+        <span>+ Nouvelle conversation</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Toasts de feedback -->
+  @if (error()) {
+    <div class="toast-alert error" role="alert">
+      <span class="toast-icon" aria-hidden="true">⚠</span>
+      <div class="toast-text">{{ error() }}</div>
+      <button type="button" class="toast-close" (click)="error.set('')" aria-label="Fermer l'alerte">×</button>
+    </div>
+  }
+  @if (success()) {
+    <div class="toast-alert success" role="status">
+      <span class="toast-icon" aria-hidden="true">✓</span>
+      <div class="toast-text">{{ success() }}</div>
+      <button type="button" class="toast-close" (click)="success.set('')" aria-label="Fermer la notification">×</button>
+    </div>
+  }
+
+  <!-- Carte principale en deux colonnes -->
+  <div class="messagerie-card" [class.mobile-show-chat]="mobileThread() && selected()">
+
+    <!-- COLONNE GAUCHE : LISTE DES CONVERSATIONS -->
+    <aside class="conversations-column" aria-label="Liste des conversations">
+      <!-- Barre de recherche -->
+      <div class="search-wrap">
+        <div class="search-box">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            type="search"
+            placeholder="Rechercher..."
+            [ngModel]="search()"
+            (ngModelChange)="search.set($event)"
+            aria-label="Rechercher dans les conversations" />
+          @if (search().trim()) {
+            <button type="button" class="clear-search-btn" (click)="search.set('')" aria-label="Effacer la recherche">×</button>
+          }
+        </div>
+      </div>
+
+      <!-- Onglets en pilules + tri discret -->
+      <div class="filters-row">
+        <div class="filters-bar" role="tablist" aria-label="Filtrer les conversations">
+          <button
+            type="button"
+            role="tab"
+            class="filter-tab"
+            [class.active]="filter() === 'all'"
+            [attr.aria-selected]="filter() === 'all'"
+            (click)="filter.set('all')">
+            Toutes {{ counts().all }}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            class="filter-tab"
+            [class.active]="filter() === 'unread'"
+            [attr.aria-selected]="filter() === 'unread'"
+            (click)="filter.set('unread')">
+            Non lues {{ counts().unread }}
+          </button>
+        </div>
+
+        <div class="sort-wrapper">
+          <button
+            type="button"
+            class="btn-sort-icon"
+            (click)="toggleSortMenu($event)"
+            aria-label="Trier les conversations"
+            [attr.aria-expanded]="sortMenuOpen()"
+            title="Trier les conversations">
+            ↕
+          </button>
+          @if (sortMenuOpen()) {
+            <div class="sort-menu" role="menu" (click)="$event.stopPropagation()">
+              <button
+                type="button"
+                role="menuitemradio"
+                class="sort-menu-item"
+                [class.active]="sortOrder() === 'newest'"
+                [attr.aria-checked]="sortOrder() === 'newest'"
+                (click)="setSortOrder('newest')">
+                Récentes
+              </button>
+              <button
+                type="button"
+                role="menuitemradio"
+                class="sort-menu-item"
+                [class.active]="sortOrder() === 'oldest'"
+                [attr.aria-checked]="sortOrder() === 'oldest'"
+                (click)="setSortOrder('oldest')">
+                Anciennes
+              </button>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Liste des conversations -->
+      <div class="conversations-list">
+        @if (loading() && conversations().length === 0) {
+          <div class="loading-state">
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+          </div>
+        }
+
+        @for (conversation of filteredConversations(); track conversation.id) {
+          <div
+            class="conversation-card"
+            [class.active]="selected()?.id === conversation.id"
+            [class.groupe]="isGroupConv(conversation)"
+            (click)="selectConversation(conversation)"
+            role="button"
+            tabindex="0"
+            (keydown.enter)="selectConversation(conversation)"
+            (keydown.space)="$event.preventDefault(); selectConversation(conversation)">
+
+            @if (isGroupConv(conversation)) {
+              <div class="conv-avatar-stack" aria-hidden="true">
+                @for (av of stackedGroupAvatars(conversation); track av.id; let idx = $index) {
+                  <span
+                    class="stack-circle"
+                    [class.second]="idx === 1"
+                    [style.backgroundColor]="av.bg">
+                    {{ av.initiales }}
+                  </span>
+                }
+              </div>
+            } @else {
+              <div
+                class="conv-avatar"
+                [style.backgroundColor]="directAvatarBg(conversation)"
+                aria-hidden="true">
+                {{ initials(conversation) }}
+              </div>
+            }
+
+            <div class="conv-content">
+              <div class="conv-top-line">
+                <h4 class="conv-name">{{ displayName(conversation) }}</h4>
+                <div class="conv-top-meta">
+                  @if (conversation.dernierMessageAt) {
+                    <time class="conv-time">{{ formatDate(conversation.dernierMessageAt) }}</time>
+                  }
+                  @if (conversation.nonLusCount && conversation.nonLusCount > 0) {
+                    <span class="badge-unread">{{ conversation.nonLusCount }}</span>
+                  }
+                </div>
+              </div>
+
+              <div class="conv-bottom-line">
+                <p class="conv-preview">{{ preview(conversation) }}</p>
+              </div>
+            </div>
+          </div>
+        }
+
+        @if (!loading() && filteredConversations().length === 0) {
+          <div class="empty-list-state">
+            @if (conversations().length === 0) {
+              <div class="empty-icon-wrap" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+              </div>
+              <h3>Commencez une conversation</h3>
+              <p>Échangez avec un candidat ou un recruteur.</p>
+              <button type="button" class="btn-empty-action" (click)="openNewModal()">
+                Nouvelle conversation
+              </button>
+            } @else {
+              <h3>Aucun résultat</h3>
+              <p>Aucune conversation ne correspond à cette recherche ou à ce filtre.</p>
+              <button type="button" class="btn-empty-action" (click)="search.set(''); filter.set('all')">
+                Réinitialiser les filtres
+              </button>
+            }
+          </div>
+        }
+      </div>
+    </aside>
+
+    <!-- COLONNE DROITE : ESPACE DE DISCUSSION -->
+    <section class="discussion-column" aria-label="Fil de discussion">
+      @if (selected(); as conversation) {
+        <!-- En-tête discussion -->
+        <header class="discussion-header">
+          <div class="header-user-info">
+            <button
+              type="button"
+              class="mobile-back-btn"
+              (click)="showList()"
+              aria-label="Retour à la liste des conversations">
+              ← Retour
+            </button>
+
+            @if (isGroupConv(conversation) && groupPhotos()[conversation.id]; as gPhoto) {
+              <img [src]="gPhoto" alt="" class="conv-avatar-img" />
+            } @else {
+              <div
+                class="conv-avatar header-avatar"
+                [style.backgroundColor]="isGroupConv(conversation) ? '#0F6E56' : directAvatarBg(conversation)"
+                aria-hidden="true">
+                {{ isGroupConv(conversation) ? headerGroupInitials(conversation) : initials(conversation) }}
+              </div>
+            }
+
+            <div class="user-details">
+              <h3 class="user-fullname">{{ displayName(conversation) }}</h3>
+              <div class="user-subline">
+                @if (isGroupConv(conversation)) {
+                  <span class="group-subtitle">{{ recipientRole(conversation) }}</span>
+                } @else {
+                  <span class="role-badge">{{ recipientRole(conversation) }}</span>
+                }
+              </div>
+            </div>
+          </div>
+
+          <div class="discussion-header-actions">
+            <button
+              type="button"
+              class="btn-participants"
+              (click)="openParticipantsPanel(conversation)"
+              [attr.aria-expanded]="showParticipantsPanel()"
+              title="Gérer les participants">
+              <svg class="btn-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+              <span>Participants</span>
+            </button>
+
+            @if (canQuitter(conversation) || canSupprimer(conversation)) {
+              <div class="menu-container">
+                <button
+                  type="button"
+                  class="btn-menu-dots"
+                  (click)="toggleActionMenu($event)"
+                  [attr.aria-expanded]="menuOpen()"
+                  aria-haspopup="menu"
+                  aria-label="Actions de la conversation">
+                  ⋯
+                </button>
+                @if (menuOpen()) {
+                  <div class="menu-dropdown" role="menu" (click)="$event.stopPropagation()">
+                    @if (canQuitter(conversation)) {
+                      <button
+                        type="button"
+                        role="menuitem"
+                        class="menu-item"
+                        (click)="requestQuitterGroupe(conversation)">
+                        Quitter le groupe
+                      </button>
+                    }
+                    @if (canSupprimer(conversation)) {
+                      <button
+                        type="button"
+                        role="menuitem"
+                        class="menu-item danger"
+                        (click)="requestDeleteConversation(conversation)">
+                        Supprimer la conversation
+                      </button>
+                    }
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        </header>
+
+        <!-- Panneau Gérer les participants -->
+        @if (showParticipantsPanel()) {
+          <div class="participants-panel" role="region" aria-label="Gérer les participants">
+            <div class="panel-header">
+              <h4>Gérer les participants</h4>
+              <button
+                type="button"
+                class="panel-close"
+                (click)="closeParticipantsPanel()"
+                aria-label="Fermer le panneau des participants">
+                ×
+              </button>
+            </div>
+
+            <div class="panel-content">
+              @if (canManage(conversation)) {
+                <app-person-selector
+                  [participants]="panelParticipants()"
+                  [verrouillerCreateur]="true"
+                  [idCreateur]="conversation.candidatUserId"
+                  [contactsRecents]="contactsRecents()"
+                  [placeholder]="'Ajouter une personne par nom…'"
+                  [ariaLabel]="'Gérer les participants'"
+                  (participantsChange)="onPanelPersonSelectorChange($event)"
+                  (erreur)="panelError.set($event)">
+                </app-person-selector>
+
+                <small class="panel-helper">Vous restez toujours dans le groupe.</small>
+
+                @if (panelAddingToDirect()) {
+                  <div class="panel-direct-to-group">
+                    <label for="panelNomGroupeInput">Nom du groupe (obligatoire)</label>
+                    <div class="panel-group-row">
+                      <input
+                        id="panelNomGroupeInput"
+                        type="text"
+                        maxlength="50"
+                        [ngModel]="panelNomGroupe()"
+                        (ngModelChange)="panelNomGroupe.set($event)"
+                        placeholder="Ex. Groupe avec Meriem"
+                        class="panel-input" />
+                      <button
+                        type="button"
+                        class="btn-panel-save"
+                        (click)="validerPassageDirectVersGroupe()"
+                        [disabled]="panelSaving()">
+                        {{ panelSaving() ? 'Enregistrement…' : 'Valider' }}
+                      </button>
+                      <button
+                        type="button"
+                        class="btn-panel-cancel"
+                        (click)="annulerPassageDirectVersGroupe()"
+                        [disabled]="panelSaving()">
+                        Annuler
+                      </button>
+                    </div>
+                  </div>
+                }
+
+                @if ((isGroupConv(conversation) && conversation.participantIds.length < 3) || showConvertDirectPrompt()) {
+                  <div class="panel-convert-banner">
+                    <span>
+                      @if (showConvertDirectPrompt()) {
+                        Il resterait moins de 2 membres. Convertir ce groupe en conversation directe (sans supprimer les messages) ?
+                      } @else {
+                        Ce groupe compte moins de 3 participants. Souhaitez-vous le convertir en conversation directe ?
+                      }
+                    </span>
+                    <button
+                      type="button"
+                      class="btn-panel-convert"
+                      (click)="convertirEnConversationDirecte()"
+                      [disabled]="panelSaving()">
+                      Convertir en conversation directe
+                    </button>
+                  </div>
+                }
+              } @else {
+                <div class="panel-readonly-list">
+                  @for (p of panelParticipants(); track p.id) {
+                    <div class="panel-personne">
+                      <span
+                        class="panel-avatar"
+                        [style.backgroundColor]="couleurPuce(p.id).bg"
+                        [style.color]="couleurPuce(p.id).text">
+                        {{ initials(p.nom) }}
+                      </span>
+                      <span class="panel-nom">{{ p.nom }}</span>
+                      <span class="panel-role">{{ roleLibelle(p.role) }}</span>
+                    </div>
+                  }
+                </div>
+              }
+
+              @if (panelError()) {
+                <div class="panel-erreur" role="alert">{{ panelError() }}</div>
+              }
+            </div>
+          </div>
+        }
+
+        <!-- Zone des messages -->
+        <div class="thread-container">
+          <div class="messages-scroll-area" #thread (scroll)="onThreadScroll()">
+            @if (messagesLoading() && messages().length === 0) {
+              <div class="messages-loading">
+                <span class="spinner-large"></span>
+                <p>Chargement des messages…</p>
+              </div>
+            }
+
+            @for (message of messages(); track message.id; let idx = $index) {
+              @if (shouldShowDateDivider(messages(), idx)) {
+                <div class="date-divider">
+                  <span>{{ getDateDivider(message.date) }}</span>
+                </div>
+              }
+
+              @if (isSysteme(message)) {
+                <div class="message-systeme">
+                  <span class="systeme-pilule">{{ message.contenu }}</span>
+                </div>
+              } @else {
+                <div
+                  class="message-row"
+                  [class.mine]="isMine(message)"
+                  [class.groupe-expediteur]="isGroupConv(conversation) && !isMine(message)">
+
+                  @if (isGroupConv(conversation) && !isMine(message)) {
+                    <div
+                      class="message-sender-nom"
+                      [style.color]="couleurPuce(message.senderId).text">
+                      {{ senderFirstName(message) }}
+                    </div>
+                  }
+
+                  <div class="message-bubble-wrapper" [class.mine]="isMine(message)">
+                    @if (editingMessageId() === message.id) {
+                      <div class="inline-editor">
+                        <textarea
+                          rows="2"
+                          [ngModel]="editingContent()"
+                          (ngModelChange)="editingContent.set($event)"
+                          name="editingMsg"
+                          class="edit-textarea"
+                          aria-label="Modifier le message"></textarea>
+                        <div class="inline-editor-actions">
+                          <button
+                            type="button"
+                            class="btn-save-sm"
+                            (click)="saveEdit(message)"
+                            [disabled]="savingEdit() || !editingContent().trim()">
+                            {{ savingEdit() ? '…' : 'Valider' }}
+                          </button>
+                          <button
+                            type="button"
+                            class="btn-cancel-sm"
+                            (click)="cancelEdit()"
+                            [disabled]="savingEdit()">
+                            Annuler
+                          </button>
+                        </div>
+                      </div>
+                    } @else {
+                      <div class="message-bubble" [class.mine]="isMine(message)">
+                        <p class="bubble-text">{{ message.contenu }}</p>
+
+                        @if (message.fichierNom) {
+                          <div class="message-fichier">
+                            @if (message.fichierUrl && isImageFile(message.fichierNom) && filePreviewUrls()[message.fichierUrl]; as imgSrc) {
+                              <img
+                                [src]="imgSrc"
+                                [alt]="message.fichierNom"
+                                class="message-image-preview"
+                                (click)="downloadProtectedFile(message)" />
+                            }
+                            <button
+                              type="button"
+                              class="fichier-link-btn"
+                              (click)="downloadProtectedFile(message)">
+                              <span aria-hidden="true">📎</span>
+                              <span>{{ message.fichierNom }}</span>
+                              @if (message.fichierTaille) {
+                                <span class="fichier-taille">({{ (message.fichierTaille / 1024).toFixed(1) }} Ko)</span>
+                              }
+                            </button>
+                          </div>
+                        }
+
+                        <footer class="bubble-footer">
+                          <time class="message-timestamp">{{ formatMessageTime(message.date) }}</time>
+                          @if (isMine(message)) {
+                            <span
+                              class="receipt-indicator"
+                              [class.seen]="message.lu"
+                              [title]="message.lu ? 'Lu par le destinataire' : 'Envoyé'">
+                              {{ message.lu ? 'Lu' : 'Envoyé' }}
+                            </span>
+                          }
+                        </footer>
+                      </div>
+
+                      @if (isMine(message)) {
+                        <div class="message-quick-actions">
+                          @if (message.type !== 'fichier') {
+                            <button type="button" class="quick-action-btn" (click)="startEdit(message)">Modifier</button>
+                          }
+                          <button type="button" class="quick-action-btn danger" (click)="requestDeleteMessage(message)">Supprimer</button>
+                        </div>
+                      }
+                    }
+                  </div>
+                </div>
+              }
+            }
+
+            @if (typingUser()) {
+              <div class="message-typing" aria-live="polite">
+                <span class="typing-nom">{{ typingUser() }} est en train d'écrire</span>
+                <span class="typing-dots" aria-hidden="true">
+                  <span>.</span><span>.</span><span>.</span>
+                </span>
+              </div>
+            }
+
+            @if (!messagesLoading() && messages().length === 0) {
+              <div class="empty-thread-state">
+                <h4>Aucun message pour le moment</h4>
+                <p>Écrivez votre premier message ci-dessous pour démarrer l'échange.</p>
+              </div>
+            }
+          </div>
+
+          @if (showScrollBottom()) {
+            <button
+              type="button"
+              class="btn-scroll-bottom"
+              (click)="scrollToBottom()"
+              aria-label="Revenir au dernier message"
+              title="Revenir au dernier message">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <polyline points="19 12 12 19 5 12" />
+              </svg>
+            </button>
+          }
+        </div>
+
+        <!-- Zone de saisie -->
+        <footer class="chat-composer-section">
+          <form (ngSubmit)="sendMessage()" class="chat-composer-form">
+            <div class="composer-row">
+              <input
+                type="file"
+                id="messagerieFileInput"
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                (change)="ajouterFichier($event)"
+                class="sr-only-input" />
+              <label
+                for="messagerieFileInput"
+                class="btn-piece-jointe"
+                title="Joindre un fichier (PDF, image, document ; 10 Mo max)"
+                aria-label="Joindre un fichier">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                </svg>
+              </label>
+
+              <textarea
+                name="messageDraft"
+                rows="1"
+                placeholder="Écrivez votre message..."
+                aria-label="Écrivez votre message"
+                [ngModel]="draft()"
+                (ngModelChange)="draft.set($event)"
+                (keydown)="onComposerKeydown($event)"
+                (input)="onTyping()"></textarea>
+
+              <button
+                type="submit"
+                class="btn-send-message"
+                [disabled]="!draft().trim() || sending()">
+                @if (sending()) {
+                  <span>Envoi…</span>
+                } @else {
+                  <span>Envoyer</span>
+                  <svg class="send-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <line x1="22" y1="2" x2="11" y2="13" />
+                    <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                  </svg>
+                }
+              </button>
+            </div>
+          </form>
+        </footer>
+      } @else {
+        <!-- État vide -->
+        <div class="welcome-chat-panel">
+          <div class="welcome-content">
+            <div class="welcome-illustration" aria-hidden="true">
+              <svg viewBox="0 0 80 80" fill="none">
+                <rect x="8" y="12" width="46" height="34" rx="12" fill="#0F6E56" opacity="0.92" />
+                <path d="M20 46v8l9-8h25a12 12 0 0 0 12-12v-6" stroke="#0F6E56" stroke-width="3" stroke-linecap="round" />
+                <rect x="26" y="28" width="46" height="34" rx="12" fill="#085041" opacity="0.95" />
+                <circle cx="42" cy="45" r="2.5" fill="#ffffff" />
+                <circle cx="49" cy="45" r="2.5" fill="#ffffff" />
+                <circle cx="56" cy="45" r="2.5" fill="#ffffff" />
+              </svg>
+            </div>
+            <h2>Sélectionnez une conversation ou démarrez-en une nouvelle</h2>
+            <p>Retrouvez ici vos échanges avec les candidats et recruteurs de SkillMatch.</p>
+            <div class="welcome-actions">
+              <button type="button" class="btn-welcome-cta" (click)="openNewModal()">
+                + Nouvelle conversation
+              </button>
+              <button type="button" class="btn-welcome-group" (click)="openGroupModal()">
+                Créer un groupe
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+    </section>
+  </div>
+
+  <!-- MODALE NOUVELLE CONVERSATION DIRECTE -->
+  @if (showNewModal()) {
+    <div
+      class="modal-backdrop"
+      [class.closing]="newModalClosing()"
+      (click)="closeNewModal()">
+      <div
+        #newModalEl
+        class="modal-card"
+        [class.closing]="newModalClosing()"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="newConvTitle"
+        (keydown)="onModalKeydown($event, newModalEl)"
+        (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <div>
+            <h3 id="newConvTitle">Nouvelle conversation</h3>
+            <p class="modal-sous-titre">Choisissez un candidat ou un recruteur.</p>
+          </div>
+          <button
+            type="button"
+            class="modal-close-btn"
+            (click)="closeNewModal()"
+            [disabled]="creating()"
+            aria-label="Fermer">
+            ×
+          </button>
+        </div>
+
+        <form (ngSubmit)="createConversation()" class="modal-form">
+          <div class="directory-role-filters" aria-label="Filtrer par rôle">
+            <button type="button" [class.active]="directoryRole() === 'ALL'" (click)="setDirectoryRole('ALL')">Tous</button>
+            <button type="button" [class.active]="directoryRole() === 'CANDIDAT'" (click)="setDirectoryRole('CANDIDAT')">Candidats</button>
+            <button type="button" [class.active]="directoryRole() === 'RECRUTEUR'" (click)="setDirectoryRole('RECRUTEUR')">Recruteurs</button>
+          </div>
+
+          <div class="groupe-participants">
+            <label>Destinataire</label>
+            <app-person-selector
+              #newConvSelector
+              [participants]="recipientSelection()"
+              [multiple]="false"
+              [roleFilter]="directoryRole()"
+              [contactsRecents]="contactsRecents()"
+              [hasConversationIds]="directConversationUserIds()"
+              [placeholder]="'Rechercher par nom…'"
+              [ariaLabel]="'Rechercher un destinataire par nom'"
+              (participantsChange)="onNewPersonSelectorChange($event)"
+              (erreur)="recipientLookupError.set($event)">
+            </app-person-selector>
+          </div>
+
+          @if (recipientLookupError()) {
+            <div class="lookup-feedback error" role="alert">
+              <span>{{ recipientLookupError() }}</span>
+            </div>
+          }
+
+          <div class="modal-footer-bar">
+            <span class="modal-counter">
+              @if (recipientLookup(); as user) {
+                {{ hasConversationWith(user.id) ? 'Conversation existante' : roleLibelle(user.role) }}
+              } @else {
+                10 suggestions maximum
+              }
+            </span>
+            <div class="modal-actions-right">
+              <button type="button" class="btn-modal-cancel" (click)="closeNewModal()" [disabled]="creating()">
+                Annuler
+              </button>
+              <button
+                type="submit"
+                class="btn-modal-submit"
+                [disabled]="creating()">
+                {{ creating() ? 'Création…' : (recipientLookup() && hasConversationWith(recipientLookup()!.id) ? 'Ouvrir' : 'Démarrer') }}
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+
+  <!-- MODALE CRÉER UN GROUPE -->
+  @if (showGroupModal()) {
+    <div
+      class="modal-backdrop"
+      [class.closing]="groupModalClosing()"
+      (click)="closeGroupModal()">
+      <div
+        #groupModalEl
+        class="modal-card"
+        [class.closing]="groupModalClosing()"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="groupModalTitle"
+        (keydown)="onModalKeydown($event, groupModalEl)"
+        (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <div>
+            <h3 id="groupModalTitle">Créer un groupe</h3>
+            <p class="modal-sous-titre">Choisissez un nom et ajoutez des personnes.</p>
+          </div>
+          <button
+            type="button"
+            class="modal-close-btn"
+            (click)="closeGroupModal()"
+            [disabled]="groupCreating()"
+            aria-label="Fermer">
+            ×
+          </button>
+        </div>
+
+        <form (ngSubmit)="createGroup()" class="modal-form">
+          <div class="groupe-identite">
+            <input
+              type="file"
+              id="groupPhotoInput"
+              accept="image/png,image/jpeg,image/webp"
+              (change)="onGroupPhotoSelected($event)"
+              class="sr-only-input" />
+            <label
+              for="groupPhotoInput"
+              class="groupe-avatar-picker"
+              title="Ajouter une photo de groupe (facultatif)"
+              aria-label="Choisir une photo de groupe">
+              @if (groupPhotoPreview(); as previewUrl) {
+                <img [src]="previewUrl" alt="Aperçu du groupe" class="groupe-photo-preview" />
+              } @else {
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+                  <circle cx="12" cy="13" r="3" />
+                  <line x1="19" y1="3" x2="19" y2="7" />
+                  <line x1="21" y1="5" x2="17" y2="5" />
+                </svg>
+              }
+            </label>
+
+            <div class="groupe-nom-champ">
+              <div
+                class="floating-field"
+                [class.has-value]="groupNom().length > 0"
+                [class.invalid]="!!groupNameError()">
+                <input
+                  id="groupNomInput"
+                  type="text"
+                  maxlength="50"
+                  [ngModel]="groupNom()"
+                  (ngModelChange)="onGroupNameChange($event)"
+                  (blur)="groupNomTouched.set(true)"
+                  placeholder=" "
+                  name="groupNom"
+                  autocomplete="off" />
+                <label for="groupNomInput">Nom du groupe</label>
+              </div>
+              @if (groupNameError()) {
+                <small class="champ-erreur" role="alert">{{ groupNameError() }}</small>
+              }
+            </div>
+          </div>
+
+          <div class="groupe-participants">
+            <label class="field-label">Participants</label>
+            <app-person-selector
+              [participants]="groupParticipants()"
+              [verrouillerCreateur]="true"
+              [idCreateur]="currentUser()?.id ?? null"
+              [contactsRecents]="contactsRecents()"
+              [placeholder]="'Ajouter une personne…'"
+              [ariaLabel]="'Rechercher des participants par nom'"
+              (participantsChange)="onGroupPersonSelectorChange($event)"
+              (erreur)="groupError.set($event)">
+            </app-person-selector>
+          </div>
+
+          @if (groupError()) {
+            <div class="lookup-feedback error" role="alert">
+              <span>{{ groupError() }}</span>
+            </div>
+          }
+
+          <div class="modal-footer-bar">
+            <span class="modal-counter">
+              {{ groupParticipants().length }} participant{{ groupParticipants().length > 1 ? 's' : '' }} sélectionné{{ groupParticipants().length > 1 ? 's' : '' }}
+            </span>
+            <div class="modal-actions-right">
+              <button type="button" class="btn-modal-cancel" (click)="closeGroupModal()" [disabled]="groupCreating()">
+                Annuler
+              </button>
+              <button
+                type="submit"
+                class="btn-modal-submit"
+                [disabled]="groupCreating()">
+                {{ groupCreating() ? 'Création…' : 'Créer le groupe' }}
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+
+  <!-- MODALE CONFIRMATION -->
+  @if (confirmDeleteDialog(); as dialog) {
+    <div class="modal-backdrop" (click)="cancelDelete()">
+      <div
+        #confirmModalEl
+        class="confirm-modal-card"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="confirmDialogTitle"
+        (keydown)="onModalKeydown($event, confirmModalEl)"
+        (click)="$event.stopPropagation()">
+        <h3 id="confirmDialogTitle">{{ dialog.title }}</h3>
+        <p>{{ dialog.message }}</p>
+        <div class="confirm-modal-actions">
+          <button type="button" class="btn-cancel-delete" (click)="cancelDelete()" [disabled]="deleting()">
+            Annuler
+          </button>
+          <button
+            type="button"
+            class="btn-confirm-delete"
+            [class.danger]="dialog.danger !== false"
+            (click)="executeDelete()"
+            [disabled]="deleting()">
+            {{ deleting() ? 'Traitement…' : (dialog.confirmLabel || 'Supprimer') }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

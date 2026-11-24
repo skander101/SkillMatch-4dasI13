@@ -1,0 +1,123 @@
+<div class="person-selector" [class.ouvert]="ouvert()">
+  <!-- Champ unique contenant puces + saisie -->
+  <div class="ps-input-box" (click)="focusInput()">
+    @for (p of participants(); track p.id) {
+      <span
+        class="ps-puce"
+        [class.ps-puce-createur]="estCreateurVerrouille(p.id)"
+        [style.backgroundColor]="estCreateurVerrouille(p.id) ? '#E1F5EE' : couleurPuce(p.id).bg"
+        [style.color]="estCreateurVerrouille(p.id) ? '#085041' : couleurPuce(p.id).text">
+        <span
+          class="ps-puce-avatar"
+          [style.backgroundColor]="estCreateurVerrouille(p.id) ? '#0F6E56' : couleurPuce(p.id).text">
+          {{ initiales(p.nom) }}
+        </span>
+        <span class="ps-puce-nom">{{ libellePuce(p) }}</span>
+        @if (!estCreateurVerrouille(p.id)) {
+          <button
+            type="button"
+            class="ps-puce-retirer"
+            (click)="$event.stopPropagation(); retirer(p.id)"
+            [attr.aria-label]="'Retirer ' + p.nom">
+            ×
+          </button>
+        } @else {
+          <span class="ps-puce-verrou" title="Vous restez toujours dans le groupe" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="4" y="11" width="16" height="10" rx="2" />
+              <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+            </svg>
+          </span>
+        }
+      </span>
+    }
+
+    <input
+      #searchInput
+      type="text"
+      class="ps-input"
+      role="combobox"
+      [placeholder]="participants().length > 0 && !multiple() ? '' : placeholder()"
+      [ngModel]="query()"
+      (ngModelChange)="onQueryChange($event)"
+      (focus)="onFocus()"
+      (keydown)="onKeydown($event)"
+      [attr.aria-label]="ariaLabel()"
+      aria-autocomplete="list"
+      [attr.aria-expanded]="ouvert()"
+      [attr.aria-controls]="ouvert() ? listboxId : null"
+      [attr.aria-activedescendant]="activeOptionId()"
+      autocomplete="off" />
+
+    @if (query().trim()) {
+      <button
+        type="button"
+        class="ps-clear"
+        (click)="$event.stopPropagation(); effacerRecherche()"
+        aria-label="Effacer la recherche">
+        ×
+      </button>
+    }
+  </div>
+
+  <!-- Panneau de suggestions / états -->
+  @if (ouvert()) {
+    <div class="ps-dropdown">
+      @if (charging()) {
+        <div class="ps-skeleton" aria-busy="true" aria-label="Chargement des suggestions">
+          <div class="ps-skeleton-ligne"></div>
+          <div class="ps-skeleton-ligne"></div>
+          <div class="ps-skeleton-ligne"></div>
+        </div>
+      } @else if (erreurReseau()) {
+        <div class="ps-erreur" role="alert">
+          <span>{{ erreurReseau() }}</span>
+          <button type="button" class="ps-reessayer" (click)="reessayer()">Réessayer</button>
+        </div>
+      } @else if (suggestions().length > 0) {
+        <div
+          [id]="listboxId"
+          role="listbox"
+          aria-label="Suggestions de personnes"
+          class="ps-suggestions">
+          @for (u of suggestions(); track u.id; let i = $index) {
+            <button
+              type="button"
+              role="option"
+              [id]="'ps-opt-' + uid + '-' + i"
+              [attr.aria-selected]="actifIndex() === i"
+              [class.active]="actifIndex() === i"
+              (mouseenter)="actifIndex.set(i)"
+              (click)="selectionner(u)"
+              class="ps-suggestion">
+              <span
+                class="ps-suggestion-avatar"
+                [style.backgroundColor]="couleurPuce(u.id).bg"
+                [style.color]="couleurPuce(u.id).text">
+                {{ initiales(u.nom) }}
+              </span>
+              <span class="ps-suggestion-info">
+                <strong class="ps-suggestion-nom">{{ nomCourt(u.nom) }}</strong>
+                <span class="ps-suggestion-role">{{ libelleRole(u.role) }}</span>
+              </span>
+              @if (aDejaConversation(u.id)) {
+                <span class="ps-deja-en-ligne">Déjà en discussion</span>
+              }
+              <span class="ps-suggestion-ajouter" aria-hidden="true">+</span>
+            </button>
+          }
+        </div>
+        @if (indiceDeuxCaracteres()) {
+          <div class="ps-hint-inline">Tapez au moins 2 caractères pour rechercher dans tout l'annuaire.</div>
+        }
+      } @else if (query().trim().length >= 1) {
+        <div class="ps-aucun">
+          Aucun utilisateur trouvé
+          @if (indiceDeuxCaracteres()) {
+            <small>Tapez au moins 2 caractères pour rechercher dans tout l'annuaire.</small>
+          }
+        </div>
+      }
+    </div>
+  }
+</div>

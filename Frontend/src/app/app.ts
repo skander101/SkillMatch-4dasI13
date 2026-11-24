@@ -1,6 +1,9 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, HostListener, inject, signal } from '@angular/core';
+import { Component, computed, DestroyRef, HostListener, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
+import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
+import { filter } from 'rxjs';
 import { AuthService } from './user/auth.service';
 import { Role } from './user/user.model';
 import { BackOffice } from './backoffice/backoffice';
@@ -29,7 +32,7 @@ interface NavService {
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, FormsModule, BackOffice],
+  imports: [CommonModule, FormsModule, BackOffice, RouterOutlet],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
@@ -112,6 +115,7 @@ export class App {
       ]
     }
   ];
+  readonly messagerieOpen = signal(false);
   readonly openNav = signal<string | null>(null);
   readonly mobileNavOpen = signal(false);
   readonly navMessage = signal('');
@@ -133,10 +137,43 @@ export class App {
   readonly authMode = signal<'connexion' | 'inscription' | null>(null);
   readonly infoMessage = signal('');
   private readonly auth = inject(AuthService);
+  private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
+  private pendingMessagerieAfterLogin = false;
   readonly currentUser = this.auth.currentUser;
   readonly isLoggedIn = this.auth.isLoggedIn;
   readonly isAdmin = this.auth.isAdmin;
   readonly backOfficeOpen = signal(this.auth.isAdmin());
+
+  constructor() {
+    this.syncRouteState(this.router.url);
+    this.router.events
+      .pipe(
+        filter((event): event is NavigationEnd => event instanceof NavigationEnd),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe((event) => this.syncRouteState(event.urlAfterRedirects));
+  }
+
+  private syncRouteState(url: string): void {
+    const onMessagerie = url.startsWith('/messagerie');
+    if (onMessagerie && !this.isLoggedIn()) {
+      this.messagerieOpen.set(false);
+      this.pendingMessagerieAfterLogin = true;
+      this.router.navigateByUrl('/');
+      this.openAuth('connexion');
+      this.showMessage('Connectez-vous pour accéder à la messagerie.');
+      return;
+    }
+    this.messagerieOpen.set(onMessagerie);
+    if (onMessagerie) {
+      this.backOfficeOpen.set(false);
+    }
+  }
+
+  get isMessagerieRoute(): boolean {
+    return this.messagerieOpen() || this.router.url.startsWith('/messagerie');
+  }
   readonly authEmail = signal('');
   readonly authPassword = signal('');
   readonly authName = signal('');
@@ -170,6 +207,10 @@ export class App {
   onNavAction(serviceId: string, label: string): void {
     this.closeNav();this.mobileNavOpen.set(false);this.notificationsOpen.set(false);
     const service = this.navServices.find((item) => item.id === serviceId);
+    if (serviceId === 'messagerie') {
+      this.openMessagerie();
+      return;
+    }
     this.showMessage(`${service?.full ?? serviceId} · ${label} — à brancher sur l'API Spring Boot.`);
     if (serviceId === 'offres') { document.getElementById('offres')?.scrollIntoView({ behavior: 'smooth' }); }
   }
@@ -194,6 +235,7 @@ export class App {
     this.infoMessage.set('');
     this.authError.set('');
     this.authLoading.set(false);
+    this.pendingMessagerieAfterLogin = false;
   }
 
   openAuth(mode: 'connexion' | 'inscription'): void {
@@ -222,9 +264,14 @@ export class App {
 
     request$.subscribe({
       next: () => {
+        const goToMessagerie = this.pendingMessagerieAfterLogin;
         this.authLoading.set(false);
         this.closeModal();
-        if (this.isAdmin()) { this.backOfficeOpen.set(true); }
+        if (goToMessagerie) {
+          this.openMessagerie();
+        } else if (this.isAdmin()) {
+          this.backOfficeOpen.set(true);
+        }
         this.showMessage(`Bienvenue ${this.currentUser()?.nom ?? ''} — rôle ${this.currentUser()?.role ?? ''}`);
       },
       error: (error) => {
@@ -237,10 +284,55 @@ export class App {
   logout(): void {
     this.auth.logout();
     this.backOfficeOpen.set(false);
+    this.messagerieOpen.set(false);
+    this.pendingMessagerieAfterLogin = false;
+    if (this.isMessagerieRoute) {
+      this.router.navigate(['/']);
+    }
     this.showMessage('Vous êtes déconnecté.');
   }
 
-  openBackOffice(): void { this.backOfficeOpen.set(true); }
+  goHome(event?: Event): void {
+    if (event) event.preventDefault();
+    this.messagerieOpen.set(false);
+    this.backOfficeOpen.set(false);
+    this.closeNav();
+    if (this.isMessagerieRoute) {
+      this.router.navigate(['/']);
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  openMessagerie(): void {
+    this.closeNav();
+    this.mobileNavOpen.set(false);
+    this.notificationsOpen.set(false);
+    if (!this.isLoggedIn()) {
+      this.pendingMessagerieAfterLogin = true;
+      this.openAuth('connexion');
+      this.showMessage('Connectez-vous pour accéder à la messagerie.');
+      return;
+    }
+    this.pendingMessagerieAfterLogin = false;
+    this.backOfficeOpen.set(false);
+    this.messagerieOpen.set(true);
+    this.router.navigate(['/messagerie']);
+  }
+
+  closeMessagerie(): void {
+    this.messagerieOpen.set(false);
+    if (this.isMessagerieRoute) {
+      this.router.navigate(['/']);
+    }
+  }
+
+  openBackOffice(): void {
+    this.messagerieOpen.set(false);
+    this.backOfficeOpen.set(true);
+    if (this.router.url.startsWith('/messagerie')) {
+      this.router.navigate(['/']);
+    }
+  }
 
   closeBackOffice(): void { this.backOfficeOpen.set(false); }
 
