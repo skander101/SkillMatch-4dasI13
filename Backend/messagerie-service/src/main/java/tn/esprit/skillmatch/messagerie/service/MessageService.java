@@ -1,18 +1,24 @@
 package tn.esprit.skillmatch.messagerie.service;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import tn.esprit.skillmatch.messagerie.config.AuthenticatedUser;
+import tn.esprit.skillmatch.messagerie.config.UserClient;
 import tn.esprit.skillmatch.messagerie.dto.MessageResponse;
 import tn.esprit.skillmatch.messagerie.dto.SendMessageRequest;
 import tn.esprit.skillmatch.messagerie.dto.UpdateMessageRequest;
 import tn.esprit.skillmatch.messagerie.entity.Conversation;
 import tn.esprit.skillmatch.messagerie.entity.Message;
 import tn.esprit.skillmatch.messagerie.exception.AccessForbiddenException;
+import tn.esprit.skillmatch.messagerie.exception.BadRequestException;
 import tn.esprit.skillmatch.messagerie.exception.ResourceNotFoundException;
 import tn.esprit.skillmatch.messagerie.repository.MessageRepository;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -22,45 +28,67 @@ public class MessageService {
     private final MessageRepository messageRepository;
     private final ConversationService conversationService;
     private final MessageEventPublisher eventPublisher;
+    private final UserClient userClient;
 
     public MessageService(MessageRepository messageRepository,
                           ConversationService conversationService,
-                          MessageEventPublisher eventPublisher) {
+                          MessageEventPublisher eventPublisher,
+                          UserClient userClient) {
         this.messageRepository = messageRepository;
         this.conversationService = conversationService;
         this.eventPublisher = eventPublisher;
+        this.userClient = userClient;
     }
 
     /**
      * Envoie un message dans une conversation.
      * - L'utilisateur doit être participant de la conversation.
-     * - lu = false, date = maintenant, senderId = user authentifié.
-     * - Met à jour dernierMessageAt sur la conversation.
-     * - Publie un événement RabbitMQ (async, ne bloque pas en cas d'échec).
+     * - Un Candidat ou Recruteur ne peut pas envoyer dans une conversation contenant un Admin (403).
+     * - Les messages système sont générés côté serveur uniquement.
      */
+    @Transactional
     public MessageResponse send(String conversationId, SendMessageRequest request, AuthenticatedUser user) {
         Conversation conversation = conversationService.getEntityById(conversationId);
         checkParticipant(conversation, user);
+
+        if (!user.isAdmin() && userClient != null) {
+            for (Long participantId : conversation.getParticipantIds()) {
+                if (participantId.equals(user.id())) continue;
+                String role = userClient.resolveRole(participantId, user.token());
+                if ("ADMIN".equalsIgnoreCase(role)) {
+                    throw new AccessForbiddenException(ConversationService.MSG_FORBIDDEN_ADMIN);
+                }
+            }
+        }
+
+        if (request.type() != null && (
+                "systeme".equalsIgnoreCase(request.type().trim())
+                        || "système".equalsIgnoreCase(request.type().trim()))) {
+            throw new BadRequestException("Les messages système sont générés automatiquement.");
+        }
+
+        String type = Message.TYPE_FICHIER.equalsIgnoreCase(request.type())
+                ? Message.TYPE_FICHIER
+                : Message.TYPE_TEXTE;
 
         LocalDateTime now = LocalDateTime.now();
 
         Message message = new Message(
                 UUID.randomUUID().toString(),
                 request.contenu(),
+                type,
                 now,
+                false,
                 conversation,
-                user.id()
+                user.id(),
+                Message.TYPE_FICHIER.equals(type) ? request.fichierNom() : null,
+                Message.TYPE_FICHIER.equals(type) ? request.fichierUrl() : null,
+                Message.TYPE_FICHIER.equals(type) ? request.fichierTaille() : null
         );
 
         Message saved = messageRepository.save(message);
-
-        // Mettre à jour le timestamp du dernier message
         conversation.setDernierMessageAt(now);
-        // La conversation est gérée par JPA (managed entity), save via le repo
-        // On utilise getEntityById qui retourne l'entité attachée, donc le flush suffit
-        // mais pour être explicite, on fait un save indirect via le message.conversation
 
-        // Publier l'événement (async, ne bloque pas)
         eventPublisher.publish(
                 saved.getId(),
                 conversationId,
@@ -70,51 +98,69 @@ public class MessageService {
                 now
         );
 
-        return toResponse(saved);
+        Map<Long, UserClient.UserProfile> usersMap = resolveSenders(List.of(user.id()), user);
+        return toResponse(saved, usersMap);
     }
 
     /**
      * Liste les messages d'une conversation (triés par date croissante).
-     * L'utilisateur doit être participant (sauf ADMIN).
      */
     public List<MessageResponse> listByConversation(String conversationId, AuthenticatedUser user) {
         Conversation conversation = conversationService.getEntityById(conversationId);
         checkParticipant(conversation, user);
 
-        return messageRepository.findByConversationIdOrderByDateAsc(conversationId).stream()
-                .map(this::toResponse)
+        List<Message> messages = messageRepository.findByConversationIdOrderByDateAsc(conversationId);
+        Set<Long> senderIds = new LinkedHashSet<>();
+        for (Message m : messages) {
+            if (!m.estSysteme() && m.getSenderId() != null && m.getSenderId() > 0) {
+                senderIds.add(m.getSenderId());
+            }
+        }
+        Map<Long, UserClient.UserProfile> usersMap = resolveSenders(senderIds, user);
+
+        return messages.stream()
+                .map(m -> toResponse(m, usersMap))
                 .collect(Collectors.toList());
     }
 
     /**
      * Récupère un message par son id.
-     * L'utilisateur doit être participant de la conversation du message (sauf ADMIN).
      */
     public MessageResponse findById(String id, AuthenticatedUser user) {
         Message message = getMessageOrThrow(id);
         checkParticipant(message.getConversation(), user);
-        return toResponse(message);
+        Map<Long, UserClient.UserProfile> usersMap = !message.estSysteme() && message.getSenderId() != null
+                ? resolveSenders(List.of(message.getSenderId()), user)
+                : Map.of();
+        return toResponse(message, usersMap);
     }
 
     /**
      * Modifie le contenu d'un message.
-     * Seul l'expéditeur peut modifier son propre message.
+     * Seul l'expéditeur peut modifier son propre message (hors message système).
      */
     public MessageResponse update(String id, UpdateMessageRequest request, AuthenticatedUser user) {
         Message message = getMessageOrThrow(id);
+        if (message.estSysteme()) {
+            throw new AccessForbiddenException("Un message système ne peut pas être modifié.");
+        }
         checkSender(message, user);
 
         message.setContenu(request.contenu());
         Message saved = messageRepository.save(message);
-        return toResponse(saved);
+        Map<Long, UserClient.UserProfile> usersMap = resolveSenders(List.of(saved.getSenderId()), user);
+        return toResponse(saved, usersMap);
     }
 
     /**
      * Supprime un message.
-     * Seul l'expéditeur peut supprimer son propre message.
+     * Seul l'expéditeur peut supprimer son propre message (hors message système).
      */
     public void delete(String id, AuthenticatedUser user) {
         Message message = getMessageOrThrow(id);
+        if (message.estSysteme()) {
+            throw new AccessForbiddenException("Un message système ne peut pas être supprimé.");
+        }
         checkSender(message, user);
         messageRepository.delete(message);
     }
@@ -129,16 +175,26 @@ public class MessageService {
 
         checkParticipant(conversation, user);
 
+        if (message.estSysteme()) {
+            return toResponse(message, Map.of());
+        }
+
         if (message.getSenderId().equals(user.id())) {
-            throw new AccessForbiddenException("L'expéditeur ne peut pas marquer son propre message comme lu");
+            throw new AccessForbiddenException("L'expéditeur ne peut pas marquer son propre message comme lu.");
         }
 
         message.marquerCommeLu();
         Message saved = messageRepository.save(message);
-        return toResponse(saved);
+        Map<Long, UserClient.UserProfile> usersMap = resolveSenders(List.of(saved.getSenderId()), user);
+        return toResponse(saved, usersMap);
     }
 
-    // ── helpers ──
+    private Map<Long, UserClient.UserProfile> resolveSenders(java.util.Collection<Long> ids, AuthenticatedUser user) {
+        if (userClient == null || ids == null || ids.isEmpty()) {
+            return Map.of();
+        }
+        return userClient.resolveUsers(ids, user != null ? user.token() : null);
+    }
 
     private Message getMessageOrThrow(String id) {
         return messageRepository.findById(id)
@@ -147,24 +203,36 @@ public class MessageService {
 
     private void checkParticipant(Conversation conversation, AuthenticatedUser user) {
         if (!user.isAdmin() && !conversation.estParticipant(user.id())) {
-            throw new AccessForbiddenException("Vous n'êtes pas participant de cette conversation");
+            throw new AccessForbiddenException("Vous n'êtes pas participant de cette conversation.");
         }
     }
 
     private void checkSender(Message message, AuthenticatedUser user) {
         if (!message.getSenderId().equals(user.id())) {
-            throw new AccessForbiddenException("Seul l'expéditeur peut effectuer cette action");
+            throw new AccessForbiddenException("Seul l'expéditeur peut effectuer cette action.");
         }
     }
 
-    private MessageResponse toResponse(Message m) {
+    private MessageResponse toResponse(Message m, Map<Long, UserClient.UserProfile> usersMap) {
+        String senderNom = null;
+        if (!m.estSysteme() && m.getSenderId() != null) {
+            UserClient.UserProfile profile = usersMap.get(m.getSenderId());
+            if (profile != null) {
+                senderNom = profile.nom();
+            }
+        }
         return new MessageResponse(
                 m.getId(),
                 m.getContenu(),
+                m.getType() != null ? m.getType() : Message.TYPE_TEXTE,
                 m.getDate(),
                 m.getLu(),
                 m.getConversation().getId(),
-                m.getSenderId()
+                m.getSenderId(),
+                senderNom,
+                m.getFichierNom(),
+                m.getFichierUrl(),
+                m.getFichierTaille()
         );
     }
 }

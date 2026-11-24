@@ -1,6 +1,7 @@
 package tn.esprit.skillmatch.messagerie.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -33,7 +34,7 @@ public class MessageController {
     @Operation(summary = "Détail d'un message", description = "Récupère un message par son id. 403 si non participant de la conversation.")
     public ResponseEntity<MessageResponse> getById(
             @PathVariable String id,
-            AuthenticatedUser user) {
+            @Parameter(hidden = true) AuthenticatedUser user) {
         return ResponseEntity.ok(messageService.findById(id, user));
     }
 
@@ -42,7 +43,7 @@ public class MessageController {
     public ResponseEntity<MessageResponse> update(
             @PathVariable String id,
             @Valid @RequestBody UpdateMessageRequest request,
-            AuthenticatedUser user) {
+            @Parameter(hidden = true) AuthenticatedUser user) {
         return ResponseEntity.ok(messageService.update(id, request, user));
     }
 
@@ -50,7 +51,7 @@ public class MessageController {
     @Operation(summary = "Supprimer un message", description = "Supprime un message. Seul l'expéditeur peut supprimer.")
     public ResponseEntity<Void> delete(
             @PathVariable String id,
-            AuthenticatedUser user) {
+            @Parameter(hidden = true) AuthenticatedUser user) {
         messageService.delete(id, user);
         return ResponseEntity.noContent().build();
     }
@@ -59,7 +60,7 @@ public class MessageController {
     @Operation(summary = "Marquer comme lu", description = "Marque un message comme lu. Seul un destinataire (pas l'expéditeur) peut marquer.")
     public ResponseEntity<MessageResponse> markAsRead(
             @PathVariable String id,
-            AuthenticatedUser user) {
+            @Parameter(hidden = true) AuthenticatedUser user) {
         return ResponseEntity.ok(messageService.markAsRead(id, user));
     }
 }

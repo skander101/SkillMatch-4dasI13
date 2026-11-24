@@ -8,5 +8,13 @@ import jakarta.validation.constraints.NotBlank;
  */
 public record SendMessageRequest(
         @NotBlank(message = "Le contenu du message ne peut pas être vide")
-        String contenu
-) {}
+        String contenu,
+        String type,
+        String fichierNom,
+        String fichierUrl,
+        Long fichierTaille
+) {
+    public SendMessageRequest(String contenu) {
+        this(contenu, "texte", null, null, null);
+    }
+}

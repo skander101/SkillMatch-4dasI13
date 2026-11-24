@@ -12,16 +12,17 @@ public interface ConversationRepository extends JpaRepository<Conversation, Stri
 
     /**
      * Retrouve les conversations auxquelles un utilisateur participe.
-     * Cherche la présence de l'id dans la colonne JSON TEXT (LIKE %userId%).
-     * Convient pour MySQL et H2 (pas de fonction JSON nécessaire).
+     * Les virgules et crochets du JSON servent de délimiteurs pour éviter les faux positifs (1 vs 11).
      */
-    @Query("SELECT c FROM Conversation c WHERE c.participantIds LIKE CONCAT('%', :userId, '%') ORDER BY c.dernierMessageAt DESC")
+    @Query(value = "SELECT * FROM conversations WHERE participant_ids = CONCAT('[', :userId, ']') OR participant_ids LIKE CONCAT('[', :userId, ',%') OR participant_ids LIKE CONCAT('%,', :userId, ',%') OR participant_ids LIKE CONCAT('%,', :userId, ']') ORDER BY dernier_message_at DESC, date_creation DESC", nativeQuery = true)
     List<Conversation> findByParticipantId(@Param("userId") String userId);
 
     /**
      * Recherche par la chaîne JSON triée exacte des participantIds.
      * Utilisé pour détecter les doublons (même ensemble de participants).
      */
-    @Query("SELECT c FROM Conversation c WHERE c.participantIds = :sortedJson")
+    @Query(value = "SELECT * FROM conversations WHERE participant_ids = :sortedJson", nativeQuery = true)
     Optional<Conversation> findByParticipantIds(@Param("sortedJson") String sortedJson);
+
+    List<Conversation> findAllByOrderByDernierMessageAtDescDateCreationDesc();
 }

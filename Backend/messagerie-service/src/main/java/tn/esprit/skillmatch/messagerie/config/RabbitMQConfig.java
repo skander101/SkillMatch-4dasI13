@@ -4,6 +4,8 @@ import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.TopicExchange;
+import org.springframework.amqp.rabbit.connection.ConnectionFactory;
+import org.springframework.amqp.rabbit.core.RabbitAdmin;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
@@ -22,6 +24,17 @@ public class RabbitMQConfig {
     public static final String EXCHANGE = "skillmatch.events";
     public static final String QUEUE = "skillmatch.messagerie.message-sent";
     public static final String ROUTING_KEY = "messagerie.message.sent";
+
+    /**
+     * Un broker absent ne doit pas empêcher le démarrage du service :
+     * la publication MessageSent reste best-effort.
+     */
+    @Bean
+    public RabbitAdmin rabbitAdmin(ConnectionFactory connectionFactory) {
+        RabbitAdmin admin = new RabbitAdmin(connectionFactory);
+        admin.setIgnoreDeclarationExceptions(true);
+        return admin;
+    }
 
     @Bean
     public TopicExchange skillmatchExchange() {

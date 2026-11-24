@@ -8,12 +8,14 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import tn.esprit.skillmatch.messagerie.config.AuthenticatedUser;
+import tn.esprit.skillmatch.messagerie.config.UserClient;
 import tn.esprit.skillmatch.messagerie.dto.MessageResponse;
 import tn.esprit.skillmatch.messagerie.dto.SendMessageRequest;
 import tn.esprit.skillmatch.messagerie.dto.UpdateMessageRequest;
 import tn.esprit.skillmatch.messagerie.entity.Conversation;
 import tn.esprit.skillmatch.messagerie.entity.Message;
 import tn.esprit.skillmatch.messagerie.exception.AccessForbiddenException;
+import tn.esprit.skillmatch.messagerie.exception.BadRequestException;
 import tn.esprit.skillmatch.messagerie.exception.ResourceNotFoundException;
 import tn.esprit.skillmatch.messagerie.repository.MessageRepository;
 
@@ -38,6 +40,9 @@ class MessageServiceTest {
     @Mock
     private MessageEventPublisher eventPublisher;
 
+    @Mock
+    private UserClient userClient;
+
     @InjectMocks
     private MessageService messageService;
 
@@ -48,9 +53,9 @@ class MessageServiceTest {
 
     @BeforeEach
     void setUp() {
-        sender = new AuthenticatedUser(1L, "sender@test.com", "CANDIDAT");
-        recipient = new AuthenticatedUser(2L, "recipient@test.com", "RECRUTEUR");
-        outsider = new AuthenticatedUser(99L, "outsider@test.com", "CANDIDAT");
+        sender = new AuthenticatedUser(1L, "sender@test.com", "CANDIDAT", "tok-1");
+        recipient = new AuthenticatedUser(2L, "recipient@test.com", "RECRUTEUR", "tok-2");
+        outsider = new AuthenticatedUser(99L, "outsider@test.com", "CANDIDAT", "tok-99");
         conversation = new Conversation("conv-1", List.of(1L, 2L), 1L);
     }
 
@@ -59,16 +64,29 @@ class MessageServiceTest {
     void send_success() {
         SendMessageRequest request = new SendMessageRequest("Bonjour");
         when(conversationService.getEntityById("conv-1")).thenReturn(conversation);
+        when(userClient.resolveRole(2L, "tok-1")).thenReturn("RECRUTEUR");
         when(messageRepository.save(any(Message.class))).thenAnswer(inv -> inv.getArgument(0));
 
         MessageResponse response = messageService.send("conv-1", request, sender);
 
         assertNotNull(response.id());
         assertEquals("Bonjour", response.contenu());
+        assertEquals("texte", response.type());
         assertEquals(1L, response.senderId());
         assertEquals("conv-1", response.conversationId());
         assertFalse(response.lu());
         verify(eventPublisher).publish(anyString(), eq("conv-1"), eq(1L), eq(List.of(1L, 2L)), eq("Bonjour"), any(LocalDateTime.class));
+    }
+
+    @Test
+    @DisplayName("Envoyer un message de type systeme depuis le client → 400")
+    void send_systemTypeFromClient_throws400() {
+        SendMessageRequest request = new SendMessageRequest("Fake system", "systeme", null, null, null);
+        when(conversationService.getEntityById("conv-1")).thenReturn(conversation);
+        when(userClient.resolveRole(2L, "tok-1")).thenReturn("RECRUTEUR");
+
+        assertThrows(BadRequestException.class, () -> messageService.send("conv-1", request, sender));
+        verify(messageRepository, never()).save(any());
     }
 
     @Test
