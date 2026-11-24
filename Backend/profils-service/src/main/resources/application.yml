@@ -36,6 +36,9 @@ jwt:
   secret: ${JWT_SECRET:skillmatch-local-development-secret-key-change-me}
   expiration-ms: ${JWT_EXPIRATION_MS:86400000}
 
+commun-service:
+  url: ${COMMUN_SERVICE_URL:${GATEWAY_URL:http://localhost:8080}}
+
 profils:
   cv:
     max-size-bytes: ${CV_MAX_SIZE_BYTES:5242880}

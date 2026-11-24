@@ -1,0 +1,26 @@
+package tn.esprit.skillmatch.profils.dto;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
+
+import java.util.List;
+
+public record ProfilRequest(
+        @NotNull Long userId,
+        @Size(max = 150) String titre,
+        @Size(max = 150) String localisation,
+        List<@NotBlank @Size(max = 100) String> competences,
+        List<@NotBlank @Size(max = 250) String> experiences,
+        List<@NotBlank @Size(max = 100) String> badges
+) {
+    public ProfilRequest {
+        titre = trim(titre);
+        localisation = trim(localisation);
+    }
+
+    private static String trim(String value) {
+        return value == null ? null : value.trim();
+    }
+}
