@@ -103,6 +103,13 @@ Endpoints implémentés :
 - Route `/skillmatch/auth/**` vers `commun-service` sur `http://localhost:8087`.
 - CORS autorisé en développement ; à restreindre en production.
 
+### Eureka
+
+`discovery-service` est maintenant disponible sur 8761. Offres et la Gateway
+s'y inscrivent ; les routes Offres/Candidatures utilisent `lb://offres-service`.
+Le service commun conserve ses routes HTTP directes. Voir le
+[guide de lancement Eureka](discovery-service/README.md).
+
 ## Créer un microservice
 
 Utiliser le template fourni :

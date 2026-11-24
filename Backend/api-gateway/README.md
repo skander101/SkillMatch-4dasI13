@@ -14,8 +14,8 @@ Passerelle Spring Cloud Gateway de SkillMatch.
 |---|---|
 | `/skillmatch/auth/**` | `commun-service` |
 | `/skillmatch/utilisateurs/**` | `commun-service` |
-| `/skillmatch/offres/**` | `offres-service` sur 8081 |
-| `/skillmatch/candidatures/**` | `offres-service` sur 8081 |
+| `/skillmatch/offres/**` | `lb://offres-service` via Eureka |
+| `/skillmatch/candidatures/**` | `lb://offres-service` via Eureka |
 
 ## Configuration
 
@@ -27,7 +27,7 @@ Variables possibles :
 
 - `SERVER_PORT`
 - `COMMUN_SERVICE_URL`
-- `OFFRES_SERVICE_URL` (par défaut `http://localhost:8081`)
+- `OFFRES_SERVICE_URL` (par défaut `lb://offres-service`, découvert via Eureka)
 - `EUREKA_URL`, `EUREKA_REGISTER`, `EUREKA_FETCH`
 
 ## Démarrage
@@ -53,12 +53,14 @@ Pour les offres et candidatures, `offres-service` vérifie localement le JWT,
 puis résout l'identité via le service commun. La Gateway transmet le chemin,
 les paramètres, le corps et l'en-tête Authorization sans les modifier.
 Définir le même `JWT_SECRET` dans les deux services métier ; la Gateway
-n'a pas besoin de cette clé. Démarrer MySQL, commun-service, offres-service,
+n'a pas besoin de cette clé. Démarrer MySQL, discovery-service, commun-service, offres-service,
 puis la Gateway pour utiliser les CRUD via `http://localhost:8080/skillmatch`.
 
-Si Offres utilise temporairement 18081, définir dans la configuration de la
-Gateway : `OFFRES_SERVICE_URL=http://localhost:18081`. Les ports officiels restent
-8080 et 8081. Aucun Eureka, RabbitMQ ou Config Server n'est nécessaire.
+Eureka découvre aussi le port temporaire 18081 d'Offres : aucune modification
+de route n'est nécessaire. Ne pas définir `OFFRES_SERVICE_URL` pour utiliser
+la découverte ; cette variable permet encore de forcer une adresse directe.
+Les ports officiels restent 8080 et 8081. RabbitMQ et Config Server restent inactifs.
+Voir [le guide Eureka](../discovery-service/README.md).
 
 Test : `mvn test`. `GatewayRoutesTest` démarre deux petits serveurs simulés
 pour vérifier les deux nouvelles routes et les routes communes existantes,

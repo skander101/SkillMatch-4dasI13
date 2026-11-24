@@ -9,17 +9,16 @@ Spring Boot 3.3.5, Spring Cloud 2023.0.3. Aucun POM parent dans `Backend`.
 - Port par défaut : **8081** ; base MySQL : **offres_db**.
 - Les entités `Offre` et `Candidature` et le CRUD REST des offres sont présents.
   La recherche simple par titre et le tri des offres sont présents.
-  Le CRUD Candidature est présent ; les interfaces Angular restent à faire.
+  Le CRUD Candidature et les interfaces Angular sont présents.
   Le JWT est vérifié localement, puis l'identité est résolue auprès de
   `commun-service`. Les droits sont appliqués dans les services métier.
-- Les dépendances AMQP et Eureka du template sont conservées. L'autoconfiguration
-  RabbitMQ est exclue ; l'enregistrement Eureka et la récupération du registre
-  sont désactivés par défaut. Aucun serveur RabbitMQ, Eureka ou Config Server
-  n'est nécessaire pour ce socle.
+- Le client Eureka est actif : démarrer `discovery-service` sur 8761 avant Offres.
+  L'autoconfiguration RabbitMQ reste exclue ; aucun Config Server n'est nécessaire.
+  Voir [le guide Eureka](../discovery-service/README.md).
 
 ## Démarrage dans IntelliJ
 
-1. Démarrer MySQL dans XAMPP (port 3306).
+1. Démarrer MySQL dans XAMPP (port 3306) et `DiscoveryServiceApplication` (8761).
 2. Créer `offres_db` dans phpMyAdmin, ou utiliser un compte autorisé à créer la
    base : l'URL JDBC contient `createDatabaseIfNotExist=true`.
 3. Ouvrir **File > Open > Backend/offres-service**, puis importer le `pom.xml`.
@@ -37,14 +36,15 @@ Spring Boot 3.3.5, Spring Cloud 2023.0.3. Aucun POM parent dans `Backend`.
 | `MYSQL_DATABASE` | `offres_db` |
 | `MYSQL_USER` | `root` |
 | `MYSQL_PASSWORD` | vide, à définir selon votre installation |
-| `EUREKA_REGISTER` | `false` |
-| `EUREKA_FETCH` | `false` |
+| `EUREKA_REGISTER` | `true` |
+| `EUREKA_FETCH` | `true` |
 | `COMMUN_SERVICE_URL` | `http://localhost:8087` |
 | `JWT_SECRET` | obligatoire : même valeur dans les deux services, au moins 32 octets UTF-8 |
 
 Ne pas enregistrer de mot de passe dans Git. Spring Boot ne charge pas
-automatiquement un fichier `.env`. Garder les deux variables Eureka à `false`
-pendant la phase 1. MySQL reste nécessaire au démarrage normal.
+automatiquement un fichier `.env`. Si une configuration IntelliJ ou un ancien
+`.env` définit les deux variables Eureka à `false`, les passer à `true` pour
+Offres et la Gateway. MySQL reste nécessaire au démarrage normal.
 
 ## Commandes
 

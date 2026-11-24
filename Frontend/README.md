@@ -119,7 +119,8 @@ Le bouton « Postuler » dépose une candidature sur `POST /skillmatch/candidatu
 
 ## Offres candidat et recruteur
 
-Démarrer MySQL, commun-service, offres-service et la Gateway avant Angular.
+Démarrer MySQL, discovery-service (Eureka sur 8761), commun-service,
+offres-service et la Gateway avant Angular.
 Les services Commun et Offres doivent utiliser la même variable `JWT_SECRET`.
 La configuration et les ports sont détaillés dans [offres-service](../Backend/offres-service/README.md).
 

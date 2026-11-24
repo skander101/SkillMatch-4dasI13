@@ -26,8 +26,10 @@ eureka:
   client:
     service-url:
       defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
-    register-with-eureka: ${EUREKA_REGISTER:false}
-    fetch-registry: ${EUREKA_FETCH:false}
+    register-with-eureka: ${EUREKA_REGISTER:true}
+    fetch-registry: ${EUREKA_FETCH:true}
+  instance:
+    prefer-ip-address: true # Annonce une adresse IP utilisable par la Gateway.
 
 # Clé locale obligatoire, identique à celle de commun-service ; aucun secret dans Git.
 jwt:
