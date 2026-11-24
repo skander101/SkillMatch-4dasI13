@@ -1,0 +1,61 @@
+# Configuration publique centralisée pour offres-service uniquement.
+# Aucun mot de passe ni clé JWT : ils restent dans le processus Offres.
+server:
+  port: ${SERVER_PORT:8081}
+
+spring:
+  jackson:
+    deserialization:
+      accept-float-as-int: false # Refuse CV, identifiants et notes décimaux au lieu de les tronquer.
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    virtual-host: ${RABBITMQ_VHOST:/}
+    connection-timeout: 3s
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    template:
+      mandatory: true
+      retry:
+        enabled: true
+        max-attempts: 3
+        initial-interval: 500ms
+        max-interval: 2s
+
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:offres_db}?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+    register-with-eureka: ${EUREKA_REGISTER:true}
+    fetch-registry: ${EUREKA_FETCH:true}
+  instance:
+    prefer-ip-address: true # Annonce une adresse IP utilisable par la Gateway.
+
+# Adresse du service existant qui retourne l'utilisateur réel.
+commun-service:
+  url: ${COMMUN_SERVICE_URL:http://localhost:8087}
+
+info:
+  configuration:
+    origine: config-server
+
+management:
+  info:
+    env:
+      enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: health,info

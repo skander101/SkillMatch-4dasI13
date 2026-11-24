@@ -1,0 +1,22 @@
+server:
+  port: ${CONFIG_SERVER_PORT:8888}
+  address: 127.0.0.1 # Serveur local de développement.
+
+spring:
+  application:
+    name: config-service
+  profiles:
+    active: native # Lecture des YAML locaux, sans dépôt Git distant.
+  cloud:
+    config:
+      server:
+        accept-empty: false
+        native:
+          search-locations: ${CONFIG_REPO_LOCATION:classpath:/config-repo/}
+          add-label-locations: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

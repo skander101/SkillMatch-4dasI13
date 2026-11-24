@@ -158,3 +158,9 @@ Alertes/Notifications restent à développer dans les services concernés.
 - `MessageSent` : un message est envoyé.
 
 Prévu mais non implémenté : le service commun consommera `StatusChanged`, `AlertMatched`, `TestPassed` et `MessageSent` pour générer les notifications.
+
+## Configuration centralisée disponible
+
+Le module [config-service](config-service/README.md), sur 8888, fournit la configuration
+publique d’Offres et Candidatures. Seul offres-service est client dans cette étape ;
+les services des autres membres ne sont pas modifiés.

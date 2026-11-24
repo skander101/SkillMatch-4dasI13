@@ -4,6 +4,12 @@ server:
 spring:
   application:
     name: offres-service
+  config:
+    import: "optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}"
+  cloud:
+    config:
+      request-connect-timeout: 2000
+      request-read-timeout: 3000
   jackson:
     deserialization:
       accept-float-as-int: false # Refuse CV, identifiants et notes décimaux au lieu de les tronquer.
@@ -55,7 +61,14 @@ jwt:
 commun-service:
   url: ${COMMUN_SERVICE_URL:http://localhost:8087}
 
+info:
+  configuration:
+    origine: local # Secours si Config Server est arrêté.
+
 management:
+  info:
+    env:
+      enabled: true
   endpoints:
     web:
       exposure:

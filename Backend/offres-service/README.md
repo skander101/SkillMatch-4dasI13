@@ -13,7 +13,8 @@ Spring Boot 3.3.5, Spring Cloud 2023.0.3. Aucun POM parent dans `Backend`.
   Le JWT est vérifié localement, puis l'identité est résolue auprès de
   `commun-service`. Les droits sont appliqués dans les services métier.
 - Le client Eureka est actif : démarrer `discovery-service` sur 8761 avant Offres.
-  RabbitMQ est maintenant actif pour les trois événements ; aucun Config Server n'est nécessaire.
+  RabbitMQ est actif pour les trois événements. Config Server est disponible sur 8888 ;
+  l'import facultatif conserve le démarrage local si le serveur est arrêté.
   Voir [le guide Eureka](../discovery-service/README.md).
   Voir [le guide RabbitMQ](RABBITMQ.md) pour les messages, le lancement et les limites.
 
@@ -55,6 +56,14 @@ Le rôle CANDIDAT ne peut pas ajouter ou modifier une offre.
 Pour une base existante, exécuter une fois [sql/cv-facultatif.sql](sql/cv-facultatif.sql)
 dans offres_db : Hibernate update ne retire pas forcément l'ancienne contrainte NOT NULL.
 La base locale a été adaptée ; les anciennes références CV sont conservées.
+
+## Configuration centralisée
+
+Le client Config Server est actif. Démarrer ConfigServiceApplication avant Offres
+pour charger sa configuration distante. Voir [le guide Config Server](../config-service/README.md).
+Les identifiants MySQL/RabbitMQ et JWT_SECRET restent locaux à Offres.
+CONFIG_SERVER_URL permet de changer l'adresse du serveur (http://localhost:8888).
+GET /actuator/info indique configuration.origine=config-server ou local.
 
 ## Démarrage dans IntelliJ
 
