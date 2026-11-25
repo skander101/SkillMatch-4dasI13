@@ -37,3 +37,7 @@
 .search-box{grid-template-columns:2fr 1fr auto}
 @media(max-width:980px){.search-box{grid-template-columns:1fr 1fr}.search-box .btn-search{grid-column:1/-1}}
 @media(max-width:600px){.search-box{grid-template-columns:1fr}.search-box .btn-search{grid-column:auto}}
+:host .site-header { position: sticky; top: 0; z-index: 40; background: #fffffff2; border-bottom: 1px solid #e0eae4; box-shadow: 0 4px 18px #143d2606; backdrop-filter: blur(12px); }
+:host main { min-height: 75vh; }
+.module-actif { color: #08713c; background: #eaf5ee; border-radius: 8px; }
+.acces-connexion { padding: 80px 24px; text-align: center; }

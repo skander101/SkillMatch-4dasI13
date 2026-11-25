@@ -9,11 +9,13 @@
     <p class="offre-compteur">{{ liste().length }} candidature(s)</p>
     <div class="job-grid">
       @for (c of liste(); track c.id) {
-        <article class="job-card offre-card"><div class="job-head"><span class="job-icon" aria-hidden="true">▤</span><span class="offre-badge" [attr.data-statut]="c.statut">{{ c.statut }}</span></div>
-          <h3>Candidature #{{ c.id }}</h3><p class="offre-meta">Offre #{{ c.offreId }} · Candidat #{{ c.userId }} · CV #{{ c.cvId }}</p><p class="offre-meta">Déposée le {{ c.dateCandidature | date:'dd/MM/yyyy HH:mm' }}</p>
+        <article class="job-card offre-card" [class.inactive]="c.statut === 'RETIREE' || c.statut === 'REFUSEE' || (auth.currentUser()?.role === 'CANDIDAT' && !modifiable(c))"><div class="job-head"><span class="job-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 12h7M9 16h5"/></svg></span><span class="offre-badge" [attr.data-statut]="c.statut">{{ c.statut.replaceAll('_', ' ') }}</span></div>
+          <p class="carte-surtitre">{{ auth.currentUser()?.role === 'CANDIDAT' ? 'VOTRE CANDIDATURE' : 'DOSSIER DE CANDIDATURE' }}</p>
+          <h3>{{ c.offreTitre || 'Opportunité professionnelle' }}</h3>
+          <p class="offre-meta avec-icone"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v16H4zM8 3v4M16 3v4M4 10h16"/></svg>Déposée le {{ c.dateCandidature | date:'dd/MM/yyyy HH:mm' }}</p>
           <details class="candidature-lettre"><summary>Lire la lettre de motivation</summary><p class="description-complete">{{ c.lettre }}</p></details>
-          @if (c.dateEntretien) { <p class="offre-meta">Entretien : {{ c.dateEntretien | date:'dd/MM/yyyy HH:mm' }}</p> }
-          @if (c.noteRecruteur !== null) { <p class="offre-meta">Note recruteur : {{ c.noteRecruteur }}</p> }
+          @if (c.dateEntretien) { <p class="offre-meta avec-icone"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/></svg>Entretien : {{ c.dateEntretien | date:'dd/MM/yyyy HH:mm' }}</p> }
+          @if (c.noteRecruteur !== null) { <p class="offre-meta avec-icone"><span aria-hidden="true">✦</span>Évaluation : {{ c.noteRecruteur }}</p> }
           @if (c.commentaireRecruteur) { <p class="description-complete">{{ c.commentaireRecruteur }}</p> }
           <div class="offre-actions gestion">
             @if (modifiable(c)) { <button class="action-lien" (click)="ouvrir(c)" [disabled]="operation()">{{ auth.currentUser()?.role === 'RECRUTEUR' ? 'Traiter' : 'Modifier' }}</button> }

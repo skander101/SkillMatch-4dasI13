@@ -8,7 +8,7 @@ import java.util.List; // Liste des compétences.
 
 public record OffreRequest( // Un record évite d'écrire des getters et setters de formulaire.
         @NotBlank @Size(max = 255) String titre, // Titre obligatoire.
-        String description, // Description libre.
+        @Size(max = 10000) String description, // Même limite que le formulaire.
         @NotNull List<@NotBlank String> competences, // Liste obligatoire ; peut être vide.
         @Size(max = 255) String localisation, // Localisation limitée à la taille de la colonne.
         @NotNull ContratType contrat, // Contrat obligatoire.

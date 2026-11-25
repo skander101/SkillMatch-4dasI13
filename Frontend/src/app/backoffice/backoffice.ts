@@ -40,7 +40,7 @@ interface AdminTable {
   styleUrl: './backoffice.css'
 })
 export class BackOffice implements OnInit {
-  @Output() exit = new EventEmitter<void>();
+  @Output() deconnexion = new EventEmitter<void>();
 
   private readonly userService = inject(UserService);
   private readonly auth = inject(AuthService);
@@ -212,7 +212,7 @@ export class BackOffice implements OnInit {
       ]
     }
   };
-  readonly activeSection = signal('dashboard');
+  readonly activeSection = signal('offres');
   readonly sidebarOpen = signal(typeof window === 'undefined' ? true : window.innerWidth > 1180);
   readonly openNav = signal<string | null>(null);
   readonly notificationsOpen = signal(false);

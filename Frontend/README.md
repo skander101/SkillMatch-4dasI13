@@ -69,7 +69,8 @@ La gestion des utilisateurs est connectée au microservice commun via l'API Gate
 | Connexion | `/skillmatch/auth/login` | `POST` |
 | Inscription | `/skillmatch/auth/register` | `POST` |
 
-Rôles disponibles : `CANDIDAT`, `RECRUTEUR`, `ADMIN`.
+Inscription publique : `CANDIDAT` ou `RECRUTEUR`. Les comptes `ADMIN` existants
+se connectent normalement ; l'inscription ADMIN est refusée côté backend (403).
 
 Le formulaire d'inscription envoie :
 
@@ -126,7 +127,7 @@ La configuration et les ports sont détaillés dans [offres-service](../Backend/
 
 - CANDIDAT : consulter les offres publiées non expirées et leurs détails.
 - RECRUTEUR : consulter ses offres, créer un brouillon, modifier, publier, fermer et supprimer après confirmation.
-- Recherche simple par titre ; tri par titre, salaire ou expiration, dans les deux sens.
+- Recherche simple par titre ; tri par salaire ou expiration, dans les deux sens.
 - Les erreurs, listes vides et chargements sont affichés ; le JWT existant accompagne chaque requête.
 
 Le dossier `src/app/offres/` contient le modèle (`offre.model.ts`), les appels HTTP
@@ -136,7 +137,7 @@ Les composants réutilisent aussi `app.css`.
 
 Les appels utilisent `/skillmatch/offres` et `/skillmatch/offres/{id}` ; la liste
 du recruteur utilise `/skillmatch/offres/mes-offres`. Les paramètres sont `search`
-et `sort` : `titre`, `titreDesc`, `salaire`, `salaireDesc`, `dateExpiration`,
+et `sort` affichés : `salaire`, `salaireDesc`, `dateExpiration`,
 `dateExpirationDesc`. Le serveur vérifie les rôles et la propriété des offres.
 ADMIN réutilise ce composant dans le back-office et choisit un recruteur réel à
 la création. Le propriétaire d'une offre existante reste inchangé.
@@ -154,8 +155,33 @@ la création. Le propriétaire d'une offre existante reste inchangé.
 
 Le dossier `src/app/candidatures/` contient le modèle, le service HTTP, la liste,
 le formulaire et leur présentation. Les styles et le login existants sont réutilisés.
-Le menu Offres donne accès aux candidatures ; elles apparaissent aussi sous les
-offres après connexion. Après un dépôt réussi, leur liste est rechargée.
+Le menu Offres & candidatures ouvre une seule vue à la fois : `#offres` ou
+`#candidatures`. Le fragment conserve le choix après actualisation et permet
+les boutons Précédent/Suivant du navigateur. Après connexion, le candidat arrive
+sur les offres et le recruteur sur ses offres. ADMIN reste dans le back-office,
+avec une déconnexion et sans bouton Retour au site.
+
+Les cartes ont un bandeau vert dégradé et des icônes. Les identifiants techniques
+sont masqués : les candidatures affichent le titre réel de l'offre. Les offres
+fermées/expirées et les candidatures indisponibles prennent un fond gris.
+Avant d'afficher Postuler, la liste charge les candidatures du candidat ; le
+bouton disparaît dès qu'un dépôt existe, même après retrait ou actualisation.
+Le refus des doublons et la contrainte MySQL restent actifs côté backend.
+
+Le formulaire Offre affiche les erreurs sous les champs : titre obligatoire
+sans espaces seuls, salaire positif ou nul, expiration obligatoire et cohérente
+avec le statut, références numériques entières positives. Les champs description,
+compétences et localisation restent facultatifs selon le contrat backend existant.
+Fermer conserve l'offre et ses candidatures et arrête les nouveaux dépôts.
+
+Vérification de cette révision : build Angular réussi ; `mvn package` réussi
+pour Offres (68 tests) et Commun (4 tests, dont 3 sur l'inscription). Les essais
+HTTP/MySQL confirment les quatre tris, les validations, le titre des candidatures,
+le refus des doublons avant/après retrait et l'inscription ADMIN refusée en 403.
+Les essais ont utilisé des ports séparés et des données temporaires nettoyées.
+Le navigateur de vérification n'a pas pu ouvrir sa fenêtre : le rendu et les
+interactions de navigation restent à contrôler visuellement dans votre navigateur.
+Redémarrer Commun et Offres pour charger les nouveaux contrôles et le titre.
 
 Les appels utilisent `/skillmatch/candidatures` (`GET`, `POST`) et
 `/skillmatch/candidatures/{id}` (`PUT`, `DELETE`). Le backend fixe le périmètre
@@ -213,13 +239,8 @@ La rubrique « Utilisateurs & rôles » est connectée au service commun :
 
 Toutes ces requêtes passent par l'API Gateway et portent l'en-tête `Authorization: Bearer <jwt>` ajouté par l'intercepteur. Le backend vérifie le rôle `ADMIN` et répond `401` ou `403` si nécessaire.
 
-Pour essayer le panneau :
-
-```bash
-curl -X POST http://localhost:8080/skillmatch/auth/register \
-  -H 'Content-Type: application/json' \
-  -d '{"nom":"Admin BO","email":"admin.bo.test@skillmatch.tn","password":"123456","role":"ADMIN"}'
-```
+Pour essayer le panneau, utiliser un compte ADMIN provisionné dans la base
+avec un mot de passe BCrypt. L'inscription publique ne permet plus de créer ADMIN.
 
 ## Configuration de l'API
 

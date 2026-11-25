@@ -44,3 +44,43 @@ button:focus-visible, summary:focus-visible { outline: 3px solid #10b981; outlin
 .recherche-admin input, .recherche-admin select { min-width: 0; padding: 12px; border: 1px solid #cbddd1; border-radius: 9px; background: white; color: #193b2b; font: inherit; }
 .offre-card > .btn { margin-top: 10px; }
 @media(max-width: 700px) { .offres-entete { padding: 20px; } .offre-champs { grid-template-columns: 1fr; } .offre-form, .offre-detail { padding: 28px 20px; } .offre-actions .btn { flex: 1; } .section-heading { align-items: stretch; } }
+
+/* Habillage commun aux trois rôles : bandeau, cartes et états indisponibles. */
+.jobs-section { min-height: 75vh; padding: 40px 0 64px; background: radial-gradient(ellipse at 90% 0%, #d9eee55e, transparent 55%), #f5f8f6; }
+.offres-entete { position: relative; overflow: hidden; padding: 36px; margin-bottom: 26px; border: 1px solid #115b43; border-radius: 24px; background: radial-gradient(circle at 85% 20%, #29b87940, transparent 45%), linear-gradient(115deg, #062c23, #086846); box-shadow: 0 16px 36px #063f2d15; align-items: center; }
+.offres-entete::after { content: ''; position: absolute; width: 210px; height: 210px; border: 1px solid #ffffff16; border-radius: 50%; top: -100px; right: 32%; pointer-events: none; }
+.offres-entete h2 { color: white; font-size: 30px; margin: 10px 0; letter-spacing: -1px; }
+.offres-entete .section-overline { color: #8ce7bc; font-size: 10px; letter-spacing: 2px; }
+.offres-entete p { color: #c8dfd5; max-width: 560px; line-height: 1.7; }
+.offres-entete .btn-outline { color: #e4f8ec; border-color: #ffffff40; background: #ffffff0a; }
+.offres-entete .btn-solid { background: #e3f6ac; color: #16452e; box-shadow: 0 5px 16px #00000012; }
+.job-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 24px; }
+.offre-card { position: relative; overflow: hidden; padding: 28px; border: 1px solid #dfe9e3; border-radius: 22px; background: linear-gradient(155deg, #fff 65%, #f1f9f4); box-shadow: 0 8px 28px #15452b09; }
+.offre-card::before { content: ''; position: absolute; inset: 0 0 auto; height: 6px; background: linear-gradient(90deg, #034736, #0c9d63, #c7ee94); }
+.offre-card:hover { border-color: #95cbb0; box-shadow: 0 16px 36px #15452b14; transform: translateY(-4px); }
+.offre-card .job-icon { width: 52px; height: 52px; border-radius: 16px; background: linear-gradient(145deg, #073d30, #109963); box-shadow: 0 6px 12px #086a4020; }
+.offre-card h3 { margin: 22px 0 12px; font-size: 21px; }
+.offre-badge { max-width: 75%; font-size: 9px; letter-spacing: .6px; line-height: 1.5; text-align: center; }
+.offre-badge[data-statut="RECUE"] { color: #076746; background: #def7ec; }
+.offre-badge[data-statut="PRESELECTIONNEE"] { color: #256173; background: #e1f2f8; }
+.offre-badge[data-statut="ENTRETIEN_PLANIFIE"] { color: #90651c; background: #fff0ce; }
+.offre-badge[data-statut="ACCEPTEE"] { color: #116233; background: #d9f8df; }
+.offre-card.inactive { background: #f0f2f1; border-color: #dce1de; box-shadow: 0 5px 16px #273e3205; }
+.offre-card.inactive::before { background: linear-gradient(90deg, #7e8b85, #bac5bd, #e1e7e3); }
+.offre-card.inactive .job-icon { background: linear-gradient(145deg, #687c72, #9caca2); box-shadow: none; }
+.offre-card.inactive h3 { color: #52665b; }
+.deja-postule { display: flex; justify-content: center; align-items: center; gap: 8px; padding: 12px; border-radius: 10px; background: #e2e9e4; color: #476452; font-size: 12px; font-weight: 700; }
+.carte-surtitre { margin: 20px 0 -14px; font-size: 9px; font-weight: 800; color: #5b8b71; letter-spacing: 1.6px; }
+.avec-icone { display: flex; align-items: center; gap: 8px; margin: 6px 0; font-size: 12px; }
+.avec-icone svg, .recherche-champ svg { width: 18px; height: 18px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.recherche-admin { padding: 14px; border: 1px solid #e0eae4; border-radius: 16px; background: #fff; box-shadow: 0 6px 18px #123c2505; margin-bottom: 8px; }
+.recherche-champ { display: flex; align-items: center; flex: 1; gap: 10px; padding-left: 12px; color: #6e8d7b; }
+.recherche-champ input { width: 100%; border: 0; outline-color: #10b981; }
+.aide-recherche { color: #6b8274; font-size: 11px; margin: 0 0 24px 4px; }
+.offre-champs .champ-erreur, .champ-erreur { color: #b33131; font-weight: 500; font-size: 12px; line-height: 1.5; }
+.offre-champs [aria-invalid="true"] { border-color: #c54646; background: #fff8f8; }
+.offre-actions.gestion { gap: 16px; }
+.gestion .action-lien { border-radius: 7px; padding: 7px 8px; background: #eaf4ed; }
+.gestion .danger { background: #f9eceb; }
+.offre-form, .offre-detail, .confirmation { border-top: 5px solid #0d8b59; border-radius: 22px; }
+@media(max-width: 700px) { .offres-entete { padding: 26px 22px; flex-direction: column; align-items: stretch; } .offres-entete h2 { font-size: 25px; } .recherche-admin > *, .recherche-champ { width: 100%; flex-basis: 100%; } .offre-card { padding: 25px; } }

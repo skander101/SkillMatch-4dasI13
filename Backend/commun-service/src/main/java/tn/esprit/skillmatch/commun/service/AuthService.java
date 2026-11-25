@@ -10,6 +10,7 @@ import tn.esprit.skillmatch.commun.dto.LoginRequest;
 import tn.esprit.skillmatch.commun.dto.RegisterRequest;
 import tn.esprit.skillmatch.commun.dto.UserResponse;
 import tn.esprit.skillmatch.commun.entity.Utilisateur;
+import tn.esprit.skillmatch.commun.entity.Role;
 import tn.esprit.skillmatch.commun.repository.UtilisateurRepository;
 import tn.esprit.skillmatch.commun.security.JwtService;
 
@@ -32,6 +33,9 @@ public class AuthService {
     }
 
     public AuthResponse register(RegisterRequest request) {
+        if (request.role() == Role.ADMIN) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "La création d'un administrateur n'est pas autorisée depuis l'inscription publique");
+        }
         if (utilisateurRepository.existsByEmail(request.email())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Cet email est déjà utilisé");
         }

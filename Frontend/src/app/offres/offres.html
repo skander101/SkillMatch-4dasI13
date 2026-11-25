@@ -12,8 +12,9 @@
         </div>
       }
     </div>
-    @if (auth.isAdmin()) {
-      <form class="offre-actions recherche-admin" (ngSubmit)="charger()"><input aria-label="Rechercher une offre par titre" name="search" [(ngModel)]="rechercheAdmin" placeholder="Rechercher par titre…"><select aria-label="Trier les offres" name="sort" [(ngModel)]="triAdmin" (change)="charger()"><option value="titre">Titre : A → Z</option><option value="titreDesc">Titre : Z → A</option><option value="salaire">Salaire croissant</option><option value="salaireDesc">Salaire décroissant</option><option value="dateExpiration">Expiration la plus proche</option><option value="dateExpirationDesc">Expiration la plus lointaine</option></select><button class="btn btn-solid" type="submit">Rechercher</button></form>
+    @if (auth.isLoggedIn()) {
+      <form class="offre-actions recherche-admin" (ngSubmit)="charger()"><label class="recherche-champ"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="6"/><path d="m15 15 5 5"/></svg><input aria-label="Rechercher une offre par titre" name="search" [(ngModel)]="recherche" placeholder="Rechercher dans le titre des offres…"></label><select aria-label="Trier les offres" name="sort" [(ngModel)]="tri" (change)="charger()"><option value="salaire">Salaire croissant</option><option value="salaireDesc">Salaire décroissant</option><option value="dateExpiration">Expiration la plus proche</option><option value="dateExpirationDesc">Expiration la plus lointaine</option></select><button class="btn btn-solid" type="submit" [disabled]="operation()">Rechercher</button></form>
+      <p class="aide-recherche">Recherche par titre · Tri par salaire ou date d’expiration.</p>
     }
 
     @if (message()) { <p class="offre-succes" role="status">{{ message() }}</p> }
@@ -27,26 +28,28 @@
     } @else if (loading()) {
       <p class="offre-attente" role="status">Chargement des offres…</p>
     } @else {
-      <p class="offre-compteur">{{ offres().length }} offre(s){{ search() ? ' pour « ' + search() + ' »' : '' }}</p>
+      <p class="offre-compteur">{{ offres().length }} opportunité(s)</p>
       <div class="job-grid">
         @for (offre of offres(); track offre.id) {
-          <article class="job-card offre-card">
+          <article class="job-card offre-card" [class.inactive]="indisponible(offre) || dejaPostule().has(offre.id)">
             <div class="job-head"><span class="job-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 7h18v14H3zM8 7V3h8v4M3 12h18M10 12v3h4v-3"/></svg></span>
               <span class="offre-badge" [attr.data-statut]="offre.statut">{{ offre.statut }}</span>
             </div>
             <h3>{{ offre.titre }}</h3>
             <p class="offre-meta">{{ offre.localisation || 'Localisation non précisée' }} <span>·</span> {{ offre.contrat }}</p>
-            @if (auth.isAdmin()) { <p class="offre-meta">Recruteur #{{ offre.recruteurId }}</p> }
             <p class="offre-description">{{ offre.description || 'Consultez les détails de cette opportunité.' }}</p>
             <div class="job-tags">@for (competence of offre.competences; track $index) { <span>{{ competence }}</span> }</div>
             <div class="offre-reperes"><b>{{ offre.salaire === null ? 'Salaire à discuter' : (offre.salaire | number:'1.0-2') + ' DT / mois' }}</b><span>Jusqu’au {{ offre.dateExpiration | date:'dd/MM/yyyy' }}</span></div>
             <button class="see-job" (click)="selection.set(offre)">Voir l’offre →</button>
-            @if (auth.currentUser()?.role === 'CANDIDAT') { <button class="btn btn-solid" (click)="ouvrirCandidature(offre)" [disabled]="operation()">Postuler</button> }
+            @if (auth.currentUser()?.role === 'CANDIDAT') {
+              @if (dejaPostule().has(offre.id)) { <p class="deja-postule"><span aria-hidden="true">✓</span> Déjà postulé</p> }
+              @else if (!indisponible(offre)) { <button class="btn btn-solid" (click)="ouvrirCandidature(offre)" [disabled]="operation()">Postuler <span aria-hidden="true">↗</span></button> }
+            }
             @if (gestion()) {
               <div class="offre-actions gestion">
                 <button class="action-lien" (click)="ouvrirFormulaire(offre)" [disabled]="operation()">Modifier</button>
                 @if (offre.statut === 'BROUILLON') { <button class="action-lien" (click)="changerStatut(offre, 'PUBLIEE')" [disabled]="operation()">Publier</button> }
-                @if (offre.statut === 'PUBLIEE') { <button class="action-lien" (click)="changerStatut(offre, 'FERMEE')" [disabled]="operation()">Fermer</button> }
+                @if (offre.statut === 'PUBLIEE') { <button class="action-lien" title="Conserver l'offre et ses candidatures, arrêter les nouveaux dépôts" (click)="changerStatut(offre, 'FERMEE')" [disabled]="operation()">Fermer</button> }
                 <button class="action-lien danger" (click)="suppression.set(offre)" [disabled]="operation()">Supprimer</button>
               </div>
             }
@@ -68,7 +71,8 @@
     <div class="job-tags">@for (competence of offre.competences; track $index) { <span>{{ competence }}</span> }</div>
     <p><b>Salaire :</b> {{ offre.salaire === null ? 'À discuter' : (offre.salaire | number:'1.0-2') + ' DT / mois' }}</p>
     <p><b>Date d’expiration :</b> {{ offre.dateExpiration | date:'dd/MM/yyyy' }}</p>
-    @if (auth.currentUser()?.role === 'CANDIDAT') { <button class="btn btn-solid modal-cta" (click)="ouvrirCandidature(offre)">Postuler</button> }
+    @if (auth.currentUser()?.role === 'CANDIDAT' && !dejaPostule().has(offre.id) && !indisponible(offre)) { <button class="btn btn-solid modal-cta" (click)="ouvrirCandidature(offre)" [disabled]="operation()">Postuler</button> }
+    @if (dejaPostule().has(offre.id)) { <p class="deja-postule">✓ Vous avez déjà postulé à cette offre.</p> }
     <button class="btn btn-solid modal-cta" (click)="selection.set(null)">Fermer</button>
   </section></div>
 }

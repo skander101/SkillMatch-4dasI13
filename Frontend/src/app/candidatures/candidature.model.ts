@@ -3,6 +3,7 @@ export type CandidatureStatut = 'RECUE' | 'PRESELECTIONNEE' | 'ENTRETIEN_PLANIFI
 export interface Candidature {
   id: number;
   offreId: number;
+  offreTitre: string;
   userId: number;
   cvId: number;
   lettre: string;

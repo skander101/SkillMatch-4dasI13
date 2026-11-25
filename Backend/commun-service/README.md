@@ -47,7 +47,7 @@ Exemple d'inscription :
 ```bash
 curl -i -X POST http://localhost:8087/skillmatch/auth/register \
   -H 'Content-Type: application/json' \
-  -d '{"nom":"Skander","email":"skander@esprit.tn","password":"123456","role":"ADMIN"}'
+  -d '{"nom":"Compte de test","email":"test@example.invalid","password":"mot-de-passe-local","role":"CANDIDAT"}'
 ```
 
 Exemple de connexion :
@@ -55,7 +55,7 @@ Exemple de connexion :
 ```bash
 curl -i -X POST http://localhost:8087/skillmatch/auth/login \
   -H 'Content-Type: application/json' \
-  -d '{"email":"skander@esprit.tn","password":"123456"}'
+  -d '{"email":"test@example.invalid","password":"mot-de-passe-local"}'
 ```
 
 Réponse attendue :
@@ -65,14 +65,20 @@ Réponse attendue :
   "token": "...",
   "user": {
     "id": 1,
-    "nom": "Skander",
-    "email": "skander@esprit.tn",
-    "role": "ADMIN"
+    "nom": "Compte de test",
+    "email": "test@example.invalid",
+    "role": "CANDIDAT"
   }
 }
 ```
 
 ## Démarrage
+
+L'inscription publique accepte seulement CANDIDAT et RECRUTEUR. Une tentative
+avec ADMIN est refusée avec 403, avant toute création ou génération de token.
+Les comptes ADMIN existants continuent à se connecter. Le premier compte ADMIN
+doit être provisionné dans la base avec un mot de passe BCrypt, jamais en clair.
+Le CRUD utilisateurs protégé ADMIN est conservé.
 
 ```bash
 cd Backend/commun-service

@@ -5,33 +5,40 @@
     <h2 id="form-titre">{{ offre ? 'Modifier une offre' : 'Créer une offre' }}</h2>
     <p>{{ offre ? 'Actualisez les informations de votre offre.' : 'Enregistrez un brouillon, puis publiez-le depuis vos offres.' }}</p>
 
-    <form #form="ngForm" (ngSubmit)="form.valid && enregistrer()" class="offre-champs">
+    <form #form="ngForm" (ngSubmit)="enregistrer(form.valid === true && !salaireSaisie.validity.badInput)" class="offre-champs">
       @if (admin && !offre) {
         <label class="large">Recruteur *<select name="recruteur" [(ngModel)]="formulaire.recruteurId" required><option [ngValue]="null">Choisir un recruteur</option>@for (u of recruteurs(); track u.id) { <option [ngValue]="u.id">{{ u.nom }} — {{ u.email }}</option> }</select></label>
         @if (chargement()) { <p class="large" role="status">Chargement des recruteurs…</p> }
         @if (erreurChoix()) { <p class="auth-error large" role="alert">{{ erreurChoix() }}</p> }
       }
-      <label class="large">Titre *<input name="titre" [(ngModel)]="formulaire.titre" required maxlength="255" placeholder="Ex. Développeur Java" autofocus></label>
+      <label class="large">Titre *<input name="titre" #titre="ngModel" [(ngModel)]="formulaire.titre" required pattern=".*\S.*" maxlength="255" placeholder="Ex. Développeur Java" autofocus>
+        @if (titre.invalid && (titre.touched || form.submitted)) { <small class="champ-erreur" role="alert">Saisissez un titre, pas uniquement des espaces (255 caractères maximum).</small> }
+      </label>
       <label class="large">Description<textarea name="description" [(ngModel)]="formulaire.description" rows="4" maxlength="10000" placeholder="Présentez le poste, les missions et votre équipe."></textarea></label>
       <label class="large">Compétences<input name="competences" [(ngModel)]="competences" placeholder="Java, Spring Boot, SQL"><small>Séparez les compétences par des virgules.</small></label>
       <label>Localisation<input name="localisation" [(ngModel)]="formulaire.localisation" maxlength="255" placeholder="Ex. Tunis"></label>
       <label>Contrat *<select name="contrat" [(ngModel)]="formulaire.contrat" required><option>CDI</option><option>CDD</option><option value="STAGE">Stage</option><option value="FREELANCE">Freelance</option></select></label>
-      <label>Salaire mensuel (DT)<input name="salaire" type="number" [(ngModel)]="formulaire.salaire" min="0" step="0.01" placeholder="Facultatif"></label>
-      <label>Date d'expiration *<input name="dateExpiration" type="date" [(ngModel)]="formulaire.dateExpiration" required></label>
+      <label>Salaire mensuel (DT)<input name="salaire" #salaireSaisie #salaire="ngModel" type="number" [(ngModel)]="formulaire.salaire" min="0" step="0.01" placeholder="Facultatif">
+        @if ((salaire.invalid || salaireSaisie.validity.badInput) && (salaire.touched || form.submitted)) { <small class="champ-erreur" role="alert">Le salaire doit être un nombre positif ou nul.</small> }
+      </label>
+      <label>Date d'expiration *<input name="dateExpiration" #expiration="ngModel" type="date" [(ngModel)]="formulaire.dateExpiration" required [attr.aria-invalid]="!!erreurDate() && (expiration.touched || form.submitted)">
+        @if (erreurDate() && (expiration.touched || form.submitted)) { <small class="champ-erreur" role="alert">{{ erreurDate() }}</small> }
+      </label>
       @if (offre) {
         <label class="large">Statut<select name="statut" [(ngModel)]="formulaire.statut">@for (statut of statuts; track statut) { <option [value]="statut">{{ statut }}</option> }</select></label>
       }
       <details class="large references">
         <summary>Références complémentaires (facultatif)</summary>
         <div class="offre-champs">
-          <label>Référence entreprise<input name="entrepriseId" type="number" [(ngModel)]="formulaire.entrepriseId" min="1" step="1"></label>
-          <label>Référence du test requis<input name="testRequisId" type="number" [(ngModel)]="formulaire.testRequisId" min="1" step="1"></label>
+          <label>Référence entreprise<input name="entrepriseId" type="number" [(ngModel)]="formulaire.entrepriseId" min="1" step="1" pattern="[1-9][0-9]*"></label>
+          <label>Référence du test requis<input name="testRequisId" type="number" [(ngModel)]="formulaire.testRequisId" min="1" step="1" pattern="[1-9][0-9]*"></label>
         </div>
       </details>
       @if (erreur) { <p class="auth-error large" role="alert">{{ erreur }}</p> }
+      @if (form.submitted && form.invalid) { <p class="champ-erreur large" role="alert">Vérifiez les champs obligatoires et les nombres saisis. Les références doivent être des entiers positifs.</p> }
       <div class="offre-actions large">
         <button type="button" class="btn btn-outline" [disabled]="enCours" (click)="annuler.emit()">Annuler</button>
-        <button type="submit" class="btn btn-solid" [disabled]="form.invalid || enCours || chargement() || !!erreurChoix() || !formulaire.titre.trim()">{{ enCours ? 'Enregistrement…' : 'Enregistrer' }}</button>
+        <button type="submit" class="btn btn-solid" [disabled]="enCours || chargement() || !!erreurChoix()">{{ enCours ? 'Enregistrement…' : 'Enregistrer' }}</button>
       </div>
     </form>
   </section>

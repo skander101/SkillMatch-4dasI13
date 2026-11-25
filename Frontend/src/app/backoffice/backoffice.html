@@ -38,7 +38,7 @@
         }
       </nav>
     </div>
-    <div class="side-foot"><b>●</b> Angular 21 · 6 microservices<br>Environnement de démonstration<button type="button" (click)="exit.emit()">← Retour au site</button></div>
+    <div class="side-foot"><b>●</b> Espace administration<br>{{ currentUser()?.nom }}<button type="button" (click)="deconnexion.emit()">Déconnexion ↗</button></div>
   </aside>
   @if (sidebarOpen()) { <div class="backdrop" (click)="toggleSidebar()"></div> }
 

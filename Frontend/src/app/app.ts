@@ -101,7 +101,7 @@ export class App {
   private navMessageTimer?: number;
   readonly searchTerm = signal('');
   readonly rechercheOffres = signal(''); // Recherche envoyée lorsque l'utilisateur valide.
-  readonly offreSort = signal('titre');
+  readonly offreSort = signal('dateExpiration');
   readonly candidaturesVersion = signal(0); // Recharge le suivi après un dépôt réussi.
   readonly authMode = signal<'connexion' | 'inscription' | null>(null);
   readonly infoMessage = signal('');
@@ -109,13 +109,34 @@ export class App {
   readonly currentUser = this.auth.currentUser;
   readonly isLoggedIn = this.auth.isLoggedIn;
   readonly isAdmin = this.auth.isAdmin;
-  readonly backOfficeOpen = signal(this.auth.isAdmin());
+  readonly page = signal(this.auth.isLoggedIn() ? (location.hash === '#candidatures' ? 'candidatures' : 'offres') : 'accueil');
   readonly authEmail = signal('');
   readonly authPassword = signal('');
   readonly authName = signal('');
   readonly authRole = signal<Role>('CANDIDAT');
   readonly authError = signal('');
   readonly authLoading = signal(false);
+
+  naviguer(page: string): void { // Une seule vue affichée ; le fragment permet Retour/Actualiser.
+    this.page.set(page);
+    location.hash = page;
+    this.closeNav(); this.mobileNavOpen.set(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  @HostListener('window:hashchange')
+  lirePage(): void {
+    const page = location.hash.slice(1);
+    if (page === 'offres' || page === 'candidatures' || page === 'accueil') {
+      this.page.set(this.isLoggedIn() && page === 'accueil' ? 'offres' : page);
+    }
+  }
+
+  libelleMenu(usage: string): string {
+    if (usage === 'Voir les offres') return this.currentUser()?.role === 'RECRUTEUR' ? 'Mes offres' : 'Découvrir les offres';
+    if (usage === 'Voir les candidatures') return this.currentUser()?.role === 'RECRUTEUR' ? 'Candidatures reçues' : 'Mes candidatures';
+    return usage;
+  }
   toggleNav(id: string): void { this.openNav.update((current) => current === id ? null : id); }
   closeNav(): void { this.openNav.set(null); }
   toggleMobileNav(): void { this.mobileNavOpen.update((open) => !open);this.openNav.set(null); }
@@ -132,9 +153,8 @@ export class App {
   onNavAction(serviceId: string, label: string): void {
     this.closeNav();this.mobileNavOpen.set(false);this.notificationsOpen.set(false);
     if (serviceId === 'offres') {
-      if (label === 'Voir les offres') this.onSearch();
-      else if (!this.isLoggedIn()) this.openAuth('connexion');
-      else document.getElementById('candidatures')?.scrollIntoView({ behavior: 'smooth' });
+      if (!this.isLoggedIn()) this.openAuth('connexion');
+      else this.naviguer(label === 'Voir les offres' ? 'offres' : 'candidatures');
       return;
     }
     const service = this.navServices.find((item) => item.id === serviceId);
@@ -147,8 +167,8 @@ export class App {
   }
   onSearch(): void {
     this.rechercheOffres.set(this.searchTerm().trim());
-    document.getElementById('offres')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    if (!this.isLoggedIn()) this.openAuth('connexion'); // Réutilise le login existant.
+    if (!this.isLoggedIn()) this.openAuth('connexion');
+    else this.naviguer('offres');
   }
 
   closeModal(): void {
@@ -166,7 +186,7 @@ export class App {
   }
 
   setRole(value: string): void {
-    this.authRole.set(value as Role);
+    this.authRole.set(value === 'RECRUTEUR' ? 'RECRUTEUR' : 'CANDIDAT');
   }
 
   submitAuth(mode: 'connexion' | 'inscription'): void {
@@ -185,7 +205,7 @@ export class App {
       next: () => {
         this.authLoading.set(false);
         this.closeModal();
-        if (this.isAdmin()) { this.backOfficeOpen.set(true); }
+        this.naviguer('offres');
         this.showMessage(`Bienvenue ${this.currentUser()?.nom ?? ''} — rôle ${this.currentUser()?.role ?? ''}`);
       },
       error: (error) => {
@@ -197,12 +217,8 @@ export class App {
 
   logout(): void {
     this.auth.logout();
-    this.backOfficeOpen.set(false);
+    this.naviguer('accueil');
     this.showMessage('Vous êtes déconnecté.');
   }
-
-  openBackOffice(): void { this.backOfficeOpen.set(true); }
-
-  closeBackOffice(): void { this.backOfficeOpen.set(false); }
 
 }

@@ -24,6 +24,7 @@ export class OffreForm implements OnChanges, OnInit {
   readonly erreurChoix = signal('');
   readonly statuts: OffreStatut[] = ['BROUILLON', 'PUBLIEE', 'FERMEE', 'EXPIREE'];
   competences = ''; // Saisie simple séparée par des virgules.
+  readonly aujourdHui = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
   formulaire: OffreRequest = {
     titre: '', description: '', competences: [], localisation: '', contrat: 'CDI',
     salaire: null, dateExpiration: '', statut: 'BROUILLON', entrepriseId: null, testRequisId: null
@@ -45,7 +46,16 @@ export class OffreForm implements OnChanges, OnInit {
     this.competences = donnees.competences.join(', ');
   }
 
-  enregistrer(): void {
+  erreurDate(): string { // Même cohérence de statut et de date que le backend.
+    const { dateExpiration, statut } = this.formulaire;
+    if (!dateExpiration) return "La date d'expiration est obligatoire.";
+    if (['BROUILLON', 'PUBLIEE'].includes(statut) && dateExpiration < this.aujourdHui) return 'Choisissez aujourd’hui ou une date future.';
+    if (statut === 'EXPIREE' && dateExpiration >= this.aujourdHui) return 'Une offre expirée doit avoir une date passée.';
+    return '';
+  }
+
+  enregistrer(valide = true): void {
+    if (!valide || this.erreurDate() || !this.formulaire.titre.trim() || this.enCours) return;
     const competences = this.competences.split(',').map(valeur => valeur.trim()).filter(Boolean);
     this.valider.emit({ ...this.formulaire, titre: this.formulaire.titre.trim(), competences: [...new Set(competences)] });
   }

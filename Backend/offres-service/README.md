@@ -384,8 +384,8 @@ claims manquants et les erreurs de clé. Les clés de test sont générées en m
 Les tests MySQL `*IT` exigent aussi `JWT_SECRET` dans le terminal, comme un
 démarrage normal ; leurs identités distantes restent simulées.
 
-Le risque d'inscription publique permettant ADMIN existe toujours dans
-`commun-service` ; ce code appartient à son responsable et n'a pas été modifié.
+L'inscription publique ADMIN est désormais refusée par `commun-service` (403).
+L'inscription reste ouverte aux candidats et recruteurs.
 
 Vérification de cette étape : 68 tests sans MySQL et 5 tests d'intégration MySQL
 réussis, JAR généré. Les tests MySQL ont utilisé une clé éphémère dans la variable
@@ -408,3 +408,13 @@ L'interface des candidatures est aussi connectée : dépôt et suivi candidat,
 traitement recruteur, ainsi que les deux CRUD ADMIN dans le back-office existant.
 Les contrôles métier restent dans ce service ; aucun nouveau backend ADMIN.
 En phase 1, `cvId` est une référence numérique de test, sans dépôt de fichier.
+
+## Améliorations des écrans
+
+Les vues Offres et Candidatures sont séparées par la navigation Angular.
+La liste des candidatures transmet aussi `offreTitre`, lu depuis la relation
+existante, pour éviter les identifiants techniques sur les cartes.
+Les règles de doublon restent protégées par le service et la contrainte MySQL ;
+Angular masque désormais Postuler dès qu'une candidature existe, même retirée.
+Fermer une offre conserve l'historique et bloque les nouvelles candidatures.
+La description est limitée à 10000 caractères dans le DTO et le formulaire.

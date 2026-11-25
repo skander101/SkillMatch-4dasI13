@@ -7,7 +7,7 @@
     @if (erreurChoix()) { <p class="auth-error" role="alert">{{ erreurChoix() }}</p> }
     <form #form="ngForm" class="offre-champs" (ngSubmit)="form.valid && enregistrer()">
       @if (!candidature && role === 'ADMIN') {
-        <label>Offre ouverte *<select name="offre" [(ngModel)]="offreId" required><option [ngValue]="null">Choisir une offre</option>@for (o of offres(); track o.id) { <option [ngValue]="o.id">{{ o.titre }} (#{{ o.id }})</option> }</select></label>
+        <label>Offre ouverte *<select name="offre" [(ngModel)]="offreId" required><option [ngValue]="null">Choisir une offre</option>@for (o of offres(); track o.id) { <option [ngValue]="o.id">{{ o.titre }}</option> }</select></label>
         <label>Candidat *<select name="candidat" [(ngModel)]="userId" required><option [ngValue]="null">Choisir un candidat</option>@for (u of candidats(); track u.id) { <option [ngValue]="u.id">{{ u.nom }} — {{ u.email }}</option> }</select></label>
       }
       @if (role !== 'RECRUTEUR') {
