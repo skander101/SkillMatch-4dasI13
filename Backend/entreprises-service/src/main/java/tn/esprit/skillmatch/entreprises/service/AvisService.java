@@ -5,6 +5,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import tn.esprit.skillmatch.entreprises.client.UtilisateurInfo;
 import tn.esprit.skillmatch.entreprises.dto.AvisRequest;
 import tn.esprit.skillmatch.entreprises.dto.AvisResponse;
 import tn.esprit.skillmatch.entreprises.dto.ModerationRequest;
@@ -48,16 +49,18 @@ public class AvisService {
                 .toList();
     }
 
-    public AvisResponse submit(Long entrepriseId, AvisRequest request) {
+    public AvisResponse submit(Long entrepriseId, UtilisateurInfo utilisateur, AvisRequest request) {
         Entreprise entreprise = entrepriseRepository.findById(entrepriseId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Entreprise introuvable"));
 
-        if (avisEntrepriseRepository.existsByEntreprise_IdAndUtilisateurId(entrepriseId, request.utilisateurId())) {
+        if (avisEntrepriseRepository.existsByEntreprise_IdAndUtilisateurId(entrepriseId, utilisateur.id())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, AVIS_DUPLIQUE);
         }
 
         try {
-            return avisMapper.toResponse(avisEntrepriseRepository.saveAndFlush(avisMapper.toEntity(request, entreprise)));
+            return avisMapper.toResponse(avisEntrepriseRepository.saveAndFlush(
+                    avisMapper.toEntity(request, entreprise, utilisateur)
+            ));
         } catch (DataIntegrityViolationException exception) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, AVIS_DUPLIQUE);
         }

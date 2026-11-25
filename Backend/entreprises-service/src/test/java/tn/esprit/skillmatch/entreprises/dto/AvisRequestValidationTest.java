@@ -15,7 +15,7 @@ class AvisRequestValidationTest {
         try (ValidatorFactory factory = Validation.buildDefaultValidatorFactory()) {
             Validator validator = factory.getValidator();
 
-            assertTrue(validator.validate(new AvisRequest(10L, "Alice Martin", 5, "Super")).isEmpty());
+            assertTrue(validator.validate(new AvisRequest(5, "Super")).isEmpty());
         }
     }
 
@@ -24,19 +24,18 @@ class AvisRequestValidationTest {
         try (ValidatorFactory factory = Validation.buildDefaultValidatorFactory()) {
             Validator validator = factory.getValidator();
 
-            assertFalse(validator.validate(new AvisRequest(10L, "Alice Martin", 0, "Trop bas")).isEmpty());
-            assertFalse(validator.validate(new AvisRequest(10L, "Alice Martin", 6, "Trop haut")).isEmpty());
+            assertFalse(validator.validate(new AvisRequest(0, "Trop bas")).isEmpty());
+            assertFalse(validator.validate(new AvisRequest(6, "Trop haut")).isEmpty());
         }
     }
 
     @Test
-    void missingOrBlankFieldsAreRejected() {
+    void noteAndCommentaireAreRequired() {
         try (ValidatorFactory factory = Validation.buildDefaultValidatorFactory()) {
             Validator validator = factory.getValidator();
 
-            assertFalse(validator.validate(new AvisRequest(null, "Alice Martin", 5, "Super")).isEmpty());
-            assertFalse(validator.validate(new AvisRequest(10L, " ", 5, "Super")).isEmpty());
-            assertFalse(validator.validate(new AvisRequest(10L, "Alice Martin", 5, " ")).isEmpty());
+            assertFalse(validator.validate(new AvisRequest(null, "Super")).isEmpty());
+            assertFalse(validator.validate(new AvisRequest(5, " ")).isEmpty());
         }
     }
 }

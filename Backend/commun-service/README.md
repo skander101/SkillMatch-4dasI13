@@ -42,6 +42,8 @@ Les erreurs JSON ont la forme `{"status":409,"message":"Cet email est déjà uti
 
 Les endpoints `/skillmatch/utilisateurs/**` exigent un JWT de rôle `ADMIN` : sans jeton la réponse est `401`, avec un jeton non administrateur elle est `403`. Lors d'une mise à jour, un mot de passe vide conserve le mot de passe actuel.
 
+Le endpoint `/skillmatch/auth/me` exige un en-tête `Authorization: Bearer <jwt>` : un en-tête absent, mal formé ou un JWT invalide/expiré répond `401` avec un corps `ApiError`. Il retourne `id`, `nom`, `email` et `role` de l'utilisateur courant.
+
 Exemple d'inscription :
 
 ```bash

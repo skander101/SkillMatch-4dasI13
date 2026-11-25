@@ -7,6 +7,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
+import tn.esprit.skillmatch.entreprises.client.UtilisateurInfo;
 import tn.esprit.skillmatch.entreprises.dto.AvisRequest;
 import tn.esprit.skillmatch.entreprises.dto.AvisResponse;
 import tn.esprit.skillmatch.entreprises.dto.ModerationRequest;
@@ -48,9 +49,10 @@ class AvisServiceTest {
     }
 
     @Test
-    void submitCreatesAvisEnAttente() {
+    void submitCreatesAvisWithAuthenticatedUser() {
         Entreprise entreprise = entreprise(1L);
-        AvisRequest request = new AvisRequest(10L, " Alice Martin ", 5, " Super ");
+        UtilisateurInfo utilisateur = utilisateur("CANDIDAT");
+        AvisRequest request = new AvisRequest(5, " Super ");
 
         when(entrepriseRepository.findById(1L)).thenReturn(Optional.of(entreprise));
         when(avisEntrepriseRepository.existsByEntreprise_IdAndUtilisateurId(1L, 10L)).thenReturn(false);
@@ -60,7 +62,7 @@ class AvisServiceTest {
             return saved;
         });
 
-        AvisResponse response = avisService.submit(1L, request);
+        AvisResponse response = avisService.submit(1L, utilisateur, request);
 
         assertEquals(2L, response.id());
         assertEquals(1L, response.entrepriseId());
@@ -75,13 +77,14 @@ class AvisServiceTest {
     @Test
     void submitRejectsDuplicateAvis() {
         Entreprise entreprise = entreprise(1L);
-        AvisRequest request = new AvisRequest(10L, "Alice Martin", 5, "Super");
+        UtilisateurInfo utilisateur = utilisateur("CANDIDAT");
+        AvisRequest request = new AvisRequest(5, "Super");
 
         when(entrepriseRepository.findById(1L)).thenReturn(Optional.of(entreprise));
         when(avisEntrepriseRepository.existsByEntreprise_IdAndUtilisateurId(1L, 10L)).thenReturn(true);
 
         ResponseStatusException exception = assertThrows(ResponseStatusException.class, () ->
-                avisService.submit(1L, request)
+                avisService.submit(1L, utilisateur, request)
         );
 
         assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
@@ -90,12 +93,13 @@ class AvisServiceTest {
 
     @Test
     void submitRejectsUnknownEntreprise() {
-        AvisRequest request = new AvisRequest(10L, "Alice Martin", 5, "Super");
+        UtilisateurInfo utilisateur = utilisateur("CANDIDAT");
+        AvisRequest request = new AvisRequest(5, "Super");
 
         when(entrepriseRepository.findById(1L)).thenReturn(Optional.empty());
 
         ResponseStatusException exception = assertThrows(ResponseStatusException.class, () ->
-                avisService.submit(1L, request)
+                avisService.submit(1L, utilisateur, request)
         );
 
         assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
@@ -222,6 +226,10 @@ class AvisServiceTest {
         Entreprise entreprise = new Entreprise("TechNova", "Informatique", "Tunis", "Recrutement tech");
         entreprise.setId(id);
         return entreprise;
+    }
+
+    private UtilisateurInfo utilisateur(String role) {
+        return new UtilisateurInfo(10L, "Alice Martin", "alice@example.com", role);
     }
 
     private AvisEntreprise avis(Long id, Entreprise entreprise) {

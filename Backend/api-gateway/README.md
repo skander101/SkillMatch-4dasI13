@@ -6,6 +6,7 @@ Passerelle Spring Cloud Gateway de SkillMatch.
 
 - Point d'entrée HTTP du frontend : `http://localhost:8080`.
 - Route les appels d'authentification vers `commun-service` sur `http://localhost:8087`.
+- Route les appels entreprises et avis vers `entreprises-service` sur `http://localhost:8083`.
 - Autorise les requêtes CORS en développement ; à restreindre en production.
 
 ## Routes actuelles
@@ -14,8 +15,10 @@ Passerelle Spring Cloud Gateway de SkillMatch.
 |---|---|
 | `/skillmatch/auth/**` | `commun-service` |
 | `/skillmatch/utilisateurs/**` | `commun-service` |
+| `/skillmatch/entreprises/**` | `entreprises-service` |
+| `/skillmatch/avis/**` | `entreprises-service` |
 
-La route `/skillmatch/entreprises/**` n'est pas encore configurée. Sur le commit actuel de `skander_entreprise+avis`, `entreprises-service` se teste directement sur `http://localhost:8083` ; son routage via la gateway est prévu au commit 4 du plan.
+Les routes entreprises et avis sont disponibles via la gateway depuis le commit 4 du plan. Les endpoints protégés exigent un JWT ; la gateway ne valide pas les tokens elle-même, elle transmet l'en-tête `Authorization` aux services.
 
 ## Configuration
 
@@ -27,6 +30,7 @@ Variables possibles :
 
 - `SERVER_PORT`
 - `COMMUN_SERVICE_URL`
+- `ENTREPRISES_SERVICE_URL`
 - `EUREKA_URL`, `EUREKA_REGISTER`, `EUREKA_FETCH`
 
 ## Démarrage
@@ -44,6 +48,6 @@ SERVER_PORT=8090 mvn spring-boot:run
 
 Puis adapter `Frontend/src/environments/environment.development.ts`.
 
-Pour l'instant, la validation JWT est faite dans `commun-service` via le endpoint `/skillmatch/auth/me` et un intercepteur ADMIN sur `/skillmatch/utilisateurs/**`. La gateway ne valide pas encore les tokens elle-même.
+La validation JWT est faite dans `commun-service` via le endpoint `/skillmatch/auth/me` et un intercepteur ADMIN sur `/skillmatch/utilisateurs/**`. `entreprises-service` appelle aussi `/skillmatch/auth/me` pour valider le JWT et appliquer ses propres règles de rôle. La gateway ne valide pas encore les tokens elle-même.
 
 Le port `8080` doit être libre avant le démarrage ; tout autre serveur (par exemple Apache) doit être arrêté ou la passerelle lancée sur un autre port via `SERVER_PORT`.

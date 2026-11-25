@@ -1,6 +1,7 @@
 package tn.esprit.skillmatch.entreprises.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -45,12 +46,14 @@ public class EntrepriseController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Créer une entreprise")
+    @SecurityRequirement(name = "bearerAuth")
     public EntrepriseResponse create(@Valid @RequestBody EntrepriseRequest request) {
         return entrepriseService.create(request);
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "Modifier une entreprise")
+    @SecurityRequirement(name = "bearerAuth")
     public EntrepriseResponse update(@PathVariable Long id, @Valid @RequestBody EntrepriseRequest request) {
         return entrepriseService.update(id, request);
     }
@@ -58,6 +61,7 @@ public class EntrepriseController {
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(summary = "Supprimer une entreprise")
+    @SecurityRequirement(name = "bearerAuth")
     public void delete(@PathVariable Long id) {
         entrepriseService.delete(id);
     }

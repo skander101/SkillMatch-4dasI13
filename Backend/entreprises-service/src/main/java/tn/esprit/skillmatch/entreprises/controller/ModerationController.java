@@ -1,6 +1,7 @@
 package tn.esprit.skillmatch.entreprises.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -18,6 +19,7 @@ import tn.esprit.skillmatch.entreprises.service.AvisService;
 @RestController
 @RequestMapping("/skillmatch/avis")
 @Tag(name = "Modération", description = "Modération des avis et recalcul de la note moyenne")
+@SecurityRequirement(name = "bearerAuth")
 public class ModerationController {
 
     private final AvisService avisService;

@@ -24,16 +24,16 @@ Chaque microservice est un projet Maven indépendant. Il n'y a pas de `pom.xml` 
 |---|---:|---|---|---|---|---|
 | `offres-service` | 8081 | `offres_db` | `Offre`, `Candidature` | Profils, Tests | `OfferPublished`, `StatusChanged`, `ApplicationSubmitted` | — |
 | `profils-service` | 8082 | `profils_db` | `Profil`, `CV` | — | `ProfileUpdated` | `TestPassed` |
-| `entreprises-service` | 8083 | `entreprises_db` | `Entreprise`, `AvisEntreprise` | — | — | — |
+| `entreprises-service` | 8083 | `entreprises_db` | `Entreprise`, `AvisEntreprise` | Utilisateurs (`/skillmatch/auth/me`) | — | — |
 | `tests-service` | 8084 | `tests_db` | `TestTechnique`, `ResultatTest` | — | `TestPassed` | — |
 | `alertes-service` | 8085 | `alertes_db` | `AlerteEmploi`, `OffreSauvegardee` | — | `AlertMatched` | `OfferPublished` |
 | `messagerie-service` | 8086 | `messagerie_db` | `Conversation`, `Message` | — | `MessageSent` | — |
 | `commun-service` | 8087 | `commun_db` | `Utilisateur` | Auth JWT | — | — |
-| `api-gateway` | 8080 | — | — | Routes `/skillmatch/auth/**` et `/skillmatch/utilisateurs/**` vers `commun-service` | — | — |
+| `api-gateway` | 8080 | — | — | Routes auth/utilisateurs vers `commun-service` et entreprises/avis vers `entreprises-service` | — | — |
 | `discovery-service` | 8761 | — | — | — | — | — |
 | `config-service` | 8888 | — | — | — | — | — |
 
-> Le tableau décrit le contrat cible. État courant sur `skander_entreprise+avis` : `entreprises-service` implémente le CRUD `Entreprise`, la publication d'avis avec unicité et la modération avec recalcul de moyenne ; les appels et événements annoncés seront ajoutés aux commits 4 et 5 du plan.
+> Le tableau décrit le contrat cible. État courant sur `skander_entreprise+avis` : `entreprises-service` implémente le CRUD `Entreprise`, la publication d'avis avec unicité, la modération avec recalcul de moyenne et la sécurité JWT par rôle ; les événements annoncés seront ajoutés au commit 5 du plan.
 
 ## Détail par microservice
 
@@ -54,24 +54,24 @@ Chaque microservice est un projet Maven indépendant. Il n'y a pas de `pom.xml` 
 
 ### Entreprises & Avis
 
-Implémentation actuelle (commits 1 à 3 sur `skander_entreprise+avis`) :
+Implémentation actuelle (commits 1 à 4 sur `skander_entreprise+avis`) :
 
 - Entités implémentées : `Entreprise` (`id`, `nom`, `secteur`, `ville`, `description`, `noteMoyenne`) et `AvisEntreprise` (`id`, `entreprise`, `utilisateurId`, `nomUtilisateur`, `note`, `commentaire`, `statut`, `dateCreation`).
-- CRUD disponible directement sur `http://localhost:8083/skillmatch/entreprises` : `POST`, `GET`, `GET /{id}`, `PUT /{id}` et `DELETE /{id}`.
+- CRUD disponible via la gateway sur `http://localhost:8080/skillmatch/entreprises` : `POST`, `GET`, `GET /{id}`, `PUT /{id}` et `DELETE /{id}`.
 - Avis disponibles sur `POST /skillmatch/entreprises/{id}/avis` et `GET /skillmatch/entreprises/{id}/avis`.
 - Note comprise entre 1 et 5, statut initial `EN_ATTENTE`, unicité par paire entreprise/utilisateur et réponse `409` sur doublon.
 - Modération disponible sur `PUT /skillmatch/avis/{id}/moderation` avec `APPROUVE` ou `REJETE`, et suppression sur `DELETE /skillmatch/avis/{id}`.
 - `noteMoyenne` est recalculée à partir des seuls avis approuvés après chaque modération ou suppression, arrondie à deux décimales.
+- Les `GET /skillmatch/entreprises/**` sont publics ; la création/modification/suppression d'entreprise et la modération/suppression d'avis exigent `ADMIN` ; la publication d'avis exige `CANDIDAT` ou `RECRUTEUR`.
+- Le JWT est validé par `entreprises-service` via `GET /skillmatch/auth/me` sur `commun-service` : `401` sans token valide, `403` avec un rôle incorrect, `503` si `commun-service` est indisponible.
 - Documentation Swagger UI : `http://localhost:8083/swagger-ui.html` ; spécification JSON : `http://localhost:8083/v3/api-docs`.
 - Erreurs JSON au format `{"status":404,"message":"Entreprise introuvable"}`.
-- Aucune sécurité via gateway pour l'instant : les endpoints sont testés directement sur le port `8083`.
 - Détails complets : [`entreprises-service/README.md`](entreprises-service/README.md).
 
 À venir dans les prochains commits du plan :
 
-- appel synchrone à `commun-service` via `/skillmatch/auth/me` ;
 - publication de `AvisModere` et consommation de `ProfileUpdated` via RabbitMQ ;
-- routage `/skillmatch/entreprises/**` et `/skillmatch/avis/**` par l'API Gateway.
+- branchement du back office admin et du frontend public sur les routes entreprises.
 
 ### Tests & Compétences
 
@@ -118,7 +118,8 @@ Endpoints implémentés :
 
 - Point d'entrée public du frontend : `http://localhost:8080`.
 - Routes `/skillmatch/auth/**` et `/skillmatch/utilisateurs/**` vers `commun-service` sur `http://localhost:8087`.
-- La route `/skillmatch/entreprises/**` n'est pas encore configurée : le premier commit de `entreprises-service` se teste directement sur `http://localhost:8083`.
+- Routes `/skillmatch/entreprises/**` et `/skillmatch/avis/**` vers `entreprises-service` sur `http://localhost:8083`.
+- La gateway transmet l'en-tête `Authorization` ; les microservices valident le JWT et les rôles.
 - CORS autorisé en développement ; à restreindre en production.
 
 ## Créer un microservice

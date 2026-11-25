@@ -34,7 +34,7 @@ Les candidats ont du mal à identifier les offres réellement adaptées à leur 
 
 L'application suit une architecture microservices :
 
-- un **API Gateway** expose l'API publique et valide les JWT ;
+- un **API Gateway** expose l'API publique et transmet les JWT aux services qui les valident ;
 - **Eureka** assure la découverte des services et **Spring Cloud Config** centralise la configuration ;
 - six **microservices métier** indépendants ;
 - un **service commun** pour l'authentification ; les notifications sont prévues mais non implémentées ;
@@ -55,7 +55,7 @@ Le schéma d'architecture complet et les autres diagrammes se trouvent dans [`Do
 | `alertes-service` | 8085 | `alertes_db` | Alertes emploi et offres sauvegardées |
 | `messagerie-service` | 8086 | `messagerie_db` | Conversations et messages |
 | `commun-service` | 8087 | `commun_db` | Utilisateur et authentification JWT (sans notifications pour l'instant) |
-| `api-gateway` | 8080 | — | Routage `/skillmatch/auth/**` et `/skillmatch/utilisateurs/**` ; validation JWT dans `commun-service` |
+| `api-gateway` | 8080 | — | Routage auth/utilisateurs et entreprises/avis ; validation JWT dans les services |
 | `discovery-service` | 8761 | — | Serveur Eureka |
 | `config-service` | 8888 | — | Configuration centralisée |
 | `Frontend` | 4200 | — | Interface candidat, recruteur et administrateur |
@@ -64,7 +64,7 @@ Le détail des contrats, des entités, des appels synchrones et des événements
 
 État d'intégration : `commun-service` (utilisateur + auth JWT + CRUD ADMIN, sans notifications) et `api-gateway` sont implémentés ; le frontend consomme les endpoints `/skillmatch/auth/*` et `/skillmatch/utilisateurs/*` via la gateway. Un back office s'ouvre automatiquement après connexion avec le rôle `ADMIN`.
 
-Sur `skander_entreprise+avis`, le service `entreprises-service` fournit le CRUD de l'entité `Entreprise`, la publication et la modération des avis avec recalcul de la moyenne, sur `http://localhost:8083` (`/skillmatch/entreprises` et `/skillmatch/avis`), avec Swagger UI sur `http://localhost:8083/swagger-ui.html`. La sécurité via gateway, les événements et le frontend associé restent à implémenter dans les commits suivants du plan.
+Sur `skander_entreprise+avis`, le service `entreprises-service` fournit le CRUD de l'entité `Entreprise`, la publication et la modération des avis avec recalcul de la moyenne. Les routes `/skillmatch/entreprises/**` et `/skillmatch/avis/**` passent par la gateway sur `http://localhost:8080` et sont protégées par JWT : lecture publique, publication par `CANDIDAT`/`RECRUTEUR`, modération et CRUD entreprise par `ADMIN`. Swagger reste disponible sur `http://localhost:8083/swagger-ui.html`. Les événements et le frontend associé restent à implémenter dans les commits suivants du plan.
 
 ## Technologies
 
@@ -160,7 +160,7 @@ cd Backend/entreprises-service && mvn spring-boot:run
 
 Spring Boot ne lit pas automatiquement le fichier `.env` : les variables doivent être exportées dans chaque terminal ou définies dans l'IDE. Les bases `commun_db` et `entreprises_db` sont créées au premier démarrage si l'utilisateur MySQL dispose du droit `CREATE`.
 
-`entreprises-service` n'est pas encore routé par la gateway : tester ses endpoints directement sur `http://localhost:8083`. RabbitMQ n'est pas nécessaire pour ce commit et l'enregistrement Eureka est désactivé par défaut en local.
+`entreprises-service` est routé par la gateway sur `http://localhost:8080` ; Swagger et le health restent accessibles directement sur `http://localhost:8083`. RabbitMQ n'est pas nécessaire pour ce commit et l'enregistrement Eureka est désactivé par défaut en local.
 
 ## Organisation Git
 
