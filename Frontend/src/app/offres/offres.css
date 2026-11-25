@@ -79,6 +79,7 @@ button:focus-visible, summary:focus-visible { outline: 3px solid #10b981; outlin
 .aide-recherche { color: #6b8274; font-size: 11px; margin: 0 0 24px 4px; }
 .offre-champs .champ-erreur, .champ-erreur { color: #b33131; font-weight: 500; font-size: 12px; line-height: 1.5; }
 .offre-champs [aria-invalid="true"] { border-color: #c54646; background: #fff8f8; }
+.offre-champs.ng-submitted .ng-invalid { border-color: #c54646; background: #fff8f8; }
 .offre-actions.gestion { gap: 16px; }
 .gestion .action-lien { border-radius: 7px; padding: 7px 8px; background: #eaf4ed; }
 .gestion .danger { background: #f9eceb; }

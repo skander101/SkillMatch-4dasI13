@@ -7,9 +7,10 @@ import { User } from '../user/user.model';
 import { Offre } from '../offres/offre.model';
 import { OffreService } from '../offres/offre.service';
 import { Candidature, CandidatureCreation, CandidatureStatut, CandidatureUpdate } from './candidature.model';
+import { SaisieValide } from '../saisie-valide';
 
 @Component({
-  selector: 'app-candidature-form', standalone: true, imports: [FormsModule],
+  selector: 'app-candidature-form', standalone: true, imports: [FormsModule, SaisieValide],
   templateUrl: './candidature-form.html', styleUrls: ['../app.css', '../offres/offres.css']
 })
 export class CandidatureForm implements OnInit {
@@ -58,7 +59,20 @@ export class CandidatureForm implements OnInit {
     });
   }
 
-  enregistrer(): void {
+  erreurEntretien(): string {
+    if (!this.candidature || this.role === 'CANDIDAT') return '';
+    if (!this.entretien) return this.statut === 'ENTRETIEN_PLANIFIE' ? 'Choisissez une date et une heure pour l’entretien.' : '';
+    const modifie = this.entretien !== (this.candidature.dateEntretien?.slice(0, 16) || '');
+    const planifie = this.statut === 'ENTRETIEN_PLANIFIE' && this.statut !== this.candidature.statut;
+    if ((modifie || planifie) && (!Number.isFinite(Date.parse(this.entretien)) || Date.parse(this.entretien) <= Date.now())) {
+      return 'La nouvelle date d’entretien doit être dans le futur.';
+    }
+    return '';
+  }
+
+  enregistrer(valide = true): void {
+    if (!valide || this.enCours || this.chargement() || this.erreurChoix() || this.erreurEntretien()) return;
+    if (this.role !== 'RECRUTEUR' && !this.lettre.trim()) return;
     if (!this.candidature) {
       if (!this.offreId || !this.cvId) return;
       this.valider.emit({ offreId: this.offreId, cvId: this.cvId, lettre: this.lettre.trim(), ...(this.role === 'ADMIN' && this.userId ? { userId: this.userId } : {}) });
@@ -69,7 +83,7 @@ export class CandidatureForm implements OnInit {
     if (this.role !== 'CANDIDAT') {
       if (this.statut !== this.candidature.statut) demande.statut = this.statut;
       // N'envoie pas une ancienne date inchangée : le backend valide les nouvelles dates futures.
-      if (this.entretien && this.entretien !== (this.candidature.dateEntretien?.slice(0, 16) || '')) demande.dateEntretien = this.entretien + ':00';
+      if (this.entretien && this.entretien !== (this.candidature.dateEntretien?.slice(0, 16) || '')) demande.dateEntretien = this.entretien.length === 16 ? this.entretien + ':00' : this.entretien;
       if (this.note !== null) demande.noteRecruteur = this.note;
       demande.commentaireRecruteur = this.commentaire;
     }

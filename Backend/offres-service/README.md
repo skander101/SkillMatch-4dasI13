@@ -418,3 +418,16 @@ Les règles de doublon restent protégées par le service et la contrainte MySQL
 Angular masque désormais Postuler dès qu'une candidature existe, même retirée.
 Fermer une offre conserve l'historique et bloque les nouvelles candidatures.
 La description est limitée à 10000 caractères dans le DTO et le formulaire.
+
+## Contrôles de saisie
+
+Les formulaires d'ajout et modification partagent les contrôles numériques et
+de dates, avec messages sous les champs selon le rôle. Les annotations des DTO
+et les services restent les contrôles de référence côté API.
+`spring.jackson.deserialization.accept-float-as-int=false` refuse un CV, une
+référence ou une note décimale (400), au lieu de convertir silencieusement 1.5 en 1.
+Le salaire reste un nombre décimal autorisé, positif ou nul.
+Les tests `CandidatureControllerTest` couvrent les saisies HTTP incorrectes ;
+`CandidatureCrudIT` vérifie aussi cette configuration dans le vrai contexte Spring
+avec transaction MySQL annulée après le test. Les tests de service vérifient les
+droits et la lettre vide pour CANDIDAT/ADMIN, ainsi que le traitement RECRUTEUR/ADMIN.

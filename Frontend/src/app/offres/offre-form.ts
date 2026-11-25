@@ -3,11 +3,12 @@ import { FormsModule } from '@angular/forms';
 import { Offre, OffreRequest, OffreStatut } from './offre.model';
 import { UserService } from '../user/user.service';
 import { User } from '../user/user.model';
+import { SaisieValide } from '../saisie-valide';
 
 @Component({
   selector: 'app-offre-form',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, SaisieValide],
   templateUrl: './offre-form.html',
   styleUrls: ['../app.css', './offres.css'] // Réutilise le thème et les modales du template.
 })
@@ -55,7 +56,7 @@ export class OffreForm implements OnChanges, OnInit {
   }
 
   enregistrer(valide = true): void {
-    if (!valide || this.erreurDate() || !this.formulaire.titre.trim() || this.enCours) return;
+    if (!valide || this.erreurDate() || !this.formulaire.titre.trim() || this.enCours || this.chargement() || this.erreurChoix()) return;
     const competences = this.competences.split(',').map(valeur => valeur.trim()).filter(Boolean);
     this.valider.emit({ ...this.formulaire, titre: this.formulaire.titre.trim(), competences: [...new Set(competences)] });
   }

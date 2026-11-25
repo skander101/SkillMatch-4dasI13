@@ -1,6 +1,8 @@
 package tn.esprit.skillmatch.offres.service; // Tests courts des règles essentielles.
 
 import org.junit.jupiter.api.*; // Tests et préparation.
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.api.extension.ExtendWith; // Active Mockito.
 import org.mockito.*; // Faux repositories.
 import org.mockito.junit.jupiter.MockitoExtension; // Support Mockito.
@@ -114,6 +116,26 @@ class CandidatureServiceTest {
     }
 
     private CandidatureRequest demande() { return new CandidatureRequest(10L, "Lettre", 3L, null); } // Candidat de session.
+
+    @ParameterizedTest
+    @ValueSource(strings = {"CANDIDAT", "ADMIN"})
+    void refuseUneLettreVideLorsDeLaModification(String role) {
+        connecter(role, 1L);
+        when(candidatures.findById(5L)).thenReturn(Optional.of(candidature));
+        erreur(400, () -> service.modifier(5L, new CandidatureUpdate(" \n ", 1L, null, null, null, null), token));
+        verify(candidatures, never()).save(any());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"RECRUTEUR", "ADMIN"})
+    void permetUnCommentaireSansReplanifierUnAncienEntretien(String role) {
+        connecter(role, 2L);
+        candidature.setStatut(CandidatureStatut.ENTRETIEN_PLANIFIE);
+        candidature.setDateEntretien(LocalDateTime.now().minusDays(1));
+        when(candidatures.findById(5L)).thenReturn(Optional.of(candidature));
+        when(candidatures.save(candidature)).thenReturn(candidature);
+        assertEquals("Avis", service.modifier(5L, new CandidatureUpdate(null, null, null, null, null, "Avis"), token).commentaireRecruteur());
+    }
 
     private void connecter(String role, Long id) { when(identites.courante(token)).thenReturn(new Identite(id, "Test", "test@example.invalid", role)); } // Identité de test.
 

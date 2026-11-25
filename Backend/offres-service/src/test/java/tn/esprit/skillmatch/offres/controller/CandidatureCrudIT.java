@@ -20,7 +20,7 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest
+@SpringBootTest(properties = "eureka.client.enabled=false") // Ne s'inscrit pas dans l'annuaire pendant le test.
 @AutoConfigureMockMvc
 @Transactional
 class CandidatureCrudIT {
@@ -39,6 +39,8 @@ class CandidatureCrudIT {
         offres.saveAndFlush(offre);
         when(identites.courante("Bearer test")).thenReturn(new Identite(2L, "Test", "test@example.invalid", "CANDIDAT"));
         String body = "{\"offreId\":" + offre.getId() + ",\"lettre\":\"Ma lettre\",\"cvId\":3}";
+        mvc.perform(post("/skillmatch/candidatures").header("Authorization", "Bearer test").contentType(MediaType.APPLICATION_JSON).content(body.replace("\"cvId\":3", "\"cvId\":1.5")))
+                .andExpect(status().isBadRequest()); // Vérifie la vraie configuration Jackson, sans troncature.
         String resultat = mvc.perform(post("/skillmatch/candidatures").header("Authorization", "Bearer test").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.statut").value("RECUE")).andExpect(jsonPath("$.dateCandidature").isNotEmpty())
                 .andReturn().getResponse().getContentAsString();

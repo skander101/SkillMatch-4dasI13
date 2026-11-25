@@ -197,6 +197,30 @@ Les champs d'entretien et note laissés vides conservent leur valeur backend.
 Le tableau de bord et les autres modules de démonstration du collègue restent
 distincts des rubriques Offres/Candidatures connectées.
 
+### Contrôles des formulaires (ajout et modification)
+
+- Offre RECRUTEUR/ADMIN : titre non vide, contrat et expiration obligatoires,
+  cohérence date/statut, salaire facultatif positif ou nul, limites de texte,
+  références facultatives entières positives et choix du recruteur pour ADMIN.
+- Candidature CANDIDAT/ADMIN : lettre non vide (10000 caractères maximum),
+  CV entier positif, choix de l'offre ouverte et du candidat pour l'ajout ADMIN.
+- Traitement RECRUTEUR/ADMIN : statut obligatoire, note facultative entière
+  positive ou nulle, commentaire limité à 10000 caractères ; une nouvelle date
+  d'entretien doit être future et une planification nécessite une date.
+  Une date existante inchangée n'est pas renvoyée, même si elle est passée.
+
+Les champs invalides sont signalés après avoir quitté le champ ou cliqué sur
+Enregistrer ; aucune requête d'enregistrement ne part tant que le formulaire
+est invalide. Le validateur `saisie-valide.ts` est partagé par les deux formulaires.
+Les champs restent limités au rôle : le candidat ne traite pas une candidature,
+le recruteur ne modifie pas sa lettre/CV et ne crée pas de candidature.
+Le backend maintient les mêmes validations et refuse aussi les nombres décimaux
+pour les identifiants et les notes, plutôt que de les tronquer.
+
+Commandes : `npm run test:forms` (5 tests du validateur), puis `npm run build`.
+Ces tests vérifient les nombres/dates et la saisie native invalide ; ils ne
+remplacent pas une vérification visuelle des messages dans le navigateur.
+
 ### Vérification de cette étape
 
 `npm run build` réussit. Avec MySQL et les trois services locaux, le navigateur
@@ -205,7 +229,8 @@ la recherche, le tri décroissant et l'annulation de suppression. Le candidat
 voit l'offre publiée sans boutons de gestion. Les six tris, la fermeture et la
 suppression ont aussi été vérifiés par HTTP via la Gateway. Les deux comptes et
 les deux offres temporaires ont été supprimés après le test.
-Le projet ne dispose pas encore d'un lanceur de tests Angular automatisés.
+`npm run test:forms` vérifie le validateur Angular partagé avec le lanceur Node,
+sans dépendance supplémentaire. Les interactions de navigateur ne sont pas automatisées.
 
 ### Vérification candidatures et ADMIN
 

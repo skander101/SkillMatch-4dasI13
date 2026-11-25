@@ -5,6 +5,7 @@
   "scripts": {
     "start": "ng serve --open",
     "build": "ng build",
+    "test:forms": "node --test tests/saisie-valide.test.mjs",
     "dev": "ng serve --host 0.0.0.0"
   },
   "dependencies": {

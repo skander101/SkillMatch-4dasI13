@@ -5,23 +5,42 @@
     <h2 id="candidature-titre">{{ candidature ? 'Modifier la candidature' : 'Déposer une candidature' }}</h2>
     @if (chargement()) { <p role="status">Chargement des choix…</p> }
     @if (erreurChoix()) { <p class="auth-error" role="alert">{{ erreurChoix() }}</p> }
-    <form #form="ngForm" class="offre-champs" (ngSubmit)="form.valid && enregistrer()">
+    <p>Les champs marqués * sont obligatoires.</p>
+    <form #form="ngForm" class="offre-champs" (ngSubmit)="enregistrer(form.valid === true)">
       @if (!candidature && role === 'ADMIN') {
-        <label>Offre ouverte *<select name="offre" [(ngModel)]="offreId" required><option [ngValue]="null">Choisir une offre</option>@for (o of offres(); track o.id) { <option [ngValue]="o.id">{{ o.titre }}</option> }</select></label>
-        <label>Candidat *<select name="candidat" [(ngModel)]="userId" required><option [ngValue]="null">Choisir un candidat</option>@for (u of candidats(); track u.id) { <option [ngValue]="u.id">{{ u.nom }} — {{ u.email }}</option> }</select></label>
+        <label>Offre ouverte *<select name="offre" #offre="ngModel" [(ngModel)]="offreId" required><option [ngValue]="null">Choisir une offre</option>@for (o of offres(); track o.id) { <option [ngValue]="o.id">{{ o.titre }}</option> }</select>
+          @if (offre.invalid && (offre.touched || form.submitted)) { <small class="champ-erreur" role="alert">Choisissez une offre ouverte.</small> }
+        </label>
+        <label>Candidat *<select name="candidat" #candidat="ngModel" [(ngModel)]="userId" required><option [ngValue]="null">Choisir un candidat</option>@for (u of candidats(); track u.id) { <option [ngValue]="u.id">{{ u.nom }} — {{ u.email }}</option> }</select>
+          @if (candidat.invalid && (candidat.touched || form.submitted)) { <small class="champ-erreur" role="alert">Choisissez un candidat.</small> }
+        </label>
       }
       @if (role !== 'RECRUTEUR') {
-        <label class="large">Lettre de motivation *<textarea name="lettre" [(ngModel)]="lettre" required maxlength="10000" rows="5"></textarea></label>
-        <label class="large">Référence CV *<input name="cvId" type="number" [(ngModel)]="cvId" required min="1" step="1"><small>Phase 1 : référence numérique de test. Aucun fichier CV n'est envoyé.</small></label>
+        <label class="large">Lettre de motivation *<textarea name="lettre" #motivation="ngModel" [(ngModel)]="lettre" required pattern="[\s\S]*\S[\s\S]*" maxlength="10000" rows="5"></textarea>
+          @if (motivation.invalid && (motivation.touched || form.submitted)) { <small class="champ-erreur" role="alert">Saisissez une lettre non vide, de 10000 caractères maximum.</small> }
+        </label>
+        <label class="large">Référence CV *<input name="cvId" #cv="ngModel" type="number" [(ngModel)]="cvId" saisieValide="entier" required min="1" step="1"><small>Phase 1 : référence numérique de test. Aucun fichier CV n'est envoyé.</small>
+          @if (cv.invalid && (cv.touched || form.submitted)) { <small class="champ-erreur" role="alert">La référence CV doit être un entier positif, par exemple 1.</small> }
+        </label>
       }
       @if (candidature && role !== 'CANDIDAT') {
-        <label>Statut<select name="statut" [(ngModel)]="statut">@if (!statuts.includes(candidature.statut)) { <option [value]="candidature.statut" disabled>{{ candidature.statut }}</option> }@for (s of statuts; track s) { <option [value]="s">{{ s }}</option> }</select></label>
-        <label>Date d'entretien<input name="entretien" type="datetime-local" [(ngModel)]="entretien" [required]="statut === 'ENTRETIEN_PLANIFIE'"><small>Une nouvelle planification exige une date future.</small></label>
-        <label>Note recruteur<input name="note" type="number" [(ngModel)]="note" min="0" step="1"></label>
-        <label class="large">Commentaire recruteur<textarea name="commentaire" [(ngModel)]="commentaire" maxlength="10000" rows="3"></textarea></label>
+        <label>Statut *<select name="statut" #etat="ngModel" [(ngModel)]="statut" required>@if (!statuts.includes(candidature.statut)) { <option [value]="candidature.statut" disabled>{{ candidature.statut }}</option> }@for (s of statuts; track s) { <option [value]="s">{{ s }}</option> }</select>
+          @if (etat.invalid && (etat.touched || form.submitted)) { <small class="champ-erreur" role="alert">Choisissez un statut autorisé.</small> }
+        </label>
+        <label>Date d'entretien{{ statut === 'ENTRETIEN_PLANIFIE' ? ' *' : '' }}<input name="entretien" #date="ngModel" type="datetime-local" [(ngModel)]="entretien" saisieValide="date" [required]="statut === 'ENTRETIEN_PLANIFIE'" [attr.aria-invalid]="(date.invalid || !!erreurEntretien()) && (date.touched || form.submitted)">
+          @if ((date.invalid || erreurEntretien()) && (date.touched || form.submitted)) { <small class="champ-erreur" role="alert">{{ erreurEntretien() || 'Saisissez une date et une heure valides.' }}</small> }
+          <small>Une nouvelle date doit être future. La date existante est conservée si elle n'est pas modifiée.</small>
+        </label>
+        <label>Note recruteur<input name="note" #evaluation="ngModel" type="number" [(ngModel)]="note" saisieValide="entier" min="0" max="2147483647" step="1">
+          @if (evaluation.invalid && (evaluation.touched || form.submitted)) { <small class="champ-erreur" role="alert">La note doit être un entier positif ou nul (maximum 2147483647).</small> }
+        </label>
+        <label class="large">Commentaire recruteur<textarea name="commentaire" #avis="ngModel" [(ngModel)]="commentaire" maxlength="10000" rows="3"></textarea>
+          @if (avis.invalid && (avis.touched || form.submitted)) { <small class="champ-erreur" role="alert">Le commentaire ne peut pas dépasser 10000 caractères.</small> }
+        </label>
       }
       @if (erreur) { <p class="auth-error large" role="alert">{{ erreur }}</p> }
-      <div class="offre-actions large"><button type="button" class="btn btn-outline" [disabled]="enCours" (click)="annuler.emit()">Annuler</button><button class="btn btn-solid" type="submit" [disabled]="form.invalid || enCours || chargement() || !!erreurChoix() || (role !== 'RECRUTEUR' && !lettre.trim())">{{ enCours ? 'Enregistrement…' : 'Enregistrer' }}</button></div>
+      @if (form.submitted && (form.invalid || erreurEntretien())) { <p class="champ-erreur large" role="alert">Corrigez les champs signalés avant d'enregistrer.</p> }
+      <div class="offre-actions large"><button type="button" class="btn btn-outline" [disabled]="enCours" (click)="annuler.emit()">Annuler</button><button class="btn btn-solid" type="submit" [disabled]="enCours || chargement() || !!erreurChoix()">{{ enCours ? 'Enregistrement…' : 'Enregistrer' }}</button></div>
     </form>
   </section>
 </div>

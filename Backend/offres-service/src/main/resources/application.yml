@@ -4,6 +4,9 @@ server:
 spring:
   application:
     name: offres-service
+  jackson:
+    deserialization:
+      accept-float-as-int: false # Refuse CV, identifiants et notes décimaux au lieu de les tronquer.
   # Phase 1 : conserver les dependances du template sans activer RabbitMQ.
   autoconfigure:
     exclude: org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration
