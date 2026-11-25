@@ -84,6 +84,32 @@ public class AlerteService {
         alerteRepository.delete(getAlerteDuCandidat(userId, id));
     }
 
+    // ---------- Back office (rôle ADMIN) ----------
+
+    /** GET /skillmatch/alerts/admin : toutes les alertes, les plus récentes d'abord. */
+    @Transactional(readOnly = true)
+    public List<AlerteResponse> findAll() {
+        return alerteRepository.findAllByOrderByDateCreationDesc()
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    /** PUT /skillmatch/alerts/admin/{id}/active : 200, 404, 422 (le quota du candidat reste appliqué). */
+    public AlerteResponse adminChangeActive(Long id, boolean active) {
+        AlerteEmploi alerte = getAlerte(id);
+        if (active && !alerte.isActive()) {
+            verifierQuotaActives(alerte.getUserId());
+        }
+        alerte.setActive(active);
+        return toResponse(alerteRepository.save(alerte));
+    }
+
+    /** DELETE /skillmatch/alerts/admin/{id} : 204, 404 */
+    public void adminDelete(Long id) {
+        alerteRepository.delete(getAlerte(id));
+    }
+
     /** Utilisé par le consommateur RabbitMQ OfferPublished. */
     @Transactional(readOnly = true)
     public List<AlerteEmploi> findCorrespondantes(String titre, List<String> competences,
@@ -115,12 +141,16 @@ public class AlerteService {
 
     /** 404 si l'alerte n'existe pas, 403 si elle appartient à un autre candidat. */
     private AlerteEmploi getAlerteDuCandidat(Long userId, Long id) {
-        AlerteEmploi alerte = alerteRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Alerte introuvable"));
+        AlerteEmploi alerte = getAlerte(id);
         if (!alerte.getUserId().equals(userId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cette alerte appartient à un autre utilisateur");
         }
         return alerte;
+    }
+
+    private AlerteEmploi getAlerte(Long id) {
+        return alerteRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Alerte introuvable"));
     }
 
     private static List<String> normaliser(List<String> motsCles) {

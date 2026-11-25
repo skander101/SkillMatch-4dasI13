@@ -1,0 +1,96 @@
+<div class="page-heading">
+  <div>
+    <span class="eyebrow">MICROSERVICE ALERTES &amp; FAVORIS</span>
+    <h1>{{ view() === 'alertes' ? 'Alertes emploi' : 'Offres sauvegardées' }}</h1>
+    <p>{{ view() === 'alertes' ? 'Règles configurées par les candidats (GET /skillmatch/alerts/admin)' : 'Favoris de tous les candidats (GET /skillmatch/favorites/admin)' }}</p>
+  </div>
+  <button type="button" class="button secondary" [disabled]="chargement()" (click)="charger()">↻ Actualiser</button>
+</div>
+
+<div class="kpis">
+  <div class="kpi dark"><span>Alertes</span><b>{{ alertes().length }}</b><small>au total</small></div>
+  <div class="kpi"><span>Actives</span><b>{{ nbActives() }}</b><small>{{ alertes().length - nbActives() }} en pause</small></div>
+  <div class="kpi"><span>Favoris</span><b>{{ favoris().length }}</b><small>offres sauvegardées</small></div>
+  <div class="kpi"><span>Candidats</span><b>{{ nbCandidats() }}</b><small>utilisent le service</small></div>
+</div>
+
+@if (erreur()) {<p class="error" role="alert">{{ erreur() }}</p>}
+
+<section class="panel">
+  <div class="panel-heading">
+    <div>
+      <h3>{{ view() === 'alertes' ? alertesFiltrees().length : favorisFiltres().length }} résultat(s)</h3>
+      <p>Données réelles de alertes-service (base alertes_db)</p>
+    </div>
+    <input class="filter" aria-label="Filtrer" placeholder="Filtrer..." [value]="filtre()" (input)="filtre.set($any($event.target).value)">
+  </div>
+
+  @if (chargement()) {
+    <p class="muted">Chargement...</p>
+  } @else if (view() === 'alertes') {
+    <div class="table-wrap"><table>
+      <thead><tr><th>ID</th><th>Candidat</th><th>Mots-clés</th><th>Localisation</th><th>Contrat</th><th>Fréquence</th><th>Créée le</th><th>Statut</th><th>Actions</th></tr></thead>
+      <tbody>
+        @for (alerte of alertesFiltrees(); track alerte.id) {
+          <tr>
+            <td>#{{ alerte.id }}</td>
+            <td><b>{{ candidat(alerte.userId) }}</b>@if (email(alerte.userId)) {<small>{{ email(alerte.userId) }}</small>}</td>
+            <td><span class="chips">@for (mot of alerte.motsCles; track mot) {<span class="chip">{{ mot }}</span>}</span></td>
+            <td>{{ alerte.localisation ?? 'Toutes' }}</td>
+            <td>{{ alerte.contrat ?? 'Tous' }}</td>
+            <td>{{ libelleFrequence(alerte.frequence) }}</td>
+            <td>{{ dateCourte(alerte.dateCreation) }}</td>
+            <td><span class="badge" [class.green]="alerte.active" [class.amber]="!alerte.active">{{ alerte.active ? 'Active' : 'En pause' }}</span></td>
+            <td class="row-actions">
+              @if (aSupprimer() === alerte.id) {
+                <button type="button" class="text-button danger" (click)="supprimerAlerte(alerte.id)">Confirmer</button>
+                <button type="button" class="text-button" (click)="aSupprimer.set(null)">Annuler</button>
+              } @else {
+                <button type="button" class="text-button" (click)="basculerActive(alerte)">{{ alerte.active ? 'Désactiver' : 'Activer' }}</button>
+                <button type="button" class="text-button danger" (click)="aSupprimer.set(alerte.id)">Supprimer</button>
+              }
+            </td>
+          </tr>
+        } @empty {
+          <tr><td colspan="9" class="muted">Aucune alerte enregistrée.</td></tr>
+        }
+      </tbody>
+    </table></div>
+  } @else {
+    <div class="split">
+      <div class="table-wrap"><table>
+        <thead><tr><th>ID</th><th>Candidat</th><th>Offre</th><th>Sauvegardée le</th><th>Actions</th></tr></thead>
+        <tbody>
+          @for (favori of favorisFiltres(); track favori.id) {
+            <tr>
+              <td>#{{ favori.id }}</td>
+              <td><b>{{ candidat(favori.userId) }}</b>@if (email(favori.userId)) {<small>{{ email(favori.userId) }}</small>}</td>
+              <td>Offre n° {{ favori.offerId }}</td>
+              <td>{{ dateCourte(favori.date) }}</td>
+              <td class="row-actions">
+                @if (aSupprimer() === favori.id) {
+                  <button type="button" class="text-button danger" (click)="supprimerFavori(favori.id)">Confirmer</button>
+                  <button type="button" class="text-button" (click)="aSupprimer.set(null)">Annuler</button>
+                } @else {
+                  <button type="button" class="text-button danger" (click)="aSupprimer.set(favori.id)">Supprimer</button>
+                }
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="5" class="muted">Aucune offre sauvegardée.</td></tr>
+          }
+        </tbody>
+      </table></div>
+      <aside class="top">
+        <h4>Offres les plus sauvegardées</h4>
+        @for (item of topOffres(); track item.offerId) {
+          <div class="top-row"><span>Offre n° {{ item.offerId }}</span><b>{{ item.total }} ♥</b></div>
+        } @empty {
+          <p class="muted">Aucune donnée.</p>
+        }
+      </aside>
+    </div>
+  }
+</section>
+
+@if (feedback()) {<div class="feedback" role="status">{{ feedback() }}</div>}

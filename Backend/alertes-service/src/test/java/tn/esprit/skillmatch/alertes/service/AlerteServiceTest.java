@@ -106,4 +106,37 @@ class AlerteServiceTest {
 
         assertEquals(HttpStatus.UNPROCESSABLE_ENTITY, exception.getStatusCode());
     }
+
+    @Test
+    void lAdminVoitToutesLesAlertes() {
+        when(repository.findAllByOrderByDateCreationDesc()).thenReturn(List.of(
+                new AlerteEmploi(1L, List.of("java"), null, null, null),
+                new AlerteEmploi(2L, List.of("react"), "Sfax", ContratType.STAGE, null)));
+
+        List<AlerteResponse> toutes = service.findAll();
+
+        assertEquals(2, toutes.size());
+        assertEquals(2L, toutes.get(1).userId());
+    }
+
+    @Test
+    void lAdminPeutDesactiverLAlerteDeNimporteQuelCandidat() {
+        AlerteEmploi alerte = new AlerteEmploi(7L, List.of("devops"), null, null, null);
+        alerte.setId(8L);
+        when(repository.findById(8L)).thenReturn(Optional.of(alerte));
+
+        AlerteResponse response = service.adminChangeActive(8L, false);
+
+        assertEquals(false, response.active());
+    }
+
+    @Test
+    void lAdminRecoit404PourUneAlerteInconnue() {
+        when(repository.findById(42L)).thenReturn(Optional.empty());
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class, () ->
+                service.adminDelete(42L));
+
+        assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
+    }
 }

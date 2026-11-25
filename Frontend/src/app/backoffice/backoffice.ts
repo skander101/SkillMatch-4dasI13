@@ -5,6 +5,7 @@ import { NAV_SERVICES, NOTIFICATIONS, AppNotification } from './nav.data';
 import { AuthService } from '../user/auth.service';
 import { CreateUserRequest, Role, UpdateUserRequest, User } from '../user/user.model';
 import { UserService } from '../user/user.service';
+import { BackofficeAlertes } from '../alertes/backoffice-alertes';
 
 interface SideItem {
   id: string;
@@ -33,7 +34,7 @@ interface AdminTable {
 @Component({
   selector: 'app-back-office',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, BackofficeAlertes],
   templateUrl: './backoffice.html',
   styleUrl: './backoffice.css'
 })
@@ -80,7 +81,7 @@ export class BackOffice implements OnInit {
     ] },
     { id: 'alertes', label: 'Alertes & Favoris', path: 'M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8ZM10 20a2 2 0 0 0 4 0', children: [
       { id: 'alertes', label: 'Alertes' },
-      { id: 'alertes', label: 'Favoris' }
+      { id: 'alertes-favoris', label: 'Favoris' }
     ] },
     { id: 'messagerie', label: 'Messagerie', path: 'M4 5h16v11H9l-5 4V5ZM8 10h8', children: [
       { id: 'messagerie', label: 'Conversations' },
@@ -166,16 +167,6 @@ export class BackOffice implements OnInit {
         { cells: ['Test SQL avancé', 'Data', '15', '3 max', '71 %'], status: 'Publié', tone: 'green' },
         { cells: ['Test Figma', 'Design', '10', '3 max', '90 %'], status: 'Brouillon', tone: 'gray' },
         { cells: ['Test Spring Boot', 'Développement', '18', '3 max', '66 %'], status: 'Publié', tone: 'green' }
-      ]
-    },
-    alertes: {
-      title: 'Alertes & Favoris',
-      subtitle: 'Règles configurées par les candidats',
-      columns: ['Alerte', 'Critères', 'Fréquence', 'Offres sauvegardées', 'Dernière notification', 'Statut', 'Actions'],
-      rows: [
-        { cells: ['Java Tunis', 'Java · Tunis · CDI', 'Quotidienne', '4', '18/11/2026'], status: 'Active', tone: 'green' },
-        { cells: ['Data Sfax', 'SQL · Sfax', 'Hebdomadaire', '2', '15/11/2026'], status: 'Active', tone: 'green' },
-        { cells: ['Design remote', 'Figma · Télétravail', 'Quotidienne', '0', '09/11/2026'], status: 'En pause', tone: 'amber' }
       ]
     },
     messagerie: {
@@ -378,6 +369,10 @@ export class BackOffice implements OnInit {
   }
   onNavAction(serviceId: string, label: string): void {
     this.closeNav();
+    if (serviceId === 'alertes') {
+      this.selectSection(label === 'Mes favoris' || label === 'Sauvegarder une offre' ? 'alertes-favoris' : 'alertes');
+      return;
+    }
     const service = this.navServices.find((item) => item.id === serviceId);
     this.showMessage(`${service?.full ?? serviceId} · ${label} — module back office à brancher sur l'API.`);
   }

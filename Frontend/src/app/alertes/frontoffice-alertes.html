@@ -1,0 +1,135 @@
+<section class="alertes-hero">
+  <div class="alertes-wrap">
+    <span class="overline">MICROSERVICE ALERTES &amp; FAVORIS</span>
+    <h1>{{ vue() === 'alertes' ? 'Mes alertes emploi' : 'Mes offres favorites' }}</h1>
+    <p>{{ vue() === 'alertes'
+      ? 'Enregistrez vos critères : dès qu\'une offre correspondante est publiée, vous êtes prévenu.'
+      : 'Retrouvez les offres que vous avez sauvegardées avec le bouton ♡.' }}</p>
+    <nav class="alertes-nav" aria-label="Alertes et favoris">
+      <button type="button" [class.active]="vue() === 'alertes'" (click)="changerVue('alertes')">Mes alertes @if (estCandidat()) {<span>{{ alertes().length }}</span>}</button>
+      <button type="button" [class.active]="vue() === 'favoris'" (click)="changerVue('favoris')">Mes favoris @if (estCandidat()) {<span>{{ favoris().length }}</span>}</button>
+    </nav>
+  </div>
+</section>
+
+<div class="alertes-wrap alertes-body">
+  @if (!estConnecte()) {
+    <section class="card empty">
+      <b>Connectez-vous pour gérer vos alertes et vos favoris.</b>
+      <span>Ces pages sont réservées aux comptes candidats.</span>
+      <button type="button" class="btn" (click)="connexion.emit()">Se connecter</button>
+    </section>
+  } @else if (!estCandidat()) {
+    <section class="card empty">
+      <b>Fonction réservée aux candidats.</b>
+      <span>Connectez-vous avec un compte CANDIDAT pour créer des alertes et sauvegarder des offres.</span>
+    </section>
+  } @else {
+    @if (erreur()) {<p class="error" role="alert">{{ erreur() }}</p>}
+
+    @if (vue() === 'alertes') {
+      <div class="layout">
+        <section class="card form-card">
+          <h2>{{ editionId() === null ? 'Nouvelle alerte' : 'Modifier l\'alerte' }}</h2>
+          <form (submit)="$event.preventDefault(); enregistrer()">
+            <label>Mots-clés <small>séparés par des virgules</small>
+              <input name="motsCles" placeholder="java, spring boot" [value]="motsCles()" (input)="motsCles.set($any($event.target).value)">
+            </label>
+            <label>Localisation
+              <input name="localisation" list="alertes-villes" placeholder="Toutes les villes" [value]="localisation()" (input)="localisation.set($any($event.target).value)">
+              <datalist id="alertes-villes">@for (ville of villes; track ville) {<option [value]="ville"></option>}</datalist>
+            </label>
+            <label>Type de contrat
+              <select name="contrat" (change)="contrat.set($any($event.target).value)">
+                <option value="" [selected]="contrat() === ''">Tous les contrats</option>
+                @for (item of contrats; track item) {<option [value]="item" [selected]="contrat() === item">{{ item }}</option>}
+              </select>
+            </label>
+            <label>Fréquence
+              <select name="frequence" (change)="frequence.set($any($event.target).value)">
+                @for (item of frequences; track item.value) {<option [value]="item.value" [selected]="frequence() === item.value">{{ item.label }}</option>}
+              </select>
+            </label>
+            @if (editionId() === null && quotaAtteint()) {
+              <p class="hint">Vous avez déjà {{ maxActives }} alertes actives : mettez-en une en pause avant d'en créer une nouvelle.</p>
+            }
+            <div class="actions">
+              <button type="submit" class="btn" [disabled]="enregistrement()">{{ enregistrement() ? 'Enregistrement...' : (editionId() === null ? 'Créer l\'alerte' : 'Enregistrer') }}</button>
+              @if (editionId() !== null) {<button type="button" class="btn ghost" (click)="annulerEdition()">Annuler</button>}
+            </div>
+          </form>
+        </section>
+
+        <section class="list">
+          <div class="list-head">
+            <h2>{{ alertes().length }} alerte(s)</h2>
+            <span class="quota" [class.full]="quotaAtteint()">{{ nbActives() }} / {{ maxActives }} actives</span>
+          </div>
+          @if (chargement()) {
+            <p class="muted">Chargement...</p>
+          } @else if (!alertes().length) {
+            <div class="card empty small"><b>Aucune alerte pour le moment.</b><span>Créez votre première alerte avec le formulaire.</span></div>
+          }
+          @for (alerte of alertes(); track alerte.id) {
+            <article class="card alerte" [class.paused]="!alerte.active" [class.editing]="editionId() === alerte.id">
+              <div class="alerte-top">
+                <div class="chips">@for (mot of alerte.motsCles; track mot) {<span class="chip">{{ mot }}</span>}</div>
+                <label class="switch" [attr.title]="alerte.active ? 'Mettre en pause' : 'Activer'">
+                  <input type="checkbox" [checked]="alerte.active" (change)="basculerActive(alerte)">
+                  <span></span>
+                </label>
+              </div>
+              <div class="meta">
+                <span>📍 {{ alerte.localisation ?? 'Toutes les villes' }}</span>
+                <span>💼 {{ alerte.contrat ?? 'Tous contrats' }}</span>
+                <span>⏱ {{ libelleFrequence(alerte.frequence) }}</span>
+                <span>Créée le {{ dateCourte(alerte.dateCreation) }}</span>
+              </div>
+              <div class="alerte-foot">
+                <span class="status" [class.on]="alerte.active">{{ alerte.active ? 'Active' : 'En pause' }}</span>
+                @if (aSupprimer() === alerte.id) {
+                  <span class="confirm">Supprimer ?
+                    <button type="button" class="link danger" (click)="supprimer(alerte.id)">Oui</button>
+                    <button type="button" class="link" (click)="aSupprimer.set(null)">Non</button>
+                  </span>
+                } @else {
+                  <span>
+                    <button type="button" class="link" (click)="modifier(alerte)">Modifier</button>
+                    <button type="button" class="link danger" (click)="aSupprimer.set(alerte.id)">Supprimer</button>
+                  </span>
+                }
+              </div>
+            </article>
+          }
+        </section>
+      </div>
+    } @else {
+      <section class="list">
+        @if (!favoris().length) {
+          <div class="card empty">
+            <b>Aucune offre sauvegardée.</b>
+            <span>Cliquez sur ♡ dans la liste des offres pour la retrouver ici.</span>
+            <button type="button" class="btn" (click)="voirOffres.emit()">Parcourir les offres</button>
+          </div>
+        } @else {
+          <div class="fav-grid">
+            @for (favori of favoris(); track favori.id) {
+              @let detail = offre(favori.offerId);
+              <article class="card favori">
+                <span class="heart" aria-hidden="true">♥</span>
+                <div>
+                  <h3>{{ detail?.title ?? 'Offre n° ' + favori.offerId }}</h3>
+                  @if (detail) {<p>{{ detail.company }} · {{ detail.location }} · {{ detail.contract }}</p>}
+                  <small>Sauvegardée le {{ dateCourte(favori.date) }}</small>
+                </div>
+                <button type="button" class="btn ghost" (click)="retirerFavori(favori)">Retirer</button>
+              </article>
+            }
+          </div>
+        }
+      </section>
+    }
+  }
+</div>
+
+@if (feedback()) {<div class="feedback" role="status">{{ feedback() }}</div>}

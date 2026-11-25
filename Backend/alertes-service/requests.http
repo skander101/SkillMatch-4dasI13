@@ -58,3 +58,29 @@ Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {"motsCles":[]}
+
+### 11. Back office : créer un compte ADMIN (renseigner adminToken avec le token reçu)
+POST http://localhost:8080/skillmatch/auth/register
+Content-Type: application/json
+
+{"nom":"Admin Alertes","email":"admin.alertes@skillmatch.tn","password":"123456","role":"ADMIN"}
+
+### 12. Toutes les alertes (ADMIN) -> 200 ; avec un token CANDIDAT -> 403
+GET http://localhost:8080/skillmatch/alerts/admin
+Authorization: Bearer {{adminToken}}
+
+### 13. Désactiver une alerte (ADMIN) -> 200
+PUT http://localhost:8080/skillmatch/alerts/admin/1/active
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"active":false}
+
+### 14. Tous les favoris (ADMIN) -> 200
+GET http://localhost:8080/skillmatch/favorites/admin
+Authorization: Bearer {{adminToken}}
+
+### 15. Supprimer un favori (ADMIN) -> 204
+DELETE http://localhost:8080/skillmatch/favorites/admin/1
+Authorization: Bearer {{adminToken}}
+

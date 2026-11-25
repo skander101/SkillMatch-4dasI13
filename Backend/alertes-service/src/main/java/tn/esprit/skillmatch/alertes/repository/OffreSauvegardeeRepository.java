@@ -9,5 +9,7 @@ public interface OffreSauvegardeeRepository extends JpaRepository<OffreSauvegard
 
     List<OffreSauvegardee> findByUserIdOrderByDateDesc(Long userId);
 
+    List<OffreSauvegardee> findAllByOrderByDateDesc();
+
     boolean existsByUserIdAndOfferId(Long userId, Long offerId);
 }

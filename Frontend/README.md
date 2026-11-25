@@ -42,6 +42,11 @@ src/
 │   ├── app.ts                  logique de la page, auth et bascule back office
 │   ├── app.html                interface publique + conteneur back office
 │   ├── app.css                 thème vert foncé et responsive
+│   ├── alertes/
+│   │   ├── alertes.model.ts            Alerte, Favori, ContratType, Frequence
+│   │   ├── alertes.service.ts          appels alertes-service + favoris partagés (bouton ♡)
+│   │   ├── frontoffice-alertes.*       pages « Mes alertes » et « Mes favoris »
+│   │   └── backoffice-alertes.*        rubrique back office « Alertes & Favoris »
 │   ├── backoffice/
 │   │   ├── backoffice.ts       panneau admin et CRUD utilisateurs
 │   │   ├── backoffice.html     interface du back office
@@ -140,6 +145,59 @@ curl -X POST http://localhost:8080/skillmatch/auth/register \
   -d '{"nom":"Admin BO","email":"admin.bo.test@skillmatch.tn","password":"123456","role":"ADMIN"}'
 ```
 
+## Alertes & Favoris
+
+Le microservice [`Backend/alertes-service/`](../Backend/alertes-service/README.md) (port `8085`) est routé par la gateway sur `/skillmatch/alerts/**` et `/skillmatch/favorites/**`. Responsable : Amir Khemissi.
+
+### Front office (compte `CANDIDAT`)
+
+Le menu « Alertes » de l'en-tête ouvre le composant `FrontofficeAlertes` à la place de l'accueil :
+
+- « Créer une alerte emploi » et « Gérer mes alertes » ouvrent la page **Mes alertes** : formulaire (mots-clés, localisation, contrat, fréquence), liste des alertes, interrupteur actif / en pause, modification et suppression ;
+- « Mes favoris » ouvre la page **Mes favoris** : offres sauvegardées et bouton « Retirer » ;
+- « Sauvegarder une offre » ramène à la liste des offres.
+
+Le bouton **♡** des cartes d'offre est relié à l'API : il ajoute ou retire l'offre des favoris du candidat connecté. Les favoris sont chargés après la connexion et vidés à la déconnexion. Sans connexion, le bouton ouvre la fenêtre de connexion ; avec un compte d'un autre rôle, un message indique que la fonction est réservée aux candidats.
+
+| Action | Endpoint | Méthode |
+|---|---|---|
+| Mes alertes | `/skillmatch/alerts/me` | `GET` |
+| Créer une alerte | `/skillmatch/alerts` | `POST` |
+| Modifier une alerte | `/skillmatch/alerts/{id}` | `PUT` |
+| Activer / mettre en pause | `/skillmatch/alerts/{id}/active` | `PUT` |
+| Supprimer une alerte | `/skillmatch/alerts/{id}` | `DELETE` |
+| Mes favoris | `/skillmatch/favorites/me` | `GET` |
+| Sauvegarder une offre (♡) | `/skillmatch/favorites` | `POST` |
+| Retirer un favori (♥) | `/skillmatch/favorites/{id}` | `DELETE` |
+
+Les erreurs du backend sont affichées telles quelles : `409` (alerte identique ou offre déjà en favori), `422` (plus de 5 alertes actives), `401` / `403` (connexion ou rôle).
+
+### Back office (compte `ADMIN`)
+
+Dans le menu latéral, « Alertes & Favoris » propose deux entrées, rendues par le composant `BackofficeAlertes` avec les données réelles de `alertes_db` :
+
+- **Alertes** : indicateurs (total, actives, favoris, candidats), tableau filtrable, activer / désactiver, supprimer ;
+- **Favoris** : tableau filtrable, suppression, et classement des offres les plus sauvegardées.
+
+Le nom et l'email du candidat proviennent de la liste des utilisateurs déjà chargée par le back office (`GET /skillmatch/utilisateurs`).
+
+| Action | Endpoint | Méthode |
+|---|---|---|
+| Toutes les alertes | `/skillmatch/alerts/admin` | `GET` |
+| Activer / désactiver | `/skillmatch/alerts/admin/{id}/active` | `PUT` |
+| Supprimer une alerte | `/skillmatch/alerts/admin/{id}` | `DELETE` |
+| Tous les favoris | `/skillmatch/favorites/admin` | `GET` |
+| Supprimer un favori | `/skillmatch/favorites/admin/{id}` | `DELETE` |
+
+### Tester
+
+1. Démarrer MySQL, `commun-service` (8087), `alertes-service` (8085) et `api-gateway`.
+2. `npm install` puis `npm start`, ouvrir `http://localhost:4200`.
+3. S'inscrire avec le rôle `CANDIDAT`, cliquer sur ♡ d'une offre, puis menu « Alertes » → « Mes favoris » et « Gérer mes alertes ».
+4. Se déconnecter, s'inscrire avec le rôle `ADMIN` : le back office s'ouvre ; menu « Alertes & Favoris » → « Alertes » puis « Favoris ».
+
+Les offres de la page d'accueil sont encore fictives (ids 1 à 6) : leur id est envoyé comme `offerId`. Laisser `OFFRES_VERIFICATION_ENABLED=false` tant que `offres-service` n'est pas branché.
+
 ## Configuration de l'API
 
 L'URL de l'API Gateway est définie dans `src/environments/environment.development.ts` :
@@ -156,7 +214,8 @@ En développement, l'API Gateway autorise toutes les origines (`allowedOriginPat
 ## État du template
 
 - Recherche par compétence, domaine et ville : fonctionnelle sur les données fictives.
-- Liste des offres, favoris et détails d'offre : démonstration locale.
+- Liste des offres et détails d'offre : démonstration locale.
+- Favoris (♡), « Mes alertes », « Mes favoris » et back office « Alertes & Favoris » : connectés à `alertes-service`.
 - Authentification et inscription : connectées à l'API.
 - Profils, tests, alertes, entreprises et messagerie : à brancher progressivement sur les microservices.
 

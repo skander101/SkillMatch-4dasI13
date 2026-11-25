@@ -41,14 +41,32 @@ public class FavoriService {
                 .toList();
     }
 
+    /** GET /skillmatch/favorites/admin : tous les favoris (back office). */
+    @Transactional(readOnly = true)
+    public List<FavoriResponse> findAll() {
+        return favoriRepository.findAllByOrderByDateDesc()
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    /** DELETE /skillmatch/favorites/admin/{id} : 204, 404 (back office). */
+    public void adminDelete(Long id) {
+        favoriRepository.delete(getFavori(id));
+    }
+
     /** DELETE /skillmatch/favorites/{id} : 204, 403, 404 */
     public void delete(Long userId, Long id) {
-        OffreSauvegardee favori = favoriRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Favori introuvable"));
+        OffreSauvegardee favori = getFavori(id);
         if (!favori.getUserId().equals(userId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ce favori appartient à un autre utilisateur");
         }
         favoriRepository.delete(favori);
+    }
+
+    private OffreSauvegardee getFavori(Long id) {
+        return favoriRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Favori introuvable"));
     }
 
     private FavoriResponse toResponse(OffreSauvegardee favori) {

@@ -11,6 +11,8 @@ public interface AlerteEmploiRepository extends JpaRepository<AlerteEmploi, Long
 
     List<AlerteEmploi> findByUserId(Long userId);
 
+    List<AlerteEmploi> findAllByOrderByDateCreationDesc();
+
     List<AlerteEmploi> findByActiveTrue();
 
     long countByUserIdAndActiveTrue(Long userId);

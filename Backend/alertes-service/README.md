@@ -32,7 +32,7 @@ Les erreurs JSON ont la forme `{"status":422,"message":"Un candidat ne peut pas 
 
 ## Sécurité
 
-Comme `AdminInterceptor` dans `commun-service`, un intercepteur vérifie le JWT sur `/skillmatch/alerts/**` et `/skillmatch/favorites/**` :
+Comme `AdminInterceptor` dans `commun-service`, `CandidatInterceptor` vérifie le JWT sur `/skillmatch/alerts/**` et `/skillmatch/favorites/**` (sauf les routes `/admin`, voir plus bas) :
 
 - pas de jeton ou jeton invalide : `401` ;
 - rôle différent de `CANDIDAT` : `403` ;
@@ -51,6 +51,19 @@ Comme `AdminInterceptor` dans `commun-service`, un intercepteur vérifie le JWT 
 | `POST` | `/skillmatch/favorites` | Sauvegarder une offre | 201, 400, 404, 409, 422, 503 |
 | `GET` | `/skillmatch/favorites/me` | Mes favoris | 200, 401 |
 | `DELETE` | `/skillmatch/favorites/{id}` | Retirer un favori | 204, 403, 404 |
+
+### Back office (rôle `ADMIN`)
+
+Un second intercepteur, `AdminInterceptor`, protège les routes `/admin` (401 sans jeton, 403 si le rôle n'est pas `ADMIN`).
+Ces routes sont exclues de `CandidatInterceptor`.
+
+| Méthode | Route | Description | Codes |
+|---|---|---|---|
+| `GET` | `/skillmatch/alerts/admin` | Toutes les alertes | 200, 401, 403 |
+| `PUT` | `/skillmatch/alerts/admin/{id}/active` | Activer / désactiver une alerte | 200, 400, 404, 422 |
+| `DELETE` | `/skillmatch/alerts/admin/{id}` | Supprimer une alerte | 204, 404 |
+| `GET` | `/skillmatch/favorites/admin` | Tous les favoris | 200, 401, 403 |
+| `DELETE` | `/skillmatch/favorites/admin/{id}` | Supprimer un favori | 204, 404 |
 
 ## Règles métier
 

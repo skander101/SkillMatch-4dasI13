@@ -4,6 +4,8 @@ import { FormsModule } from '@angular/forms';
 import { AuthService } from './user/auth.service';
 import { Role } from './user/user.model';
 import { BackOffice } from './backoffice/backoffice';
+import { AlertesService, alertesErrorMessage } from './alertes/alertes.service';
+import { AlertesView, FrontofficeAlertes } from './alertes/frontoffice-alertes';
 
 type Domain = 'Développement' | 'Data' | 'Ressources humaines' | 'Design' | 'Marketing';
 type Contract = 'CDI' | 'CDD' | 'Stage' | 'Freelance';
@@ -29,7 +31,7 @@ interface NavService {
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, FormsModule, BackOffice],
+  imports: [CommonModule, FormsModule, BackOffice, FrontofficeAlertes],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
@@ -128,11 +130,16 @@ export class App {
   readonly domain = signal('');
   readonly location = signal('');
   readonly showAll = signal(false);
-  readonly favorites = signal<number[]>([]);
   readonly selectedJob = signal<Job | null>(null);
   readonly authMode = signal<'connexion' | 'inscription' | null>(null);
   readonly infoMessage = signal('');
   private readonly auth = inject(AuthService);
+  private readonly alertesApi = inject(AlertesService);
+  /** Page « Mes alertes » / « Mes favoris » affichée à la place de l'accueil (null = accueil). */
+  readonly alertesView = signal<AlertesView | null>(null);
+  /** Ids des offres en favori, issus de GET /skillmatch/favorites/me. */
+  readonly favorites = this.alertesApi.favoriOfferIds;
+  readonly isCandidat = computed(() => this.isLoggedIn() && this.currentUser()?.role === 'CANDIDAT');
   readonly currentUser = this.auth.currentUser;
   readonly isLoggedIn = this.auth.isLoggedIn;
   readonly isAdmin = this.auth.isAdmin;
@@ -153,6 +160,9 @@ export class App {
     });
     return this.showAll() || q || d || loc ? matching : matching.slice(0, 3);
   });
+  constructor() {
+    if (this.isCandidat()) { this.loadFavorites(); }
+  }
   readonly count = computed(() => this.jobs.filter(job => !this.domain() || job.domain === this.domain()).length);
   toggleNav(id: string): void { this.openNav.update((current) => current === id ? null : id); }
   closeNav(): void { this.openNav.set(null); }
@@ -169,9 +179,31 @@ export class App {
   }
   onNavAction(serviceId: string, label: string): void {
     this.closeNav();this.mobileNavOpen.set(false);this.notificationsOpen.set(false);
+    if (serviceId === 'alertes') { this.onAlertesAction(label); return; }
     const service = this.navServices.find((item) => item.id === serviceId);
     this.showMessage(`${service?.full ?? serviceId} · ${label} — à brancher sur l'API Spring Boot.`);
-    if (serviceId === 'offres') { document.getElementById('offres')?.scrollIntoView({ behavior: 'smooth' }); }
+    if (serviceId === 'offres') { this.showOffers(); }
+  }
+  private onAlertesAction(label: string): void {
+    if (label === 'Sauvegarder une offre') {
+      this.openHome();
+      this.showMessage('Cliquez sur ♡ d\'une offre pour la sauvegarder dans vos favoris.');
+      window.setTimeout(() => document.getElementById('offres')?.scrollIntoView({ behavior: 'smooth' }));
+      return;
+    }
+    this.openAlertes(label === 'Mes favoris' ? 'favoris' : 'alertes');
+  }
+  openAlertes(vue: AlertesView): void {
+    this.alertesView.set(vue);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  openHome(): void { this.alertesView.set(null); }
+  showOffers(): void {
+    this.openHome();
+    window.setTimeout(() => document.getElementById('offres')?.scrollIntoView({ behavior: 'smooth' }));
+  }
+  private loadFavorites(): void {
+    this.alertesApi.chargerFavoris().subscribe({ error: () => this.alertesApi.viderFavoris() });
   }
   private showMessage(text: string): void {
     this.navMessage.set(text);
@@ -184,8 +216,22 @@ export class App {
   }
   resetSearch(): void { this.searchTerm.set('');this.domain.set('');this.location.set('');this.showAll.set(false); }
   showAllJobs(): void { this.resetSearch();this.showAll.set(true);document.getElementById('offres')?.scrollIntoView({behavior:'smooth'}); }
+  isFavorite(jobId: number): boolean { return this.favorites().includes(jobId); }
+  /** Bouton ♡ : POST /skillmatch/favorites ou DELETE /skillmatch/favorites/{id} (rôle CANDIDAT). */
   toggleFavorite(jobId: number): void {
-    this.favorites.update((ids) => ids.includes(jobId) ? ids.filter(id => id !== jobId) : [...ids, jobId]);
+    if (!this.isLoggedIn()) {
+      this.openAuth('connexion');
+      this.infoMessage.set('Connectez-vous avec un compte candidat pour sauvegarder une offre.');
+      return;
+    }
+    if (!this.isCandidat()) {
+      this.showMessage('Les favoris sont réservés aux comptes candidats.');
+      return;
+    }
+    this.alertesApi.basculerFavori(jobId).subscribe({
+      next: (added) => this.showMessage(added ? 'Offre ajoutée à vos favoris.' : 'Offre retirée de vos favoris.'),
+      error: (error) => this.showMessage(alertesErrorMessage(error, 'Impossible de mettre à jour vos favoris.'))
+    });
   }
   openJob(job: Job): void { this.selectedJob.set(job);this.authMode.set(null);this.infoMessage.set(''); }
   closeModal(): void {
@@ -225,6 +271,7 @@ export class App {
         this.authLoading.set(false);
         this.closeModal();
         if (this.isAdmin()) { this.backOfficeOpen.set(true); }
+        if (this.isCandidat()) { this.loadFavorites(); }
         this.showMessage(`Bienvenue ${this.currentUser()?.nom ?? ''} — rôle ${this.currentUser()?.role ?? ''}`);
       },
       error: (error) => {
@@ -237,6 +284,8 @@ export class App {
   logout(): void {
     this.auth.logout();
     this.backOfficeOpen.set(false);
+    this.alertesApi.viderFavoris();
+    this.alertesView.set(null);
     this.showMessage('Vous êtes déconnecté.');
   }
 
