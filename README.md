@@ -16,7 +16,6 @@ Les candidats ont du mal à identifier les offres réellement adaptées à leur 
 
 ## Storytelling et ODD
 
-[À COMPLÉTER : storytelling retenu et correspondance avec les ODD 8, 4, 10 et 16.]
 
 ## Fonctionnalités principales
 
