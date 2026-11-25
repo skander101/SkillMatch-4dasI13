@@ -1,0 +1,237 @@
+<section class="sup-shell">
+  <header class="page-head">
+    <div>
+      <span class="eyebrow">ADMINISTRATION</span>
+      <h1>Supervision de la messagerie</h1>
+    </div>
+    <div class="head-actions">
+      <button type="button" class="bo-btn ghost" [disabled]="loading()" (click)="loadDashboard()">
+        ↻ Actualiser
+      </button>
+      <button type="button" class="bo-btn ghost" [disabled]="exporting() || loading()" (click)="exportCsv()">
+        {{ exporting() ? 'Export...' : '↓ Exporter en CSV' }}
+      </button>
+    </div>
+  </header>
+
+  @if (error()) {
+    <div class="sup-alert" role="alert">
+      <span>{{ error() }}</span>
+      <button type="button" class="link-btn" (click)="loadDashboard()">Réessayer</button>
+    </div>
+  }
+
+  <!-- Cartes KPI -->
+  <div class="kpis">
+    <article class="kpi kpi-featured">
+      <span class="kpi-label">Conversations</span>
+      <div class="kpi-value">{{ stats().conversations }}</div>
+      <div class="kpi-foot">
+        <span class="trend">+{{ stats().nouvellesConversationsSemaine }} cette semaine</span>
+      </div>
+    </article>
+
+    <article class="kpi">
+      <span class="kpi-label">Groupes</span>
+      <div class="kpi-value">{{ stats().groupes }}</div>
+      <div class="kpi-foot">
+        <span class="trend">+{{ stats().nouveauxGroupesSemaine }} cette semaine</span>
+      </div>
+    </article>
+
+    <article class="kpi">
+      <span class="kpi-label">Messages aujourd'hui</span>
+      <div class="kpi-value">{{ stats().messagesAujourdhui }}</div>
+      <div class="kpi-foot">
+        <span>{{ stats().heurePicLibelle || 'Aucune activité' }}</span>
+      </div>
+    </article>
+
+    <article class="kpi" [class.kpi-warn]="stats().signalementsATraiter > 0">
+      <span class="kpi-label">Signalements</span>
+      <div class="kpi-value">{{ stats().signalementsATraiter }}</div>
+      <div class="kpi-foot">
+        <span class="warn-label">À traiter</span>
+      </div>
+    </article>
+  </div>
+
+  <!-- Tableau de supervision -->
+  <section class="panel">
+    <div class="sup-toolbar">
+      <label class="top-search">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="11" cy="11" r="7" />
+          <path d="m16.5 16.5 5 5" />
+        </svg>
+        <input
+          type="search"
+          aria-label="Rechercher une conversation ou un participant"
+          placeholder="Rechercher une conversation ou un participant..."
+          [ngModel]="query()"
+          (ngModelChange)="onQueryChange($event)" />
+        @if (query().trim()) {
+          <button type="button" class="clear-btn" (click)="clearQuery()" aria-label="Effacer">×</button>
+        }
+      </label>
+
+      <div class="scope-tabs" role="tablist" aria-label="Filtrer les conversations">
+        @for (item of scopes; track item.key) {
+          <button
+            type="button"
+            role="tab"
+            class="scope-tab"
+            [class.active]="scope() === item.key"
+            [attr.aria-selected]="scope() === item.key"
+            (click)="selectScope(item.key)">
+            {{ item.label }}
+          </button>
+        }
+      </div>
+    </div>
+
+    @if (loading()) {
+      <div class="sup-state">Chargement des conversations de supervision...</div>
+    } @else {
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Conversation</th>
+              <th>Type</th>
+              <th>Membres</th>
+              <th>Messages</th>
+              <th>Dernière activité</th>
+              <th>Statut</th>
+              <th class="col-actions">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of conversations(); track row.id) {
+              <tr (click)="openDetail(row)">
+                <td>
+                  <div class="conv-title">{{ row.conversation }}</div>
+                </td>
+                <td>
+                  <span class="badge" [ngClass]="row.type === 'groupe' ? 'purple' : 'blue'">
+                    {{ formatTypeLabel(row.type) }}
+                  </span>
+                </td>
+                <td>{{ row.membres }}</td>
+                <td>{{ row.messages }}</td>
+                <td [title]="formatExactDate(row.derniereActivite)">
+                  {{ formatRelativeDate(row.derniereActivite) }}
+                </td>
+                <td>
+                  <span class="badge" [ngClass]="statutClass(row.statut)">
+                    {{ formatStatutLabel(row.statut) }}
+                  </span>
+                </td>
+                <td class="col-actions">
+                  <button
+                    type="button"
+                    class="eye-btn"
+                    title="Consulter la conversation"
+                    aria-label="Consulter la conversation"
+                    (click)="$event.stopPropagation(); openDetail(row)">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                  </button>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="7" class="sup-empty">
+                  Aucune conversation ne correspond aux critères sélectionnés.
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pager">
+        <span>Affichage de {{ totalDisplayed() }} conversation(s)</span>
+      </div>
+    }
+  </section>
+
+  <!-- Modale de consultation d'une conversation -->
+  @if (detailOpen()) {
+    <div class="bo-modal-overlay" role="presentation" (click)="closeDetail()">
+      <section class="bo-detail-modal" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+        <header class="detail-head">
+          <div>
+            <span class="eyebrow">CONSULTATION ADMIN</span>
+            <h2>{{ detail()?.conversation?.conversation || 'Détails de la conversation' }}</h2>
+          </div>
+          <button type="button" class="close-modal-btn" (click)="closeDetail()" aria-label="Fermer">×</button>
+        </header>
+
+        @if (detailLoading()) {
+          <div class="sup-state">Chargement des détails et des messages...</div>
+        } @else if (detailError()) {
+          <div class="sup-alert" role="alert">{{ detailError() }}</div>
+        } @else if (detail(); as d) {
+          <div class="detail-meta">
+            <span class="badge" [ngClass]="d.conversation.type === 'groupe' ? 'purple' : 'blue'">
+              {{ formatTypeLabel(d.conversation.type) }}
+            </span>
+            <span class="badge" [ngClass]="statutClass(d.conversation.statut)">
+              {{ formatStatutLabel(d.conversation.statut) }}
+            </span>
+            <span class="meta-chip">{{ d.conversation.membres }} membre(s)</span>
+            <span class="meta-chip">{{ d.messages.length }} message(s)</span>
+            @if (d.dateCreation) {
+              <span class="meta-chip">Créée le {{ formatExactDate(d.dateCreation) }}</span>
+            }
+          </div>
+
+          <div class="detail-participants">
+            @for (p of d.conversation.participants; track p.id) {
+              <span class="participant-pill">
+                {{ p.nom }}
+                @if (p.role) {
+                  <small>{{ p.role }}</small>
+                }
+              </span>
+            }
+          </div>
+
+          <div class="detail-actions">
+            <button
+              type="button"
+              class="bo-btn"
+              [disabled]="moderating()"
+              (click)="toggleArchive(d.conversation)">
+              {{ d.conversation.archivee ? 'Désarchiver' : 'Archiver la conversation' }}
+            </button>
+          </div>
+
+          <div class="detail-messages">
+            @for (m of d.messages; track m.id) {
+              <div class="msg-row" [class.system]="m.type === 'systeme'">
+                <div class="msg-top">
+                  <b>{{ m.type === 'systeme' ? 'Système' : (m.senderNom || 'Utilisateur #' + m.senderId) }}</b>
+                  <span>{{ formatExactDate(m.date) }}</span>
+                </div>
+                <p>{{ m.contenu }}</p>
+              </div>
+            } @empty {
+              <div class="sup-empty">Aucun message dans cette conversation.</div>
+            }
+          </div>
+        }
+      </section>
+    </div>
+  }
+
+  @if (toast()) {
+    <div class="bo-toast" role="status">
+      <span>{{ toast() }}</span>
+      <button type="button" (click)="toast.set('')">Fermer</button>
+    </div>
+  }
+</section>
