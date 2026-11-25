@@ -1,194 +1,389 @@
-package tn.esprit.skillmatch.offres.entity; // Place ce fichier dans le package indiqué, qui organise les classes du service.
 
-import jakarta.persistence.*; // Importe les annotations JPA pour les tables, colonnes et relations.
-import jakarta.validation.constraints.*; // Importe les annotations de validation des champs.
-import tn.esprit.skillmatch.offres.enums.ContratType; // Importe les valeurs autorisées de ContratType.
-import tn.esprit.skillmatch.offres.enums.OffreStatut; // Importe les valeurs autorisées de OffreStatut.
+package tn.esprit.skillmatch.offres.entity;
+// Cette classe se trouve dans le package entity du microservice.
 
-import java.time.LocalDate; // Importe les dates sans heure.
-import java.util.ArrayList; // Importe une liste modifiable.
-import java.util.List; // Importe le type liste.
-import java.util.Locale; // Importe une règle stable pour convertir les textes en minuscules.
-import java.util.Set; // Importe une collection sans doublons.
-import java.util.stream.Collectors; // Importe la collecte des résultats d'un parcours de liste.
+import jakarta.persistence.*;
+// Importe les annotations pour travailler avec MySQL grâce à JPA.
 
-@Entity // Indique à JPA que cette classe est enregistrée dans une table.
-@Table(name = "offres") // Associe cette classe à la table offres dans offres_db.
-public class Offre { // Déclare l'entité Offre, avec ses champs et ses méthodes.
-    @Id // Désigne la clé primaire de la table.
-    @GeneratedValue(strategy = GenerationType.IDENTITY) // Laisse MySQL générer l'identifiant avec AUTO_INCREMENT.
-    private Long id; // Déclare l'identifiant.
+import jakarta.validation.constraints.*;
+// Importe les règles de validation des champs (@NotNull, @Size...).
 
-    @NotBlank // Refuse un texte null, vide ou composé seulement d'espaces.
-    @Size(max = 255) // Limite le texte à 255 caractères.
-    @Column(nullable = false) // Interdit NULL dans cette colonne de la base.
-    private String titre; // Déclare le titre.
+import tn.esprit.skillmatch.offres.enums.ContratType;
+// Importe les types de contrat autorisés (CDI, CDD...).
 
-    @Column(columnDefinition = "TEXT") // Utilise une colonne TEXT pour stocker un texte long.
-    private String description; // Déclare la description.
+import tn.esprit.skillmatch.offres.enums.OffreStatut;
+// Importe les différents statuts possibles d'une offre.
 
-    @NotNull // Refuse une valeur null lors de la validation.
-    @Convert(converter = CompetencesConverter.class) // Demande à JPA d'utiliser notre convertisseur pour ce champ.
-    @Column(columnDefinition = "TEXT", nullable = false) // Stocke le JSON dans une colonne TEXT qui refuse NULL.
-    private List<@NotBlank String> competences = new ArrayList<>(); // Déclare la liste des compétences ; chaque texte doit être non vide et la liste commence vide.
+import java.time.LocalDate;
+// Permet de stocker une date sans heure.
 
-    @Size(max = 255) // Limite le texte à 255 caractères.
-    private String localisation; // Déclare la localisation.
+import java.util.ArrayList;
+// Permet de créer une liste modifiable.
 
-    @NotNull // Refuse une valeur null lors de la validation.
-    @Enumerated(EnumType.STRING) // Enregistre le nom du statut ou du contrat en base, plutôt que son numéro.
-    @Column(nullable = false) // Interdit NULL dans cette colonne de la base.
-    private ContratType contrat; // Déclare le type de contrat.
+import java.util.List;
+// Permet de déclarer une liste de compétences.
 
-    @PositiveOrZero // Autorise zéro ou un salaire positif ; un salaire absent reste autorisé.
-    private Double salaire; // Déclare le salaire.
 
-    @NotNull // Refuse une valeur null lors de la validation.
-    @Column(nullable = false) // Interdit NULL dans cette colonne de la base.
-    private LocalDate dateExpiration; // Déclare la date d'expiration.
+// ========== CLASSE OFFRE ==========
 
-    @NotNull // Refuse une valeur null lors de la validation.
-    @Enumerated(EnumType.STRING) // Enregistre le nom du statut ou du contrat en base, plutôt que son numéro.
-    @Column(nullable = false) // Interdit NULL dans cette colonne de la base.
-    private OffreStatut statut = OffreStatut.BROUILLON; // Déclare le statut ; BROUILLON est la valeur initiale.
+@Entity
+// Indique que cette classe correspond à une table de la base.
 
-    @Size(max = 255) // Les anciennes offres peuvent conserver un nom absent.
-    private String nomEntreprise; // Nom saisi librement, sans dépendre du service Entreprises.
+@Table(name = "offres")
+// La table MySQL s'appelle "offres".
 
-    @Positive // Référence facultative pour la future intégration.
-    private Long entrepriseId; // Déclare l'identifiant de l'entreprise.
+public class Offre {
+    // Début de la classe qui représente une offre d'emploi.
 
-    @Positive // Exige un identifiant strictement supérieur à zéro s'il est renseigné.
-    private Long testRequisId; // Déclare l'identifiant du test requis.
 
-    // Le proprietaire est un utilisateur, pas une entreprise.
-    @NotNull // Refuse une valeur null lors de la validation.
-    @Positive // Exige un identifiant strictement supérieur à zéro s'il est renseigné.
-    @Column(nullable = false) // Interdit NULL dans cette colonne de la base.
-    private Long recruteurId; // Déclare l'identifiant du recruteur propriétaire.
+    // ========== IDENTIFIANT ==========
 
-    public Boolean estExpiree() { // Vérifie si la date limite de l'offre est passée.
-        return dateExpiration != null && dateExpiration.isBefore(LocalDate.now()); // Retourne vrai seulement si la date existe et est avant aujourd'hui.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
+    @Id
+    // Ce champ est la clé primaire de la table.
 
-    // Pourcentage de competences requises presentes, sans recommandations.
-    public Double calculerScore(List<String> competencesProfil) { // Calcule le pourcentage des compétences de l'offre présentes dans le profil fourni.
-        if (competences == null || competences.isEmpty() || competencesProfil == null) { // Traite le cas où les compétences nécessaires au calcul sont absentes.
-            return 0.0; // Retourne un score nul quand la comparaison n'est pas possible.
-        } // Ferme le bloc précédent (méthode, condition ou classe).
-        Set<String> requises = normaliser(competences); // Nettoie les compétences de l'offre et retire les doublons.
-        if (requises.isEmpty()) { // Évite de diviser par zéro si aucune compétence valide n'est requise.
-            return 0.0; // Retourne un score nul quand la comparaison n'est pas possible.
-        } // Ferme le bloc précédent (méthode, condition ou classe).
-        Set<String> profil = normaliser(competencesProfil); // Nettoie aussi les compétences du profil.
-        long communes = requises.stream().filter(profil::contains).count(); // Compte les compétences requises qui existent dans le profil.
-        return 100.0 * communes / requises.size(); // Transforme le nombre de compétences communes en pourcentage.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    // MySQL génère automatiquement l'id : 1, 2, 3...
 
-    private Set<String> normaliser(List<String> valeurs) { // Prépare des textes comparables et sans doublons.
-        return valeurs.stream() // Commence à parcourir les valeurs de la liste.
-                .filter(valeur -> valeur != null && !valeur.isBlank()) // Ignore les valeurs nulles et les textes vides.
-                .map(valeur -> valeur.trim().toLowerCase(Locale.ROOT)) // Retire les espaces aux extrémités et passe en minuscules.
-                .collect(Collectors.toSet()); // Rassemble les textes dans un ensemble qui supprime les doublons.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
+    private Long id;
+    // Identifiant unique de l'offre.
 
-    public Long getId() { // Permet de lire l'identifiant.
-        return id; // Retourne l'identifiant de cet objet.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
 
-    public void setId(Long id) { // Permet de renseigner ou modifier l'identifiant.
-        this.id = id; // Stocke la valeur reçue dans le champ de cet objet.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
+    // ========== TITRE ==========
 
-    public String getTitre() { // Permet de lire le titre.
-        return titre; // Retourne le titre de cet objet.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
+    @NotBlank
+    // Le titre ne doit pas être vide ou composé uniquement d'espaces.
 
-    public void setTitre(String titre) { // Permet de renseigner ou modifier le titre.
-        this.titre = titre; // Stocke la valeur reçue dans le champ de cet objet.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
+    @Size(max = 255)
+    // Le titre ne doit pas dépasser 255 caractères.
 
-    public String getDescription() { // Permet de lire la description.
-        return description; // Retourne la description de cet objet.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
+    @Column(nullable = false)
+    // Le titre est obligatoire dans la base de données.
 
-    public void setDescription(String description) { // Permet de renseigner ou modifier la description.
-        this.description = description; // Stocke la valeur reçue dans le champ de cet objet.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
+    private String titre;
+    // Exemple : "Développeur Java".
 
-    public List<String> getCompetences() { // Permet de lire la liste des compétences.
-        return competences; // Retourne la liste des compétences de cet objet.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
 
-    public void setCompetences(List<String> competences) { // Permet de renseigner ou modifier la liste des compétences.
-        this.competences = competences; // Stocke la valeur reçue dans le champ de cet objet.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
+    // ========== DESCRIPTION ==========
 
-    public String getLocalisation() { // Permet de lire la localisation.
-        return localisation; // Retourne la localisation de cet objet.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
+    @Column(columnDefinition = "TEXT")
+    // Utilise une colonne TEXT pour un texte long.
 
-    public void setLocalisation(String localisation) { // Permet de renseigner ou modifier la localisation.
-        this.localisation = localisation; // Stocke la valeur reçue dans le champ de cet objet.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
+    private String description;
+    // Présentation du poste et des missions.
 
-    public ContratType getContrat() { // Permet de lire le type de contrat.
-        return contrat; // Retourne le type de contrat de cet objet.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
 
-    public void setContrat(ContratType contrat) { // Permet de renseigner ou modifier le type de contrat.
-        this.contrat = contrat; // Stocke la valeur reçue dans le champ de cet objet.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
+    // ========== COMPÉTENCES ==========
 
-    public Double getSalaire() { // Permet de lire le salaire.
-        return salaire; // Retourne le salaire de cet objet.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
+    @NotNull
+    // La liste ne doit pas être null.
 
-    public void setSalaire(Double salaire) { // Permet de renseigner ou modifier le salaire.
-        this.salaire = salaire; // Stocke la valeur reçue dans le champ de cet objet.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
+    @Convert(converter = CompetencesConverter.class)
+    // Utilise CompetencesConverter pour enregistrer la liste en base.
 
-    public LocalDate getDateExpiration() { // Permet de lire la date d'expiration.
-        return dateExpiration; // Retourne la date d'expiration de cet objet.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
+    @Column(columnDefinition = "TEXT", nullable = false)
+    // Enregistre les compétences dans une colonne TEXT obligatoire.
 
-    public void setDateExpiration(LocalDate dateExpiration) { // Permet de renseigner ou modifier la date d'expiration.
-        this.dateExpiration = dateExpiration; // Stocke la valeur reçue dans le champ de cet objet.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
+    private List<@NotBlank String> competences = new ArrayList<>();
+    // Liste des compétences demandées : ["Java", "MySQL", "Spring"].
+    // @NotBlank : chaque compétence doit contenir du texte.
+    // new ArrayList<>() : la liste est vide au départ.
 
-    public OffreStatut getStatut() { // Permet de lire le statut.
-        return statut; // Retourne le statut de cet objet.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
 
-    public void setStatut(OffreStatut statut) { // Permet de renseigner ou modifier le statut.
-        this.statut = statut; // Stocke la valeur reçue dans le champ de cet objet.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
+    // ========== LOCALISATION ==========
+
+    @Size(max = 255)
+    // Le nom du lieu ne doit pas dépasser 255 caractères.
+
+    private String localisation;
+    // Ville ou lieu du travail : "Tunis", "Sfax"...
+
+
+    // ========== CONTRAT ==========
+
+    @NotNull
+    // Le type de contrat est obligatoire.
+
+    @Enumerated(EnumType.STRING)
+    // Enregistre "CDI" plutôt qu'un numéro dans MySQL.
+
+    @Column(nullable = false)
+    // La colonne contrat est obligatoire.
+
+    private ContratType contrat;
+    // Type de contrat choisi parmi les valeurs de ContratType.
+
+
+    // ========== SALAIRE ==========
+
+    @PositiveOrZero
+    // Si un salaire est donné, il doit être supérieur ou égal à 0.
+
+    private Double salaire;
+    // Salaire proposé ; il peut aussi ne pas être renseigné.
+
+
+    // ========== DATE D'EXPIRATION ==========
+
+    @NotNull
+    // La date doit être renseignée.
+
+    @Column(nullable = false)
+    // La date est obligatoire dans MySQL.
+
+    private LocalDate dateExpiration;
+    // Date limite de validité de l'offre.
+
+
+    // ========== STATUT ==========
+
+    @NotNull
+    // Le statut ne doit pas être null.
+
+    @Enumerated(EnumType.STRING)
+    // Enregistre le nom du statut, par exemple "BROUILLON".
+
+    @Column(nullable = false)
+    // Le statut est obligatoire en base.
+
+    private OffreStatut statut = OffreStatut.BROUILLON;
+    // Une nouvelle offre commence avec le statut BROUILLON.
+
+
+    // ========== NOM DE L'ENTREPRISE ==========
+
+    @Size(max = 255)
+    // Maximum 255 caractères si un nom est donné.
+
+    private String nomEntreprise;
+    // Nom de l'entreprise saisi sous forme de texte.
+
+
+    // ========== IDENTIFIANT ENTREPRISE ==========
+
+    @Positive
+    // Si l'identifiant existe, il doit être supérieur à zéro.
+
+    private Long entrepriseId;
+    // Identifiant facultatif de l'entreprise.
+
+
+    // ========== TEST TECHNIQUE ==========
+
+    @Positive
+    // Si l'identifiant du test existe, il doit être positif.
+
+    private Long testRequisId;
+    // Identifiant du test technique éventuellement demandé.
+
+
+    // ========== RECRUTEUR ==========
+
+    // Le propriétaire de l'offre est un recruteur (utilisateur).
+
+    @NotNull
+    // Le recruteur doit être renseigné.
+
+    @Positive
+    // Son identifiant doit être supérieur à zéro.
+
+    @Column(nullable = false)
+    // La colonne recruteurId est obligatoire dans MySQL.
+
+    private Long recruteurId;
+    // Identifiant du recruteur qui possède cette offre.
+
+
+    // ========== GETTERS ET SETTERS ==========
+    // GETTER : lire une valeur.
+    // SETTER : enregistrer ou modifier une valeur.
+
+
+    // ----- IDENTIFIANT -----
+
+    public Long getId() {
+        // Permet de lire l'identifiant.
+        return id;
+        // Renvoie l'id de l'offre.
+    }
+
+    public void setId(Long id) {
+        // Permet de donner un identifiant à l'objet.
+        this.id = id;
+        // Stocke la valeur reçue dans l'attribut id.
+    }
+
+
+    // ----- TITRE -----
+
+    public String getTitre() {
+        // Permet de lire le titre de l'offre.
+        return titre;
+        // Renvoie le titre.
+    }
+
+    public void setTitre(String titre) {
+        // Permet de modifier le titre.
+        this.titre = titre;
+        // Stocke le nouveau titre dans l'objet.
+    }
+
+
+    // ----- DESCRIPTION -----
+
+    public String getDescription() {
+        // Permet de lire la description.
+        return description;
+        // Renvoie la description.
+    }
+
+    public void setDescription(String description) {
+        // Permet de modifier la description.
+        this.description = description;
+        // Stocke la description reçue.
+    }
+
+
+    // ----- COMPÉTENCES -----
+
+    public List<String> getCompetences() {
+        // Permet de consulter les compétences demandées.
+        return competences;
+        // Renvoie la liste des compétences.
+    }
+
+    public void setCompetences(List<String> competences) {
+        // Permet de changer les compétences demandées.
+        this.competences = competences;
+        // Stocke la liste reçue.
+    }
+
+
+    // ----- LOCALISATION -----
+
+    public String getLocalisation() {
+        // Permet de connaître le lieu de travail.
+        return localisation;
+        // Renvoie la localisation.
+    }
+
+    public void setLocalisation(String localisation) {
+        // Permet de changer le lieu de travail.
+        this.localisation = localisation;
+        // Stocke la nouvelle localisation.
+    }
+
+
+    // ----- CONTRAT -----
+
+    public ContratType getContrat() {
+        // Permet de connaître le type de contrat.
+        return contrat;
+        // Renvoie le contrat.
+    }
+
+    public void setContrat(ContratType contrat) {
+        // Permet de modifier le contrat.
+        this.contrat = contrat;
+        // Stocke le nouveau contrat.
+    }
+
+
+    // ----- SALAIRE -----
+
+    public Double getSalaire() {
+        // Permet de lire le salaire proposé.
+        return salaire;
+        // Renvoie le salaire.
+    }
+
+    public void setSalaire(Double salaire) {
+        // Permet de modifier le salaire.
+        this.salaire = salaire;
+        // Stocke le salaire reçu.
+    }
+
+
+    // ----- DATE D'EXPIRATION -----
+
+    public LocalDate getDateExpiration() {
+        // Permet de lire la date limite de l'offre.
+        return dateExpiration;
+        // Renvoie la date limite.
+    }
+
+    public void setDateExpiration(LocalDate dateExpiration) {
+        // Permet de modifier la date limite.
+        this.dateExpiration = dateExpiration;
+        // Stocke la nouvelle date.
+    }
+
+
+    // ----- STATUT -----
+
+    public OffreStatut getStatut() {
+        // Permet de lire le statut de l'offre.
+        return statut;
+        // Renvoie le statut actuel.
+    }
+
+    public void setStatut(OffreStatut statut) {
+        // Permet de changer le statut de l'offre.
+        this.statut = statut;
+        // Stocke le nouveau statut.
+    }
+
+
+    // ----- NOM DE L'ENTREPRISE -----
 
     public String getNomEntreprise() { return nomEntreprise; }
+    // Renvoie le nom de l'entreprise.
 
     public void setNomEntreprise(String nomEntreprise) { this.nomEntreprise = nomEntreprise; }
+    // Enregistre le nom de l'entreprise reçu.
 
-    public Long getEntrepriseId() { // Permet de lire l'identifiant de l'entreprise.
-        return entrepriseId; // Retourne l'identifiant de l'entreprise de cet objet.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
 
-    public void setEntrepriseId(Long entrepriseId) { // Permet de renseigner ou modifier l'identifiant de l'entreprise.
-        this.entrepriseId = entrepriseId; // Stocke la valeur reçue dans le champ de cet objet.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
+    // ----- IDENTIFIANT ENTREPRISE -----
 
-    public Long getTestRequisId() { // Permet de lire l'identifiant du test requis.
-        return testRequisId; // Retourne l'identifiant du test requis de cet objet.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
+    public Long getEntrepriseId() {
+        // Permet de lire l'identifiant de l'entreprise.
+        return entrepriseId;
+        // Renvoie l'identifiant.
+    }
 
-    public void setTestRequisId(Long testRequisId) { // Permet de renseigner ou modifier l'identifiant du test requis.
-        this.testRequisId = testRequisId; // Stocke la valeur reçue dans le champ de cet objet.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
+    public void setEntrepriseId(Long entrepriseId) {
+        // Permet de renseigner l'entreprise.
+        this.entrepriseId = entrepriseId;
+        // Stocke l'identifiant reçu.
+    }
 
-    public Long getRecruteurId() { // Permet de lire l'identifiant du recruteur propriétaire.
-        return recruteurId; // Retourne l'identifiant du recruteur propriétaire de cet objet.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
 
-    public void setRecruteurId(Long recruteurId) { // Permet de renseigner ou modifier l'identifiant du recruteur propriétaire.
-        this.recruteurId = recruteurId; // Stocke la valeur reçue dans le champ de cet objet.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
-} // Ferme le bloc précédent (méthode, condition ou classe).
+    // ----- TEST TECHNIQUE -----
+
+    public Long getTestRequisId() {
+        // Permet de lire l'identifiant du test.
+        return testRequisId;
+        // Renvoie l'identifiant du test.
+    }
+
+    public void setTestRequisId(Long testRequisId) {
+        // Permet d'associer un test technique.
+        this.testRequisId = testRequisId;
+        // Stocke l'identifiant du test.
+    }
+
+
+    // ----- RECRUTEUR -----
+
+    public Long getRecruteurId() {
+        // Permet de connaître le recruteur de l'offre.
+        return recruteurId;
+        // Renvoie son identifiant.
+    }
+
+    public void setRecruteurId(Long recruteurId) {
+        // Permet d'indiquer le recruteur propriétaire.
+        this.recruteurId = recruteurId;
+        // Stocke son identifiant.
+    }
+
+} // Fin de la classe Offre.

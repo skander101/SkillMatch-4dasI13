@@ -35,7 +35,7 @@ class CandidatureServiceTest {
 
     @BeforeEach
     void preparer() { // Jeu de données local, sans MySQL.
-        service = new CandidatureService(candidatures, offres, identites, evenements);
+        service = new CandidatureService(candidatures, offres, identites, evenements, new tn.esprit.skillmatch.offres.service.OffreService(null, null, null, null));
         offre = new Offre();
         offre.setId(10L);
         offre.setRecruteurId(2L);

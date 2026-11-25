@@ -2,6 +2,8 @@
 
 Ce dossier contient tous les microservices Spring Boot du projet.
 
+La supervision des services est décrite dans [Observabilité avec Actuator](OBSERVABILITE.md).
+
 Chaque microservice est un projet Maven indépendant. Il n'y a pas de `pom.xml` parent : cela évite les conflits entre les branches des six membres et permet de démarrer, compiler et déployer chaque service séparément.
 
 ## Conventions
@@ -30,7 +32,7 @@ Chaque microservice est un projet Maven indépendant. Il n'y a pas de `pom.xml` 
 | `commun-service` | 8087 | `commun_db` | `Utilisateur` | Auth JWT | — | — |
 | `api-gateway` | 8080 | — | — | Route `/skillmatch/auth/**` vers `commun-service` | — | — |
 | `discovery-service` | 8761 | — | — | — | — | — |
-| `config-service` | 8888 | — | — | — | — | — |
+| `config-service` | 8889 | — | — | — | — | — |
 
 ## Détail par microservice
 
@@ -161,6 +163,6 @@ Prévu mais non implémenté : le service commun consommera `StatusChanged`, `Al
 
 ## Configuration centralisée disponible
 
-Le module [config-service](config-service/README.md), sur 8888, fournit la configuration
+Le module [config-service](config-service/README.md), sur 8889, fournit la configuration
 publique d’Offres et Candidatures. Seul offres-service est client dans cette étape ;
 les services des autres membres ne sont pas modifiés.

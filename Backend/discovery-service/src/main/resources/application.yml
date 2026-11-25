@@ -14,3 +14,26 @@ eureka:
     fetch-registry: false
     service-url:
       defaultZone: http://localhost:${server.port}/eureka/
+
+management:
+  endpoint:
+    health:
+      show-components: always
+      show-details: never
+      probes:
+        enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+  info:
+    env:
+      enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+
+info:
+  app:
+    name: ${spring.application.name}
+    description: Supervision du microservice SkillMatch

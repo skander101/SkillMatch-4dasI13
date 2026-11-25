@@ -1,53 +1,126 @@
-package tn.esprit.skillmatch.offres.controller; // Points d'entrée REST des offres.
 
-import jakarta.validation.Valid; // Valide le formulaire avant le service.
-import org.springframework.http.HttpStatus; // Codes 201 et 204.
-import org.springframework.web.bind.annotation.*; // Annotations REST.
-import tn.esprit.skillmatch.offres.dto.OffreRequest; // Données acceptées.
-import tn.esprit.skillmatch.offres.entity.Offre; // Réponse JSON sans relation candidature.
-import tn.esprit.skillmatch.offres.service.OffreService; // Règles métier.
-import java.util.List; // Réponse des listes.
+package tn.esprit.skillmatch.offres.controller;
 
-@RestController // Transforme les réponses en JSON.
-@RequestMapping("/skillmatch/offres") // Préfixe commun à toutes les routes de ce contrôleur.
-public class OffreController { // Un seul contrôleur pour les trois rôles.
-    private final OffreService service; // Service métier partagé.
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.*;
+import tn.esprit.skillmatch.offres.dto.OffreRequest;
+import tn.esprit.skillmatch.offres.entity.Offre;
+import tn.esprit.skillmatch.offres.service.OffreService;
+import java.util.List;
 
-    public OffreController(OffreService service) { // Injection du service.
-        this.service = service; // Mémorise le service.
-    } // Fin du constructeur.
 
-    @GetMapping // GET /skillmatch/offres.
-    public List<Offre> lister(@RequestParam(defaultValue = "") String search, @RequestParam(defaultValue = "titre") String sort, // Deux paramètres simples de l'URL.
-                              @RequestHeader(value = "Authorization", required = false) String token) { // JWT de l'utilisateur.
-        return service.lister(token, search, sort); // Recherche seulement dans les offres autorisées.
-    } // Fin de la liste.
+// ========== CONTROLLER DES OFFRES ==========
 
-    @GetMapping("/mes-offres") // GET /skillmatch/offres/mes-offres.
-    public List<Offre> mesOffres(@RequestParam(defaultValue = "") String search, @RequestParam(defaultValue = "titre") String sort, // Même recherche et tri.
-                                 @RequestHeader(value = "Authorization", required = false) String token) { // Identité du propriétaire.
-        return service.mesOffres(token, search, sort); // Ne lit aucun userId depuis le client.
-    } // Fin de mes offres.
+// Indique que cette classe gère les requêtes REST et retourne du JSON.
+@RestController
 
-    @GetMapping("/{id}") // GET /skillmatch/offres/12.
-    public Offre consulter(@PathVariable Long id, @RequestHeader(value = "Authorization", required = false) String token) { // Lit l'identifiant dans l'URL.
-        return service.consulter(id, token); // Le service vérifie la visibilité.
-    } // Fin de la consultation.
+// Définit l'URL principale des offres.
+@RequestMapping("/skillmatch/offres")
 
-    @PostMapping // POST /skillmatch/offres.
-    @ResponseStatus(HttpStatus.CREATED) // Retourne 201 en cas de création.
-    public Offre creer(@Valid @RequestBody OffreRequest demande, @RequestHeader(value = "Authorization", required = false) String token) { // Valide le JSON.
-        return service.creer(demande, token); // Crée le brouillon avec un propriétaire fiable.
-    } // Fin de la création.
+// Classe qui gère les opérations sur les offres d'emploi.
+public class OffreController {
 
-    @PutMapping("/{id}") // PUT /skillmatch/offres/12.
-    public Offre modifier(@PathVariable Long id, @Valid @RequestBody OffreRequest demande, @RequestHeader(value = "Authorization", required = false) String token) { // Valide les données.
-        return service.modifier(id, demande, token); // Modifie ou publie l'offre.
-    } // Fin de la modification.
 
-    @DeleteMapping("/{id}") // DELETE /skillmatch/offres/12.
-    @ResponseStatus(HttpStatus.NO_CONTENT) // Retourne 204 sans corps si l'offre est supprimée.
-    public void supprimer(@PathVariable Long id, @RequestHeader(value = "Authorization", required = false) String token) { // Identifiant à supprimer.
-        service.supprimer(id, token); // Vérifie les droits et protège les candidatures.
-    } // Fin de la suppression.
-} // Fin du contrôleur.
+    // ========== DÉCLARATION DU SERVICE ==========
+
+    // Déclare le service qui contient les règles métier des offres.
+    private final OffreService service;
+
+
+    // ========== CONSTRUCTEUR ==========
+
+    // Injecte automatiquement le service dans le contrôleur.
+    public OffreController(OffreService service) {
+
+        // Initialise le service utilisé par le contrôleur.
+        this.service = service;
+    }
+
+
+    // ========== 1. LISTER LES OFFRES ==========
+
+    // Permet de récupérer les offres avec une requête GET.
+    @GetMapping
+
+    // Récupère la liste des offres avec recherche et tri.
+    public List<Offre> lister(@RequestParam(defaultValue = "") String search, @RequestParam(defaultValue = "titre") String sort,
+                              @RequestHeader(value = "Authorization", required = false) String token) {
+
+        // Appelle le service pour retourner les offres autorisées.
+        return service.lister(token, search, sort);
+    }
+
+
+    // ========== 2. LISTER MES OFFRES ==========
+
+    // Permet de récupérer les offres du recruteur connecté.
+    @GetMapping("/mes-offres")
+
+    // Récupère les offres du recruteur avec recherche et tri.
+    public List<Offre> mesOffres(@RequestParam(defaultValue = "") String search, @RequestParam(defaultValue = "titre") String sort,
+                                 @RequestHeader(value = "Authorization", required = false) String token) {
+
+        // Appelle le service pour récupérer les offres du recruteur.
+        return service.mesOffres(token, search, sort);
+    }
+
+
+    // ========== 3. CONSULTER UNE OFFRE ==========
+
+    // Permet de récupérer une offre par son identifiant.
+    @GetMapping("/{id}")
+
+    // Récupère les détails d'une offre.
+    public Offre consulter(@PathVariable Long id, @RequestHeader(value = "Authorization", required = false) String token) {
+
+        // Appelle le service pour consulter l'offre demandée.
+        return service.consulter(id, token);
+    }
+
+
+    // ========== 4. CRÉER UNE OFFRE ==========
+
+    // Permet de créer une offre avec une requête POST.
+    @PostMapping
+
+    // Retourne le code HTTP 201 si la création réussit.
+    @ResponseStatus(HttpStatus.CREATED)
+
+    // Reçoit et valide les informations d'une nouvelle offre.
+    public Offre creer(@Valid @RequestBody OffreRequest demande, @RequestHeader(value = "Authorization", required = false) String token) {
+
+        // Appelle le service pour créer l'offre en brouillon.
+        return service.creer(demande, token);
+    }
+
+
+    // ========== 5. MODIFIER UNE OFFRE ==========
+
+    // Permet de modifier une offre avec une requête PUT.
+    @PutMapping("/{id}")
+
+    // Reçoit et valide les informations à modifier.
+    public Offre modifier(@PathVariable Long id, @Valid @RequestBody OffreRequest demande, @RequestHeader(value = "Authorization", required = false) String token) {
+
+        // Appelle le service pour modifier ou publier l'offre.
+        return service.modifier(id, demande, token);
+    }
+
+
+    // ========== 6. SUPPRIMER UNE OFFRE ==========
+
+    // Permet de supprimer une offre avec une requête DELETE.
+    @DeleteMapping("/{id}")
+
+    // Retourne le code HTTP 204 si l'opération réussit.
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+
+    // Demande la suppression d'une offre.
+    public void supprimer(@PathVariable Long id, @RequestHeader(value = "Authorization", required = false) String token) {
+
+        // Appelle le service pour vérifier les droits et supprimer l'offre.
+        service.supprimer(id, token);
+    }
+
+}

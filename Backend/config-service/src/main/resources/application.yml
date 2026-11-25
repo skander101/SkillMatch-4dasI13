@@ -1,5 +1,5 @@
 server:
-  port: ${CONFIG_SERVER_PORT:8888}
+  port: ${CONFIG_SERVER_PORT:8889}
   address: 127.0.0.1 # Serveur local de développement.
 
 spring:
@@ -16,7 +16,24 @@ spring:
           add-label-locations: false
 
 management:
+  endpoint:
+    health:
+      show-components: always
+      show-details: never
+      probes:
+        enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+  info:
+    env:
+      enabled: true
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,metrics
+
+info:
+  app:
+    name: ${spring.application.name}
+    description: Supervision du microservice SkillMatch

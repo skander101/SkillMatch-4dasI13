@@ -31,7 +31,7 @@ class ControlesFormulaireTest {
         c.setLettre("Je souhaite rejoindre votre équipe de développement.");
         when(repository.findById(1L)).thenReturn(Optional.of(c));
         when(repository.save(c)).thenReturn(c);
-        var service = new CandidatureService(repository, mock(OffreRepository.class), identites, mock(ApplicationEventPublisher.class));
+        var service = new CandidatureService(repository, mock(OffreRepository.class), identites, mock(ApplicationEventPublisher.class), new tn.esprit.skillmatch.offres.service.OffreService(null, null, null, null));
         var json = new ObjectMapper().findAndRegisterModules();
         var mvc = MockMvcBuilders.standaloneSetup(new CandidatureController(service))
                 .setControllerAdvice(new GlobalExceptionHandler())

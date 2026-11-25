@@ -1,37 +1,85 @@
-package tn.esprit.skillmatch.offres.entity; // Place ce fichier dans le package indiqué, qui organise les classes du service.
 
-import com.fasterxml.jackson.core.JsonProcessingException; // Importe les erreurs de lecture ou d'écriture JSON.
-import com.fasterxml.jackson.core.type.TypeReference; // Importe la précision du type de liste à reconstruire depuis le JSON.
-import com.fasterxml.jackson.databind.ObjectMapper; // Importe l'outil Jackson qui lit et écrit du JSON.
-import jakarta.persistence.AttributeConverter; // Importe le contrat de conversion entre Java et la base.
-import jakarta.persistence.Converter; // Importe l'annotation qui déclare un convertisseur JPA.
+package tn.esprit.skillmatch.offres.entity;
 
-import java.util.ArrayList; // Importe une liste modifiable.
-import java.util.List; // Importe le type liste.
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.persistence.AttributeConverter;
+import jakarta.persistence.Converter;
+import java.util.ArrayList;
+import java.util.List;
 
-@Converter // Déclare cette classe comme convertisseur de valeurs pour JPA.
-public class CompetencesConverter implements AttributeConverter<List<String>, String> { // Convertit une liste de textes Java en texte JSON, et inversement.
-    private static final ObjectMapper MAPPER = new ObjectMapper(); // Crée un outil JSON partagé par les conversions.
 
-    @Override // Indique que la méthode réalise une opération définie par AttributeConverter.
-    public String convertToDatabaseColumn(List<String> competences) { // Convertit les compétences Java avant leur stockage en base.
-        try { // Essaie la conversion et permet de traiter une éventuelle erreur.
-            return MAPPER.writeValueAsString(competences == null ? List.of() : competences); // Écrit la liste en JSON ; utilise une liste vide si la valeur est null.
-        } catch (JsonProcessingException exception) { // Intercepte une erreur liée à la conversion JSON.
-            throw new IllegalArgumentException("Conversion des competences impossible", exception); // Signale l'échec de conversion en conservant la cause.
-        } // Ferme le bloc précédent (méthode, condition ou classe).
-    } // Ferme le bloc précédent (méthode, condition ou classe).
+// ========== CLASSE CONVERTER ==========
 
-    @Override // Indique que la méthode réalise une opération définie par AttributeConverter.
-    public List<String> convertToEntityAttribute(String json) { // Reconstruit la liste Java à partir du texte lu en base.
-        if (json == null || json.isBlank()) { // Vérifie si le texte JSON est absent ou vide.
-            return new ArrayList<>(); // Retourne une liste vide et modifiable.
-        } // Ferme le bloc précédent (méthode, condition ou classe).
-        try { // Essaie la conversion et permet de traiter une éventuelle erreur.
-            List<String> competences = MAPPER.readValue(json, new TypeReference<List<String>>() {}); // Lit le JSON en précisant que le résultat doit être une liste de textes.
-            return competences == null ? new ArrayList<>() : competences; // Retourne la liste obtenue, ou une liste vide si le JSON contient null.
-        } catch (JsonProcessingException exception) { // Intercepte une erreur liée à la conversion JSON.
-            throw new IllegalArgumentException("JSON des competences invalide", exception); // Signale un JSON illisible au lieu de perdre silencieusement les données.
-        } // Ferme le bloc précédent (méthode, condition ou classe).
-    } // Ferme le bloc précédent (méthode, condition ou classe).
-} // Ferme le bloc précédent (méthode, condition ou classe).
+// Indique que cette classe est un convertisseur JPA.
+@Converter
+
+// Convertit une liste Java en texte JSON et inversement.
+public class CompetencesConverter implements AttributeConverter<List<String>, String> {
+
+
+    // ========== OUTIL DE CONVERSION JSON ==========
+
+    // Crée un outil partagé pour effectuer les conversions JSON.
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
+
+    // ========== 1. CONVERTIR JAVA VERS MYSQL ==========
+
+    // Indique que cette méthode vient de l'interface AttributeConverter.
+    @Override
+
+    // Transforme une liste de compétences Java en texte JSON.
+    public String convertToDatabaseColumn(List<String> competences) {
+
+        // Essaie d'effectuer la conversion.
+        try {
+
+            // Convertit la liste en JSON.
+            // Utilise une liste vide si les compétences sont null.
+            return MAPPER.writeValueAsString(competences == null ? List.of() : competences);
+
+            // Récupère les erreurs de conversion JSON.
+        } catch (JsonProcessingException exception) {
+
+            // Déclenche une erreur si la conversion échoue.
+            throw new IllegalArgumentException("Conversion des competences impossible", exception);
+        }
+    }
+
+
+    // ========== 2. CONVERTIR MYSQL VERS JAVA ==========
+
+    // Indique que cette méthode vient de l'interface AttributeConverter.
+    @Override
+
+    // Transforme un texte JSON récupéré depuis MySQL en liste Java.
+    public List<String> convertToEntityAttribute(String json) {
+
+        // Vérifie si le JSON est absent ou vide.
+        if (json == null || json.isBlank()) {
+
+            // Retourne une liste vide et modifiable.
+            return new ArrayList<>();
+        }
+
+        // Essaie de convertir le JSON en liste Java.
+        try {
+
+            // Lit le JSON et le transforme en liste de compétences.
+            List<String> competences = MAPPER.readValue(json, new TypeReference<List<String>>() {});
+
+            // Retourne les compétences ou une liste vide si le résultat est null.
+            return competences == null ? new ArrayList<>() : competences;
+        }
+
+        // Récupère les erreurs si le JSON est invalide.
+        catch (JsonProcessingException exception) {
+
+            // Déclenche une erreur si la lecture du JSON échoue.
+            throw new IllegalArgumentException("JSON des competences invalide", exception);
+        }
+    }
+
+}

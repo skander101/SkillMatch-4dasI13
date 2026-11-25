@@ -1,36 +1,97 @@
-package tn.esprit.skillmatch.offres.security; // Vérification locale du JWT.
 
-import io.jsonwebtoken.*; // Lecture des claims et erreurs JWT.
-import io.jsonwebtoken.security.Keys; // Même clé HMAC que commun-service.
-import org.springframework.beans.factory.annotation.Value; // Variable de configuration.
-import org.springframework.http.HttpStatus; // Réponse 401.
-import org.springframework.stereotype.Component; // Objet fourni par Spring.
-import org.springframework.web.server.ResponseStatusException; // Erreur HTTP.
-import javax.crypto.SecretKey; // Clé de signature.
-import java.nio.charset.StandardCharsets; // Encodage identique au service commun.
-import java.util.Set; // Trois rôles autorisés.
+package tn.esprit.skillmatch.offres.security;
 
+import io.jsonwebtoken.*;
+import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Component;
+import org.springframework.web.server.ResponseStatusException;
+import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
+import java.util.Set;
+
+
+// ========== VÉRIFICATION DU JWT ==========
+
+// Déclare cette classe comme un composant géré par Spring.
 @Component
-public class JwtVerifier {
-    private final SecretKey key; // Ne stocke jamais la clé dans le code.
 
+// Classe qui vérifie la validité des tokens JWT.
+public class JwtVerifier {
+
+
+    // ========== CLÉ DE SIGNATURE ==========
+
+    // Stocke la clé secrète utilisée pour vérifier les JWT.
+    private final SecretKey key;
+
+
+    // ========== CONSTRUCTEUR ==========
+
+    // Récupère la clé secrète depuis la configuration du projet.
     public JwtVerifier(@Value("${jwt.secret}") String secret) {
-        key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8)); // Au moins 32 octets.
+
+        // Transforme la clé secrète en clé de signature HMAC.
+        key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
-    public Claims verifier(String authorization) { // Vérifie avant tout appel au service commun.
+
+    // ========== 1. VÉRIFIER LE TOKEN JWT ==========
+
+    // Méthode qui vérifie le token envoyé par l'utilisateur.
+    public Claims verifier(String authorization) {
+
+        // Vérifie que le token existe et commence par "Bearer ".
         if (authorization == null || !authorization.startsWith("Bearer ") || authorization.substring(7).isBlank())
+
+            // Retourne une erreur 401 si le token est absent ou mal présenté.
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentification requise");
+
+
+        // ========== VÉRIFICATION DE LA SIGNATURE ==========
+
+        // Essaie de vérifier le JWT.
         try {
-            Claims claims = Jwts.parser().verifyWith(key).build() // Vérifie la signature et l'expiration.
-                    .parseSignedClaims(authorization.substring(7)).getPayload(); // Refuse les JWT non signés.
-            String role = claims.get("role", String.class); // Ne vient jamais du formulaire Angular.
+
+            // Vérifie la signature du token avec la clé secrète.
+            Claims claims = Jwts.parser().verifyWith(key).build()
+
+                // Lit les informations du token et vérifie son expiration.
+                .parseSignedClaims(authorization.substring(7)).getPayload();
+
+
+            // ========== RÉCUPÉRATION DU RÔLE ==========
+
+            // Récupère le rôle de l'utilisateur depuis le JWT.
+            String role = claims.get("role", String.class);
+
+
+            // ========== VALIDATION DES INFORMATIONS ==========
+
+            // Vérifie que l'identité, l'expiration et le rôle sont valides.
             if (claims.getSubject() == null || claims.getSubject().isBlank() || claims.getExpiration() == null
-                    || role == null || !Set.of("ADMIN", "RECRUTEUR", "CANDIDAT").contains(role))
+
+                // Accepte uniquement ADMIN, RECRUTEUR ou CANDIDAT.
+                || role == null || !Set.of("ADMIN", "RECRUTEUR", "CANDIDAT").contains(role))
+
+                // Retourne une erreur 401 si les informations sont invalides.
                 throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Claims JWT incomplets ou rôle invalide");
-            return claims; // Contient l'email et le rôle vérifiés, pas un userId supposé.
+
+
+            // ========== RETOUR DU JWT VÉRIFIÉ ==========
+
+            // Retourne les informations vérifiées du token.
+            return claims;
+
+
+            // ========== GESTION DES ERREURS ==========
+
+            // Intercepte les erreurs de JWT ou de données invalides.
         } catch (JwtException | IllegalArgumentException exception) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "JWT invalide ou expiré"); // Aucun détail de clé exposé.
+
+            // Retourne une erreur 401 si le JWT est invalide ou expiré.
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "JWT invalide ou expiré");
         }
     }
 }

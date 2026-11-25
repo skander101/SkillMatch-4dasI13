@@ -13,7 +13,7 @@ Spring Boot 3.3.5, Spring Cloud 2023.0.3. Aucun POM parent dans `Backend`.
   Le JWT est vérifié localement, puis l'identité est résolue auprès de
   `commun-service`. Les droits sont appliqués dans les services métier.
 - Le client Eureka est actif : démarrer `discovery-service` sur 8761 avant Offres.
-  RabbitMQ est actif pour les trois événements. Config Server est disponible sur 8888 ;
+  RabbitMQ est actif pour les trois événements. Config Server est disponible sur 8889 ;
   l'import facultatif conserve le démarrage local si le serveur est arrêté.
   Voir [le guide Eureka](../discovery-service/README.md).
   Voir [le guide RabbitMQ](RABBITMQ.md) pour les messages, le lancement et les limites.
@@ -62,12 +62,12 @@ La base locale a été adaptée ; les anciennes références CV sont conservées
 Le client Config Server est actif. Démarrer ConfigServiceApplication avant Offres
 pour charger sa configuration distante. Voir [le guide Config Server](../config-service/README.md).
 Les identifiants MySQL/RabbitMQ et JWT_SECRET restent locaux à Offres.
-CONFIG_SERVER_URL permet de changer l'adresse du serveur (http://localhost:8888).
+CONFIG_SERVER_URL permet de changer l'adresse du serveur (http://localhost:8889).
 GET /actuator/info indique configuration.origine=config-server ou local.
 
 ## Démarrage dans IntelliJ
 
-1. Démarrer MySQL dans XAMPP (3306), RabbitMQ (5672) et `DiscoveryServiceApplication` (8761).
+1. Démarrer MySQL dans XAMPP (3306), RabbitMQ avec Docker Compose depuis la racine (`docker compose up -d --wait rabbitmq`), puis `DiscoveryServiceApplication` (8761). Voir [RabbitMQ avec Docker](RABBITMQ.md).
 2. Créer `offres_db` dans phpMyAdmin, ou utiliser un compte autorisé à créer la
    base : l'URL JDBC contient `createDatabaseIfNotExist=true`.
 3. Ouvrir **File > Open > Backend/offres-service**, puis importer le `pom.xml`.

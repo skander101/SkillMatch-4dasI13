@@ -5,7 +5,7 @@ spring:
   application:
     name: offres-service
   config:
-    import: "optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}"
+    import: "optional:configserver:${CONFIG_SERVER_URL:http://localhost:8889}"
   cloud:
     config:
       request-connect-timeout: 2000
@@ -15,9 +15,9 @@ spring:
       accept-float-as-int: false # Refuse CV, identifiants et notes décimaux au lieu de les tronquer.
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
-    port: ${RABBITMQ_PORT:5672}
-    username: ${RABBITMQ_USER:guest}
-    password: ${RABBITMQ_PASSWORD:guest}
+    port: ${RABBITMQ_PORT:5673}
+    username: ${RABBITMQ_USER:skillmatch}
+    password: ${RABBITMQ_PASSWORD:skillmatch-local}
     virtual-host: ${RABBITMQ_VHOST:/}
     connection-timeout: 3s
     publisher-confirm-type: correlated
@@ -62,14 +62,26 @@ commun-service:
   url: ${COMMUN_SERVICE_URL:http://localhost:8087}
 
 info:
+  app:
+    name: ${spring.application.name}
+    description: Supervision du microservice SkillMatch
   configuration:
     origine: local # Secours si Config Server est arrêté.
 
 management:
+  endpoint:
+    health:
+      show-components: always
+      show-details: never
+      probes:
+        enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
   info:
     env:
       enabled: true
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,metrics

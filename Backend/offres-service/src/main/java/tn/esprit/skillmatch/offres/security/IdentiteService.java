@@ -1,79 +1,203 @@
-package tn.esprit.skillmatch.offres.security; // Résolution fiable de l'utilisateur connecté.
 
-import org.springframework.beans.factory.annotation.Value; // Lit la configuration.
-import org.springframework.http.HttpStatus; // Codes HTTP.
-import org.springframework.http.client.SimpleClientHttpRequestFactory; // Permet de limiter les délais HTTP.
-import org.springframework.stereotype.Service; // Objet géré par Spring.
-import org.springframework.web.client.RestClient; // Client HTTP Spring déjà disponible.
-import org.springframework.web.client.RestClientException; // Erreur de communication.
-import org.springframework.web.client.RestClientResponseException; // Réponse HTTP en erreur.
-import org.springframework.web.server.ResponseStatusException; // Erreur renvoyée à notre API.
-import java.util.Set; // Liste fixe des rôles autorisés.
+package tn.esprit.skillmatch.offres.security;
 
-@Service // Réutilisable par les futurs services métier.
-public class IdentiteService { // Ne lit jamais un rôle envoyé par le formulaire.
-    private final RestClient client; // Client vers commun-service.
-    private final JwtVerifier jwt; // Vérification locale avant la résolution de l'identité.
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
+import org.springframework.web.server.ResponseStatusException;
+import java.util.Set;
 
-    public IdentiteService(RestClient.Builder builder, @Value("${commun-service.url}") String url, JwtVerifier jwt) { // Injection des dépendances.
+
+// ========== SERVICE D'IDENTITÉ ==========
+
+// Déclare cette classe comme un service géré par Spring.
+@Service
+
+// Classe qui vérifie l'identité et le rôle des utilisateurs.
+public class IdentiteService {
+
+
+    // ========== DÉCLARATION DES ATTRIBUTS ==========
+
+    // Déclare le client utilisé pour communiquer avec commun-service.
+    private final RestClient client;
+
+    // Déclare l'outil qui vérifie les tokens JWT.
+    private final JwtVerifier jwt;
+
+
+    // ========== CONSTRUCTEUR ==========
+
+    // Initialise les outils nécessaires pour vérifier les utilisateurs.
+    public IdentiteService(RestClient.Builder builder, @Value("${commun-service.url}") String url, JwtVerifier jwt) {
+
+        // Initialise l'outil de vérification JWT.
         this.jwt = jwt;
-        var factory = new SimpleClientHttpRequestFactory(); // Prépare la connexion HTTP.
-        factory.setConnectTimeout(3000); // Attend au maximum trois secondes pour se connecter.
-        factory.setReadTimeout(3000); // Attend au maximum trois secondes pour lire la réponse.
-        client = builder.baseUrl(url).requestFactory(factory).build(); // Utilise l'adresse configurée du service commun.
-    } // Fin du constructeur.
 
-    public Identite courante(String authorization) { // JWT local puis identité réelle dans commun-service.
-        var claims = jwt.verifier(authorization); // Refuse immédiatement un jeton faux ou expiré.
-        Identite identite; // Identité provenant exclusivement du serveur commun.
-        try { // Appelle l'authentification existante.
-            identite = client.get().uri("/skillmatch/auth/me").header("Authorization", authorization) // Transmet le JWT sans le modifier.
-                    .retrieve().body(Identite.class); // Le service commun vérifie la signature et l'expiration.
-        } catch (RestClientResponseException exception) { // Réponse en erreur du service commun.
+        // Prépare la connexion HTTP avec commun-service.
+        var factory = new SimpleClientHttpRequestFactory();
+
+        // Limite le délai de connexion à 3 secondes.
+        factory.setConnectTimeout(3000);
+
+        // Limite le délai de lecture à 3 secondes.
+        factory.setReadTimeout(3000);
+
+        // Crée le client HTTP avec l'adresse du service commun.
+        client = builder.baseUrl(url).requestFactory(factory).build();
+    }
+
+
+    // ========== 1. RÉCUPÉRER L'UTILISATEUR CONNECTÉ ==========
+
+    // Vérifie l'identité de l'utilisateur connecté.
+    public Identite courante(String authorization) {
+
+        // Vérifie que le JWT est valide et non expiré.
+        var claims = jwt.verifier(authorization);
+
+        // Prépare une variable pour recevoir l'identité de l'utilisateur.
+        Identite identite;
+
+        // Essaie de récupérer l'utilisateur depuis commun-service.
+        try {
+
+            // Envoie une requête GET avec le token JWT.
+            identite = client.get().uri("/skillmatch/auth/me").header("Authorization", authorization)
+
+                // Récupère les informations de l'utilisateur connecté.
+                .retrieve().body(Identite.class);
+
+            // Intercepte une réponse HTTP en erreur du service commun.
+        } catch (RestClientResponseException exception) {
+
+            // Vérifie si le service commun refuse la requête.
             if (exception.getStatusCode().is4xxClientError())
-                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Session refusée par le service commun"); // Identité refusée.
-            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Service d'authentification indisponible"); // Panne serveur, aucun accès accordé.
-        } catch (RestClientException exception) { // Service commun inaccessible ou réponse illisible.
-            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Service d'authentification indisponible"); // Aucun accès accordé en cas de panne.
-        } // Fin de l'appel HTTP.
-        if (identite == null || identite.id() == null || identite.id() <= 0 || identite.role() == null // Vérifie les informations obligatoires.
-                || !Set.of("ADMIN", "RECRUTEUR", "CANDIDAT").contains(identite.role())) { // Accepte uniquement les trois rôles du projet.
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Identité invalide"); // Ne fait pas confiance à une réponse incomplète.
-        } // Fin du contrôle.
+
+                // Retourne une erreur 401 si la session est refusée.
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Session refusée par le service commun");
+
+            // Retourne une erreur 503 si le service d'authentification échoue.
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Service d'authentification indisponible");
+
+            // Intercepte les erreurs de communication avec commun-service.
+        } catch (RestClientException exception) {
+
+            // Retourne une erreur 503 si le service est indisponible.
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Service d'authentification indisponible");
+        }
+
+
+        // ========== VÉRIFICATION DE L'IDENTITÉ ==========
+
+        // Vérifie que les informations de l'utilisateur sont valides.
+        if (identite == null || identite.id() == null || identite.id() <= 0 || identite.role() == null
+
+            // Vérifie que le rôle est ADMIN, RECRUTEUR ou CANDIDAT.
+            || !Set.of("ADMIN", "RECRUTEUR", "CANDIDAT").contains(identite.role())) {
+
+            // Refuse une identité invalide avec une erreur 401.
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Identité invalide");
+        }
+
+
+        // ========== VÉRIFICATION DU JWT ==========
+
+        // Compare l'identité et le rôle du JWT avec commun-service.
         if (!claims.getSubject().equals(identite.email()) || !claims.get("role", String.class).equals(identite.role()))
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Identité ou rôle modifié : reconnectez-vous"); // Refuse un JWT devenu incohérent.
-        return identite; // Retourne l'identité vérifiée côté serveur.
-    } // Fin de la résolution.
 
-    public void verifierRecruteur(Long id, String authorization) { // Contrôle le propriétaire choisi par ADMIN.
-        verifierUtilisateur(id, authorization, "RECRUTEUR"); // Réutilise la vérification commune.
+            // Refuse la session si les informations ne correspondent pas.
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Identité ou rôle modifié : reconnectez-vous");
+
+        // Retourne l'identité vérifiée de l'utilisateur connecté.
+        return identite;
     }
 
-    public void verifierCandidat(Long id, String authorization) { // Contrôle le candidat choisi par ADMIN.
-        verifierUtilisateur(id, authorization, "CANDIDAT"); // Ne crée aucun utilisateur fictif.
+
+    // ========== 2. VÉRIFIER UN RECRUTEUR ==========
+
+    // Vérifie qu'un utilisateur choisi possède le rôle RECRUTEUR.
+    public void verifierRecruteur(Long id, String authorization) {
+
+        // Appelle la méthode commune pour vérifier le recruteur.
+        verifierUtilisateur(id, authorization, "RECRUTEUR");
     }
 
-    private void verifierUtilisateur(Long id, String authorization, String role) { // Même vérification pour les deux rôles.
-        if (id == null || id <= 0) { // Un administrateur doit choisir un utilisateur.
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Choisir un utilisateur existant"); // Réponse 400.
-        } // Fin du contrôle.
-        Identite utilisateur; // Utilisateur à vérifier dans commun-service.
-        try { // Utilise le CRUD ADMIN déjà existant.
-            utilisateur = client.get().uri("/skillmatch/utilisateurs/{id}", id).header("Authorization", authorization) // Transmet le JWT ADMIN.
-                    .retrieve().body(Identite.class); // Récupère le vrai rôle de l'utilisateur choisi.
-        } catch (RestClientResponseException exception) { // Adapte l'erreur du service commun.
-            if (exception.getStatusCode().value() == 404) { // Identifiant inexistant.
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Utilisateur inexistant"); // Refuse une association inventée.
-            } // Fin du contrôle 404.
-            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Vérification de l'utilisateur impossible"); // Refuse la création en cas d'incertitude.
-        } catch (RestClientException exception) { // Panne de communication.
-            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Service utilisateurs indisponible"); // Réponse 503.
-        } // Fin de l'appel HTTP.
-        if (utilisateur == null || !id.equals(utilisateur.id()) || !role.equals(utilisateur.role())) { // Vérifie l'identifiant et le rôle demandés.
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Le rôle de l'utilisateur doit être " + role); // Refuse un rôle incorrect.
-        } // Fin de la vérification.
-    } // Fin du contrôle administratif.
 
-    public record Identite(Long id, String nom, String email, String role) { // Même réponse que commun-service, sans mot de passe.
-    } // Fin du record.
-} // Fin du service d'identité.
+    // ========== 3. VÉRIFIER UN CANDIDAT ==========
+
+    // Vérifie qu'un utilisateur choisi possède le rôle CANDIDAT.
+    public void verifierCandidat(Long id, String authorization) {
+
+        // Appelle la méthode commune pour vérifier le candidat.
+        verifierUtilisateur(id, authorization, "CANDIDAT");
+    }
+
+
+    // ========== 4. VÉRIFIER UN UTILISATEUR ==========
+
+    // Vérifie qu'un utilisateur existe et possède le rôle demandé.
+    private void verifierUtilisateur(Long id, String authorization, String role) {
+
+        // Vérifie que l'identifiant de l'utilisateur est valide.
+        if (id == null || id <= 0) {
+
+            // Retourne une erreur 400 si aucun utilisateur valide n'est choisi.
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Choisir un utilisateur existant");
+        }
+
+        // Prépare une variable pour recevoir l'utilisateur à vérifier.
+        Identite utilisateur;
+
+        // Essaie de récupérer l'utilisateur depuis commun-service.
+        try {
+
+            // Envoie une requête GET avec l'identifiant et le JWT.
+            utilisateur = client.get().uri("/skillmatch/utilisateurs/{id}", id).header("Authorization", authorization)
+
+                // Récupère les informations de l'utilisateur demandé.
+                .retrieve().body(Identite.class);
+
+            // Intercepte les erreurs HTTP du service commun.
+        } catch (RestClientResponseException exception) {
+
+            // Vérifie si l'utilisateur demandé est introuvable.
+            if (exception.getStatusCode().value() == 404) {
+
+                // Retourne une erreur 400 si l'utilisateur n'existe pas.
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Utilisateur inexistant");
+            }
+
+            // Retourne une erreur 503 si la vérification échoue.
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Vérification de l'utilisateur impossible");
+
+            // Intercepte les erreurs de communication avec commun-service.
+        } catch (RestClientException exception) {
+
+            // Retourne une erreur 503 si commun-service est indisponible.
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Service utilisateurs indisponible");
+        }
+
+
+        // ========== VÉRIFICATION DU RÔLE ==========
+
+        // Vérifie que l'utilisateur existe avec le bon identifiant et le bon rôle.
+        if (utilisateur == null || !id.equals(utilisateur.id()) || !role.equals(utilisateur.role())) {
+
+            // Retourne une erreur 400 si le rôle ne correspond pas.
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Le rôle de l'utilisateur doit être " + role);
+        }
+    }
+
+
+    // ========== 5. INFORMATIONS DE L'UTILISATEUR ==========
+
+    // Représente les informations d'identité reçues de commun-service.
+    public record Identite(Long id, String nom, String email, String role) {
+    }
+
+}

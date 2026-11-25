@@ -1,135 +1,323 @@
-package tn.esprit.skillmatch.offres.entity; // Place ce fichier dans le package indiqué, qui organise les classes du service.
 
-import jakarta.persistence.*; // Importe les annotations JPA pour les tables, colonnes et relations.
-import jakarta.validation.constraints.NotNull; // Importe la validation qui refuse une valeur absente.
-import jakarta.validation.constraints.Positive; // Importe la validation qui exige un nombre supérieur à zéro.
-import tn.esprit.skillmatch.offres.enums.CandidatureStatut; // Importe les valeurs autorisées de CandidatureStatut.
+package tn.esprit.skillmatch.offres.entity;
+// Indique où se trouve notre classe dans le projet.
 
-import java.time.LocalDateTime; // Importe les dates avec l'heure.
-import java.util.Objects; // Importe les vérifications simples comme le refus de null.
+// Importe les outils pour travailler avec la base de données.
+import jakarta.persistence.*;
 
-@Entity // Indique à JPA que cette classe est enregistrée dans une table.
-@Table(name = "candidatures", uniqueConstraints = @UniqueConstraint(name = "uk_candidature_user_offre", columnNames = {"user_id", "offre_id"})) // Une seule candidature par candidat et offre, même après retrait.
-public class Candidature { // Déclare l'entité Candidature, avec ses champs et ses méthodes.
-    @Id // Désigne la clé primaire de la table.
-    @GeneratedValue(strategy = GenerationType.IDENTITY) // Laisse MySQL générer l'identifiant avec AUTO_INCREMENT.
-    private Long id; // Déclare l'identifiant.
+// Permet de vérifier qu'une valeur n'est pas vide (null).
+import jakarta.validation.constraints.NotNull;
 
-    @NotNull // Refuse une valeur null lors de la validation.
-    @Enumerated(EnumType.STRING) // Enregistre le nom du statut ou du contrat en base, plutôt que son numéro.
-    @Column(nullable = false) // Interdit NULL dans cette colonne de la base.
-    private CandidatureStatut statut = CandidatureStatut.RECUE; // Déclare le statut ; RECUE est la valeur initiale.
+// Permet de vérifier qu'un nombre est supérieur à 0.
+import jakarta.validation.constraints.Positive;
 
-    @Column(columnDefinition = "TEXT") // Utilise une colonne TEXT pour stocker un texte long.
-    private String lettre; // Déclare la lettre de motivation.
+// Importe les différents statuts d'une candidature.
+import tn.esprit.skillmatch.offres.enums.CandidatureStatut;
 
-    @Column(nullable = false, updatable = false) // Rend la date obligatoire en base et exclut sa modification des UPDATE JPA.
-    private LocalDateTime dateCandidature; // Déclare la date de dépôt.
+// Permet de travailler avec la date et l'heure.
+import java.time.LocalDateTime;
 
-    private LocalDateTime dateEntretien; // Déclare la date d'entretien.
-    private Integer noteRecruteur; // Déclare la note donnée par le recruteur.
+// Permet de vérifier qu'une valeur n'est pas null.
+import java.util.Objects;
 
-    @Column(columnDefinition = "TEXT") // Utilise une colonne TEXT pour stocker un texte long.
-    private String commentaireRecruteur; // Déclare le commentaire du recruteur.
 
-    @NotNull // Refuse une valeur null lors de la validation.
-    @Positive // Exige un identifiant strictement supérieur à zéro s'il est renseigné.
-    @Column(nullable = false) // Interdit NULL dans cette colonne de la base.
-    private Long userId; // Déclare l'identifiant du candidat.
+// Cette classe représente une table dans la base de données.
+@Entity
 
-    @Positive // Référence positive si renseignée, facultative pour postuler.
-    @Column(nullable = true) // Autorise une candidature sans CV en base.
-    private Long cvId; // Conservé pour la future intégration du service Profils.
+// La table s'appelle "candidatures".
+// Un candidat ne peut postuler qu'une fois à la même offre.
+@Table(
+    name = "candidatures",
+    uniqueConstraints = @UniqueConstraint(
+        name = "uk_candidature_user_offre",
+        columnNames = {"user_id", "offre_id"}
+    )
+)
 
-    // Aucune cascade : supprimer une candidature ne supprime jamais son offre.
-    @NotNull // Refuse une valeur null lors de la validation.
-    @ManyToOne(fetch = FetchType.LAZY, optional = false) // Relie plusieurs candidatures à une offre obligatoire, chargée à la demande.
-    @JoinColumn(name = "offre_id", nullable = false) // Stocke la clé étrangère obligatoire vers l'offre dans offre_id.
-    private Offre offre; // Déclare l'offre associée.
+public class Candidature {
+    // On crée la classe Candidature.
 
-    @PrePersist // Exécute la méthode suivante avant la première insertion JPA.
-    void initialiser() { // Prépare les valeurs automatiques d'une nouvelle candidature.
-        dateCandidature = LocalDateTime.now(); // Fixe la date et l'heure du dépôt au moment de l'insertion.
-        statut = CandidatureStatut.RECUE; // Force le statut initial d'une nouvelle candidature à RECUE.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
 
-    public void changerStatut(CandidatureStatut nouveau) { // Permet de changer le statut ; les droits seront contrôlés dans le service métier.
-        statut = Objects.requireNonNull(nouveau, "Le statut est obligatoire"); // Affecte le nouveau statut ou refuse une valeur null.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
+    // ========== IDENTIFIANT ==========
 
-    public Long getId() { // Permet de lire l'identifiant.
-        return id; // Retourne l'identifiant de cet objet.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
+    @Id // id est la clé primaire de notre table.
 
-    public void setId(Long id) { // Permet de renseigner ou modifier l'identifiant.
-        this.id = id; // Stocke la valeur reçue dans le champ de cet objet.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    // MySQL crée automatiquement un nouvel id : 1, 2, 3...
 
-    public CandidatureStatut getStatut() { // Permet de lire le statut.
-        return statut; // Retourne le statut de cet objet.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
+    private Long id;
+    // Identifiant unique de chaque candidature.
 
-    public void setStatut(CandidatureStatut statut) { // Permet de renseigner ou modifier le statut.
-        this.statut = statut; // Stocke la valeur reçue dans le champ de cet objet.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
 
-    public String getLettre() { // Permet de lire la lettre de motivation.
-        return lettre; // Retourne la lettre de motivation de cet objet.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
+    // ========== STATUT ==========
 
-    public void setLettre(String lettre) { // Permet de renseigner ou modifier la lettre de motivation.
-        this.lettre = lettre; // Stocke la valeur reçue dans le champ de cet objet.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
+    @NotNull // Le statut ne doit pas être null.
 
-    public LocalDateTime getDateCandidature() { // Permet de lire la date de dépôt.
-        return dateCandidature; // Retourne la date de dépôt de cet objet.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
+    @Enumerated(EnumType.STRING)
+    // On stocke "RECUE" en base au lieu d'un numéro.
 
-    public LocalDateTime getDateEntretien() { // Permet de lire la date d'entretien.
-        return dateEntretien; // Retourne la date d'entretien de cet objet.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
+    @Column(nullable = false)
+    // Cette colonne est obligatoire dans MySQL.
 
-    public void setDateEntretien(LocalDateTime dateEntretien) { // Permet de renseigner ou modifier la date d'entretien.
-        this.dateEntretien = dateEntretien; // Stocke la valeur reçue dans le champ de cet objet.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
+    private CandidatureStatut statut = CandidatureStatut.RECUE;
+    // Au début, chaque candidature a le statut RECUE.
 
-    public Integer getNoteRecruteur() { // Permet de lire la note donnée par le recruteur.
-        return noteRecruteur; // Retourne la note donnée par le recruteur de cet objet.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
 
-    public void setNoteRecruteur(Integer noteRecruteur) { // Permet de renseigner ou modifier la note donnée par le recruteur.
-        this.noteRecruteur = noteRecruteur; // Stocke la valeur reçue dans le champ de cet objet.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
+    // ========== LETTRE DE MOTIVATION ==========
 
-    public String getCommentaireRecruteur() { // Permet de lire le commentaire du recruteur.
-        return commentaireRecruteur; // Retourne le commentaire du recruteur de cet objet.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
+    @Column(columnDefinition = "TEXT")
+    // Permet de stocker un texte long dans MySQL.
 
-    public void setCommentaireRecruteur(String commentaireRecruteur) { // Permet de renseigner ou modifier le commentaire du recruteur.
-        this.commentaireRecruteur = commentaireRecruteur; // Stocke la valeur reçue dans le champ de cet objet.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
+    private String lettre;
+    // Lettre de motivation écrite par le candidat.
 
-    public Long getUserId() { // Permet de lire l'identifiant du candidat.
-        return userId; // Retourne l'identifiant du candidat de cet objet.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
 
-    public void setUserId(Long userId) { // Permet de renseigner ou modifier l'identifiant du candidat.
-        this.userId = userId; // Stocke la valeur reçue dans le champ de cet objet.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
+    // ========== DATE DE CANDIDATURE ==========
 
-    public Long getCvId() { // Permet de lire l'identifiant du CV.
-        return cvId; // Retourne l'identifiant du CV de cet objet.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
+    @Column(nullable = false, updatable = false)
+    // La date est obligatoire.
+    // JPA ne la modifiera pas lors d'un UPDATE.
 
-    public void setCvId(Long cvId) { // Permet de renseigner ou modifier l'identifiant du CV.
-        this.cvId = cvId; // Stocke la valeur reçue dans le champ de cet objet.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
+    private LocalDateTime dateCandidature;
+    // Date et heure auxquelles le candidat a postulé.
 
-    public Offre getOffre() { // Permet de lire l'offre associée.
-        return offre; // Retourne l'offre associée de cet objet.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
 
-    public void setOffre(Offre offre) { // Permet de renseigner ou modifier l'offre associée.
-        this.offre = offre; // Stocke la valeur reçue dans le champ de cet objet.
-    } // Ferme le bloc précédent (méthode, condition ou classe).
-} // Ferme le bloc précédent (méthode, condition ou classe).
+    // ========== ENTRETIEN ==========
+
+    private LocalDateTime dateEntretien;
+    // Date et heure de l'entretien, si un entretien est prévu.
+
+    private Integer noteRecruteur;
+    // Note donnée par le recruteur au candidat.
+
+
+    // ========== COMMENTAIRE RECRUTEUR ==========
+
+    @Column(columnDefinition = "TEXT")
+    // Permet d'enregistrer un commentaire long.
+
+    private String commentaireRecruteur;
+    // Avis écrit par le recruteur sur le candidat.
+
+
+    // ========== IDENTIFIANT DU CANDIDAT ==========
+
+    @NotNull // L'identifiant est obligatoire.
+
+    @Positive // L'identifiant doit être supérieur à 0.
+
+    @Column(nullable = false)
+    // On ne peut pas enregistrer un userId null dans MySQL.
+
+    private Long userId;
+    // Identifiant du candidat qui a postulé.
+
+
+    // ========== IDENTIFIANT DU CV ==========
+
+    @Positive // Si un CV est indiqué, son id doit être positif.
+
+    @Column(nullable = true)
+    // Le CV est facultatif : on peut postuler sans CV.
+
+    private Long cvId;
+    // Identifiant du CV du candidat.
+    // Il pourra venir du microservice Profils & CV.
+
+
+    // ========== RELATION AVEC OFFRE ==========
+
+    @NotNull // Une candidature doit avoir une offre.
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    // Plusieurs candidatures peuvent concerner une même offre.
+    // LAZY : JPA charge l'offre quand on en a besoin.
+
+    @JoinColumn(name = "offre_id", nullable = false)
+    // La table candidatures contient une colonne offre_id.
+    // Cette colonne relie la candidature à son offre.
+
+    private Offre offre;
+    // L'offre d'emploi à laquelle le candidat postule.
+    // Supprimer une candidature ne supprime pas son offre.
+
+
+    // ========== INITIALISATION AUTOMATIQUE ==========
+
+    @PrePersist
+        // Exécute cette méthode juste avant l'enregistrement
+        // d'une nouvelle candidature dans la base.
+
+    void initialiser() {
+
+        dateCandidature = LocalDateTime.now();
+        // Enregistre automatiquement la date et l'heure actuelles.
+
+        statut = CandidatureStatut.RECUE;
+        // Chaque nouvelle candidature commence avec le statut RECUE.
+    }
+
+
+    // ========== CHANGER LE STATUT ==========
+
+    public void changerStatut(CandidatureStatut nouveau) {
+        // Méthode qui permet de changer le statut.
+
+        statut = Objects.requireNonNull(
+            nouveau,
+            "Le statut est obligatoire"
+        );
+        // Vérifie que le nouveau statut n'est pas null.
+        // S'il est null, une erreur est déclenchée.
+        // Sinon, le statut prend la nouvelle valeur.
+    }
+
+
+    // ========== GETTERS ET SETTERS ==========
+
+
+    // ----- ID -----
+
+    public Long getId() {
+        // Getter : permet de récupérer l'id.
+        return id;
+        // Renvoie l'id de cette candidature.
+    }
+
+    public void setId(Long id) {
+        // Setter : permet de donner une valeur à l'id.
+        this.id = id;
+        // this.id = l'id de l'objet.
+        // id = la valeur reçue en paramètre.
+    }
+
+
+    // ----- STATUT -----
+
+    public CandidatureStatut getStatut() {
+        // Permet de connaître le statut de la candidature.
+        return statut;
+        // Renvoie par exemple RECUE.
+    }
+
+    public void setStatut(CandidatureStatut statut) {
+        // Permet de modifier le statut.
+        this.statut = statut;
+        // Enregistre le statut reçu.
+    }
+
+
+    // ----- LETTRE DE MOTIVATION -----
+
+    public String getLettre() {
+        // Permet de lire la lettre de motivation.
+        return lettre;
+        // Renvoie le texte de la lettre.
+    }
+
+    public void setLettre(String lettre) {
+        // Permet d'ajouter ou modifier la lettre.
+        this.lettre = lettre;
+        // Enregistre la lettre reçue.
+    }
+
+
+    // ----- DATE DE CANDIDATURE -----
+
+    public LocalDateTime getDateCandidature() {
+        // Permet de connaître la date de dépôt.
+        return dateCandidature;
+        // Renvoie la date et l'heure de candidature.
+    }
+
+
+    // ----- DATE D'ENTRETIEN -----
+
+    public LocalDateTime getDateEntretien() {
+        // Permet de connaître la date d'entretien.
+        return dateEntretien;
+        // Renvoie la date d'entretien.
+    }
+
+    public void setDateEntretien(LocalDateTime dateEntretien) {
+        // Permet de fixer ou modifier la date d'entretien.
+        this.dateEntretien = dateEntretien;
+        // Enregistre la date reçue.
+    }
+
+
+    // ----- NOTE DU RECRUTEUR -----
+
+    public Integer getNoteRecruteur() {
+        // Permet de consulter la note du recruteur.
+        return noteRecruteur;
+        // Renvoie la note enregistrée.
+    }
+
+    public void setNoteRecruteur(Integer noteRecruteur) {
+        // Permet au programme de définir une note.
+        this.noteRecruteur = noteRecruteur;
+        // Enregistre la nouvelle note.
+    }
+
+
+    // ----- COMMENTAIRE DU RECRUTEUR -----
+
+    public String getCommentaireRecruteur() {
+        // Permet de lire le commentaire du recruteur.
+        return commentaireRecruteur;
+        // Renvoie le commentaire.
+    }
+
+    public void setCommentaireRecruteur(String commentaireRecruteur) {
+        // Permet d'ajouter ou modifier un commentaire.
+        this.commentaireRecruteur = commentaireRecruteur;
+        // Enregistre le commentaire reçu.
+    }
+
+
+    // ----- IDENTIFIANT DU CANDIDAT -----
+
+    public Long getUserId() {
+        // Permet de connaître l'identifiant du candidat.
+        return userId;
+        // Renvoie l'id du candidat.
+    }
+
+    public void setUserId(Long userId) {
+        // Permet d'affecter un candidat à cette candidature.
+        this.userId = userId;
+        // Enregistre l'identifiant reçu.
+    }
+
+
+    // ----- IDENTIFIANT DU CV -----
+
+    public Long getCvId() {
+        // Permet de connaître l'identifiant du CV.
+        return cvId;
+        // Renvoie l'id du CV, ou null si aucun CV.
+    }
+
+    public void setCvId(Long cvId) {
+        // Permet de renseigner un CV.
+        this.cvId = cvId;
+        // Enregistre l'identifiant du CV.
+    }
+
+
+    // ----- OFFRE ASSOCIÉE -----
+
+    public Offre getOffre() {
+        // Permet de récupérer l'offre associée.
+        return offre;
+        // Renvoie l'objet Offre.
+    }
+
+    public void setOffre(Offre offre) {
+        // Permet d'associer une offre à la candidature.
+        this.offre = offre;
+        // Enregistre l'offre reçue.
+    }
+
+} // Fin de la classe Candidature.

@@ -35,24 +35,86 @@ ancien/nouveau statut et date d'entretien. Aucun JWT, mot de passe, lettre ou
 contenu de CV n'est envoyé. Les consommateurs peuvent utiliser `eventId` pour
 reconnaître un message déjà traité.
 
-## Démarrer localement sous Windows
+## Démarrer RabbitMQ avec Docker Desktop
 
-RabbitMQ nécessite Erlang. Installation autorisée dans un PowerShell administrateur :
+RabbitMQ et Erlang sont fournis par l'image Docker officielle
+`rabbitmq:4.4.1-management`. Aucune installation RabbitMQ/Erlang sur Windows
+ni activation manuelle du plugin management n'est nécessaire.
 
-```powershell
-choco install rabbitmq -y
+1. Ouvrir Docker Desktop et attendre que le moteur Linux soit prêt.
+2. Docker utilise les ports locaux 5673/15673 pour éviter le conflit avec le broker Windows en 5672/15672. Pour arrêter ultérieurement l'ancien service, ouvrir
+   Services Windows (`services.msc`), arrêter **RabbitMQ** et passer son démarrage
+   en **Manuel** pour éviter un conflit au prochain redémarrage. Ses données
+   restent conservées ; elles ne sont pas transférées automatiquement dans Docker.
+3. À la racine du projet, lancer :
+
+```console
+docker compose up -d --wait rabbitmq
+docker compose ps
+docker compose exec rabbitmq rabbitmq-diagnostics -q ping
 ```
 
-Activer ensuite `rabbitmq_management` avec `rabbitmq-plugins.bat enable rabbitmq_management`
-depuis le dossier `sbin` de RabbitMQ. Le service Windows s'appelle `RabbitMQ`.
+Le premier lancement télécharge l'image. Dans Docker Desktop > Containers,
+le projet **skillmatch** contient le service **rabbitmq**. Les lancements suivants
+peuvent se faire avec le bouton Start de Docker Desktop.
 
-Ordre : MySQL et RabbitMQ, Eureka, Commun, Offres, Gateway, Angular.
-Interface RabbitMQ : http://localhost:15672, compte local `guest` / `guest`.
-Le compte guest est prévu pour localhost ; ne pas l'utiliser pour un serveur distant.
+4. Ouvrir http://localhost:15673 et se connecter avec les identifiants locaux
+   par défaut : **skillmatch / skillmatch-local**.
+5. Démarrer MySQL, Eureka, Commun, Offres, Gateway puis Angular comme auparavant.
+   Redémarrer Offres pour qu'il déclare l'exchange et les trois files sur ce broker.
 
-Variables Offres, reprises du template : `RABBITMQ_HOST` (localhost),
-`RABBITMQ_PORT` (5672), `RABBITMQ_USER` (guest), `RABBITMQ_PASSWORD` (guest),
-`RABBITMQ_VHOST` (/). Ne pas commiter de vrais identifiants.
+### Ce que contient compose.yaml
+
+- `image` : version 4.4.1 avec interface management incluse et Erlang intégré.
+- `hostname: rabbitmq` : identité stable du nœud, utile pour retrouver ses données.
+- `ports` : 5673 vers 5672 pour Spring AMQP et 15673 vers 15672 pour l'interface, publiés sur localhost.
+- `environment` : utilisateur, mot de passe et virtual host créés au premier démarrage.
+- `volumes` : `rabbitmq_data` conserve les données dans `/var/lib/rabbitmq`.
+- `healthcheck` : vérifie régulièrement que le nœud RabbitMQ répond ; `--wait`
+  attend que le conteneur soit sain avant de rendre la main.
+- `restart: unless-stopped` : redémarre le conteneur lorsque Docker redémarre,
+  sauf s'il a été arrêté volontairement.
+
+### Connexion Spring Boot
+
+Dans `Backend/offres-service/src/main/resources/application.yml` :
+
+```yaml
+spring:
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5673}
+    username: ${RABBITMQ_USER:skillmatch}
+    password: ${RABBITMQ_PASSWORD:skillmatch-local}
+    virtual-host: ${RABBITMQ_VHOST:/}
+```
+
+Offres reste démarré dans IntelliJ et contacte le port local publié par Docker.
+Le code Java des événements, les routing keys et les noms des files sont conservés.
+Les identifiants par défaut ont été alignés dans le modèle de service également.
+Config Server conserve la configuration publique ; les identifiants restent locaux.
+
+`.env.example` documente les variables. Le fichier `.env` à la racine, s'il existe,
+est lu par Compose. Spring Boot lancé dans IntelliJ ne lit pas ce fichier
+automatiquement : définir les mêmes valeurs dans les variables d'environnement
+IntelliJ si elles diffèrent des valeurs par défaut. Vérifier en particulier
+qu'aucune ancienne variable `RABBITMQ_USER=guest` ou `RABBITMQ_PORT=5672` ne reste dans la configuration.
+Les identifiants fournis sont réservés au développement local.
+
+Les variables `RABBITMQ_DEFAULT_*` initialisent une nouvelle base RabbitMQ ;
+changer `.env` après création du volume ne modifie pas les utilisateurs existants.
+Les anciens messages du service Windows ne se trouvent pas dans ce nouveau volume.
+
+### Arrêt et diagnostic
+
+```console
+docker compose logs --tail=100 rabbitmq
+docker compose stop rabbitmq
+docker compose start rabbitmq
+```
+
+`docker compose down` supprime le conteneur mais conserve le volume nommé.
+Ne pas ajouter `-v` si l'on veut conserver les messages.
 
 ## Démonstration
 
@@ -92,6 +154,4 @@ outbox ni de rejeu automatique après redémarrage : la livraison n'est pas gara
 si le broker reste indisponible ou si le processus s'arrête entre commit et envoi.
 Cette limite est volontaire pour garder cette première intégration simple.
 
-Validation locale : RabbitMQ 4.4.1 et Erlang 27.3.4.8 installés ; service Windows démarré.
-84 tests unitaires et 2 tests d'intégration réussis (RabbitMQ réel et CRUD MySQL).
-Le contrôle de santé d'Offres répond UP et les trois files métier durables existent.
+Validation de cette modification : Compose valide ; conteneur RabbitMQ 4.4.1 sain ; ping réussi ; interface management accessible sur 15673. Le test RabbitPublisherIT a réussi contre Docker sur localhost:5673 avec MySQL local : les trois JSON sont reçus après commit et aucun après rollback. Les files temporaires du test sont supprimées à la fin. Redémarrer normalement Offres après Config Server pour créer les trois files métier sur le broker Docker.

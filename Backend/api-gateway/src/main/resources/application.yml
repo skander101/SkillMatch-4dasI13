@@ -47,7 +47,24 @@ eureka:
     prefer-ip-address: true
 
 management:
+  endpoint:
+    health:
+      show-components: always
+      show-details: never
+      probes:
+        enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+  info:
+    env:
+      enabled: true
   endpoints:
     web:
       exposure:
-        include: health,info,gateway
+        include: health,info,metrics,gateway
+
+info:
+  app:
+    name: ${spring.application.name}
+    description: Supervision du microservice SkillMatch

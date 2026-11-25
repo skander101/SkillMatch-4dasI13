@@ -21,9 +21,9 @@ spring:
 
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
-    port: ${RABBITMQ_PORT:5672}
-    username: ${RABBITMQ_USER:guest}
-    password: ${RABBITMQ_PASSWORD:guest}
+    port: ${RABBITMQ_PORT:5673}
+    username: ${RABBITMQ_USER:skillmatch}
+    password: ${RABBITMQ_PASSWORD:skillmatch-local}
 
 eureka:
   client:
@@ -33,7 +33,24 @@ eureka:
     fetch-registry: ${EUREKA_FETCH:false}
 
 management:
+  endpoint:
+    health:
+      show-components: always
+      show-details: never
+      probes:
+        enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+  info:
+    env:
+      enabled: true
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,metrics
+
+info:
+  app:
+    name: ${spring.application.name}
+    description: Supervision du microservice SkillMatch

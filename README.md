@@ -38,7 +38,7 @@ L'application suit une architecture microservices :
 - **Eureka** assure la découverte des services et **Spring Cloud Config** centralise la configuration ;
 - six **microservices métier** indépendants ;
 - un **service commun** pour l'authentification ; les notifications sont prévues mais non implémentées ;
-- **RabbitMQ** pour les événements asynchrones ;
+- **RabbitMQ dans Docker** pour les événements asynchrones, configuré dans [`compose.yaml`](compose.yaml). Démarrage depuis la racine : `docker compose up -d --wait rabbitmq`. Voir le [guide RabbitMQ](Backend/offres-service/RABBITMQ.md).
 - **MySQL sous XAMPP** pour la persistance, avec une base distincte par service ;
 - un **frontend** unique qui consomme l'API via la gateway.
 
@@ -57,7 +57,7 @@ Le schéma d'architecture complet et les autres diagrammes se trouvent dans [`Do
 | `commun-service` | 8087 | `commun_db` | Utilisateur et authentification JWT (sans notifications pour l'instant) |
 | `api-gateway` | 8080 | — | Routage `/skillmatch/auth/**` et CORS ; validation JWT prévue |
 | `discovery-service` | 8761 | — | Serveur Eureka |
-| `config-service` | 8888 | — | Configuration centralisée |
+| `config-service` | 8889 | — | Configuration centralisée |
 | `Frontend` | 4200 | — | Interface candidat, recruteur et administrateur |
 
 Le détail des contrats, des entités, des appels synchrones et des événements est dans [`Backend/README.md`](Backend/README.md).
