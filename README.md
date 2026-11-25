@@ -64,7 +64,7 @@ Le détail des contrats, des entités, des appels synchrones et des événements
 
 État d'intégration : `commun-service` (utilisateur + auth JWT + CRUD ADMIN, sans notifications) et `api-gateway` sont implémentés ; le frontend consomme les endpoints `/skillmatch/auth/*` et `/skillmatch/utilisateurs/*` via la gateway. Un back office s'ouvre automatiquement après connexion avec le rôle `ADMIN`.
 
-Sur `skander_entreprise+avis`, le service `entreprises-service` fournit le CRUD de l'entité `Entreprise`, la publication et la modération des avis avec recalcul de la moyenne. Les routes `/skillmatch/entreprises/**` et `/skillmatch/avis/**` passent par la gateway sur `http://localhost:8080` et sont protégées par JWT : lecture publique, publication par `CANDIDAT`/`RECRUTEUR`, modération et CRUD entreprise par `ADMIN`. Swagger reste disponible sur `http://localhost:8083/swagger-ui.html`. Les événements et le frontend associé restent à implémenter dans les commits suivants du plan.
+Sur `skander_entreprise+avis`, le service `entreprises-service` fournit le CRUD de l'entité `Entreprise`, la publication et la modération des avis avec recalcul de la moyenne, ainsi que les événements RabbitMQ `AvisModere` (publié) et `ProfileUpdated` (consommé). Les routes `/skillmatch/entreprises/**` et `/skillmatch/avis/**` passent par la gateway sur `http://localhost:8080` et sont protégées par JWT : lecture publique, publication par `CANDIDAT`/`RECRUTEUR`, modération et CRUD entreprise par `ADMIN`. Swagger reste disponible sur `http://localhost:8083/swagger-ui.html`. Le frontend associé reste à implémenter dans les commits suivants du plan.
 
 ## Technologies
 
@@ -160,7 +160,7 @@ cd Backend/entreprises-service && mvn spring-boot:run
 
 Spring Boot ne lit pas automatiquement le fichier `.env` : les variables doivent être exportées dans chaque terminal ou définies dans l'IDE. Les bases `commun_db` et `entreprises_db` sont créées au premier démarrage si l'utilisateur MySQL dispose du droit `CREATE`.
 
-`entreprises-service` est routé par la gateway sur `http://localhost:8080` ; Swagger et le health restent accessibles directement sur `http://localhost:8083`. RabbitMQ n'est pas nécessaire pour ce commit et l'enregistrement Eureka est désactivé par défaut en local.
+`entreprises-service` est routé par la gateway sur `http://localhost:8080` ; Swagger et le health restent accessibles directement sur `http://localhost:8083`. Les événements utilisent l'exchange `skillmatch.events` ; le listener `ProfileUpdated` est désactivé par défaut, donc le service démarre sans RabbitMQ et la publication d'`AvisModere` journalise les erreurs broker sans annuler la modération. L'enregistrement Eureka est désactivé par défaut en local.
 
 ## Organisation Git
 

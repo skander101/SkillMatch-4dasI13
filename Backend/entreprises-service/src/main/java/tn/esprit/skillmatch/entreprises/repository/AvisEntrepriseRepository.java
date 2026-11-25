@@ -13,4 +13,6 @@ public interface AvisEntrepriseRepository extends JpaRepository<AvisEntreprise, 
     List<AvisEntreprise> findByEntreprise_IdOrderByDateCreationDesc(Long entrepriseId);
 
     List<AvisEntreprise> findByEntreprise_IdAndStatut(Long entrepriseId, StatutModeration statut);
+
+    List<AvisEntreprise> findByUtilisateurId(Long utilisateurId);
 }

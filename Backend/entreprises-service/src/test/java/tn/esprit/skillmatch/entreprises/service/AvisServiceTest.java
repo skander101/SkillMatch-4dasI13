@@ -3,8 +3,10 @@ package tn.esprit.skillmatch.entreprises.service;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 import tn.esprit.skillmatch.entreprises.client.UtilisateurInfo;
@@ -14,6 +16,7 @@ import tn.esprit.skillmatch.entreprises.dto.ModerationRequest;
 import tn.esprit.skillmatch.entreprises.entity.AvisEntreprise;
 import tn.esprit.skillmatch.entreprises.entity.Entreprise;
 import tn.esprit.skillmatch.entreprises.entity.StatutModeration;
+import tn.esprit.skillmatch.entreprises.event.EvenementEntreprise;
 import tn.esprit.skillmatch.entreprises.mapper.AvisMapper;
 import tn.esprit.skillmatch.entreprises.repository.AvisEntrepriseRepository;
 import tn.esprit.skillmatch.entreprises.repository.EntrepriseRepository;
@@ -25,6 +28,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -39,13 +43,21 @@ class AvisServiceTest {
     @Mock
     private EntrepriseRepository entrepriseRepository;
 
+    @Mock
+    private ApplicationEventPublisher applicationEventPublisher;
+
     private final AvisMapper avisMapper = new AvisMapper();
 
     private AvisService avisService;
 
     @BeforeEach
     void setUp() {
-        avisService = new AvisService(avisEntrepriseRepository, entrepriseRepository, avisMapper);
+        avisService = new AvisService(
+                avisEntrepriseRepository,
+                entrepriseRepository,
+                avisMapper,
+                applicationEventPublisher
+        );
     }
 
     @Test
@@ -148,6 +160,19 @@ class AvisServiceTest {
         assertEquals(StatutModeration.APPROUVE, response.statut());
         assertEquals(4.5, entreprise.getNoteMoyenne());
         verify(entrepriseRepository).save(entreprise);
+
+        ArgumentCaptor<EvenementEntreprise> evenementCaptor = ArgumentCaptor.forClass(EvenementEntreprise.class);
+        verify(applicationEventPublisher).publishEvent(evenementCaptor.capture());
+        EvenementEntreprise evenement = evenementCaptor.getValue();
+        assertEquals(EvenementEntreprise.AVIS_MODERE, evenement.type());
+        assertNotNull(evenement.eventId());
+        assertNotNull(evenement.date());
+        assertTrue(evenement.donnees() instanceof EvenementEntreprise.AvisModere);
+        EvenementEntreprise.AvisModere donnees = (EvenementEntreprise.AvisModere) evenement.donnees();
+        assertEquals(2L, donnees.avisId());
+        assertEquals(1L, donnees.entrepriseId());
+        assertEquals(StatutModeration.APPROUVE, donnees.statut());
+        assertEquals(4.5, donnees.noteMoyenne());
     }
 
     @Test
@@ -165,6 +190,23 @@ class AvisServiceTest {
 
         assertEquals(StatutModeration.REJETE, response.statut());
         assertEquals(0.0, entreprise.getNoteMoyenne());
+        verify(applicationEventPublisher).publishEvent(any(EvenementEntreprise.class));
+    }
+
+    @Test
+    void moderateDoesNotPublishEventWhenStatusIsUnchanged() {
+        Entreprise entreprise = entreprise(1L);
+        AvisEntreprise avis = avis(2L, entreprise, 5, StatutModeration.APPROUVE);
+
+        when(avisEntrepriseRepository.findById(2L)).thenReturn(Optional.of(avis));
+        when(avisEntrepriseRepository.saveAndFlush(avis)).thenReturn(avis);
+        when(avisEntrepriseRepository.findByEntreprise_IdAndStatut(1L, StatutModeration.APPROUVE))
+                .thenReturn(List.of(avis));
+        when(entrepriseRepository.findById(1L)).thenReturn(Optional.of(entreprise));
+
+        avisService.moderate(2L, new ModerationRequest(StatutModeration.APPROUVE));
+
+        verify(applicationEventPublisher, never()).publishEvent(any(EvenementEntreprise.class));
     }
 
     @Test

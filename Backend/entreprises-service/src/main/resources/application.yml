@@ -24,9 +24,30 @@ spring:
     port: ${RABBITMQ_PORT:5672}
     username: ${RABBITMQ_USER:guest}
     password: ${RABBITMQ_PASSWORD:guest}
+    virtual-host: ${RABBITMQ_VHOST:/}
+    connection-timeout: 3s
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    template:
+      mandatory: true
+      retry:
+        enabled: true
+        max-attempts: 3
+        initial-interval: 500ms
+        max-interval: 2s
+    listener:
+      simple:
+        auto-startup: ${RABBITMQ_LISTENER_ENABLED:false}
+        default-requeue-rejected: false
 
 commun-service:
   url: ${COMMUN_SERVICE_URL:http://localhost:8087}
+
+skillmatch:
+  events:
+    exchange: ${RABBITMQ_EXCHANGE:skillmatch.events}
+    queue-prefix: ${RABBITMQ_QUEUE_PREFIX:skillmatch.entreprises}
+    listener-enabled: ${RABBITMQ_LISTENER_ENABLED:false}
 
 eureka:
   client:

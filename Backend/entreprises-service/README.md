@@ -4,7 +4,7 @@ Microservice métier responsable des entreprises et des avis publiés par les ca
 
 ## État actuel
 
-Le service fournit le CRUD complet de l'entité `Entreprise`, la publication d'avis avec contrainte d'unicité, la consultation des avis d'une entreprise, leur modération et le recalcul automatique de `noteMoyenne`. Les endpoints sont protégés par JWT validé auprès de `commun-service`, avec application des rôles. Les événements et le frontend associé restent à implémenter dans les étapes suivantes du plan.
+Le service fournit le CRUD complet de l'entité `Entreprise`, la publication d'avis avec contrainte d'unicité, la consultation des avis d'une entreprise, leur modération et le recalcul automatique de `noteMoyenne`. Les endpoints sont protégés par JWT validé auprès de `commun-service`, avec application des rôles. Le service publie `AvisModere` après modération et consomme `ProfileUpdated` pour rafraîchir le nom stocké dans les avis ; le frontend associé reste à implémenter dans les étapes suivantes du plan.
 
 ## Informations
 
@@ -110,6 +110,19 @@ curl -i -X DELETE http://localhost:8080/skillmatch/avis/2 \
 
 Après chaque modération ou suppression, `GET /skillmatch/entreprises/{id}` renvoie la `noteMoyenne` recalculée.
 
+## Événements RabbitMQ
+
+L'exchange topic est `skillmatch.events`. Les files durables sont nommées avec le préfixe `skillmatch.entreprises` et chaque clé de routage porte le nom de l'événement métier.
+
+| Événement | Rôle | Clé de routage | File |
+|---|---|---|---|
+| `AvisModere` | Publié après un changement effectif de statut (`APPROUVE` ou `REJETE`) | `AvisModere` | `skillmatch.entreprises.AvisModere` |
+| `ProfileUpdated` | Consommé pour mettre à jour `nomUtilisateur` sur tous les avis de l'utilisateur | `ProfileUpdated` | `skillmatch.entreprises.ProfileUpdated` |
+
+Le message utilise l'enveloppe JSON `{"eventId":"...","type":"...","date":"...","donnees":{...}}`. Les alias `occurredAt` et `data` sont acceptés à la consommation pour rester compatibles avec la convention du dossier technique. Le corps de `AvisModere` contient `avisId`, `entrepriseId`, `utilisateurId`, `nomUtilisateur`, `note`, `statut`, `noteMoyenne` et `dateModeration`. Le corps de `ProfileUpdated` doit contenir au minimum `utilisateurId` (alias `userId`) et `nom` (alias `name`).
+
+La publication utilise `AFTER_COMMIT` et n'interrompt jamais la modération si RabbitMQ est indisponible : l'erreur est journalisée et l'opération MySQL conserve son résultat. Le listener `ProfileUpdated` est désactivé par défaut pour permettre le démarrage sans broker ; l'activer avec `RABBITMQ_LISTENER_ENABLED=true`. La health RabbitMQ reste désactivée afin que `/actuator/health` ne dépende pas du broker.
+
 ## Démarrage
 
 La base `entreprises_db` est créée automatiquement au premier démarrage si l'utilisateur MySQL a le droit `CREATE`. Hibernate crée les tables `entreprises` et `avis_entreprises` avec `ddl-auto: update`.
@@ -136,7 +149,10 @@ mvn test
 - `SERVER_PORT` : port du service, `8083` par défaut.
 - `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_DATABASE`, `MYSQL_USER`, `MYSQL_PASSWORD`.
 - `COMMUN_SERVICE_URL` : base URL de `commun-service`, `http://localhost:8087` par défaut, utilisée pour valider les JWT via `/skillmatch/auth/me`.
-- `RABBITMQ_HOST`, `RABBITMQ_PORT`, `RABBITMQ_USER`, `RABBITMQ_PASSWORD`.
+- `RABBITMQ_HOST`, `RABBITMQ_PORT`, `RABBITMQ_USER`, `RABBITMQ_PASSWORD`, `RABBITMQ_VHOST`.
+- `RABBITMQ_EXCHANGE` : exchange topic, `skillmatch.events` par défaut.
+- `RABBITMQ_QUEUE_PREFIX` : préfixe des files, `skillmatch.entreprises` par défaut.
+- `RABBITMQ_LISTENER_ENABLED` : `false` par défaut ; passer à `true` pour démarrer le listener `ProfileUpdated` et le conteneur RabbitMQ.
 - `EUREKA_URL`, `EUREKA_REGISTER`, `EUREKA_FETCH` ; l'enregistrement est désactivé par défaut pour le démarrage local.
 
 Spring Boot ne lit pas automatiquement le fichier `.env` : exporter les variables ou les définir dans l'IDE.
