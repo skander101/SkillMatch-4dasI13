@@ -5,33 +5,47 @@
     <p>Supervision des discussions, signalements et journal d'audit.</p>
   </div>
   <div class="ma-head-actions">
-    <button type="button" class="bo-btn ghost" (click)="loadSupervision()" [disabled]="loading()">↻ Actualiser</button>
+    <button type="button" class="bo-btn ghost" (click)="loadSupervision()" [disabled]="loading()">
+      <span class="ma-spin-icon" [class.spinning]="refreshing() || loading()">↻</span>
+      Actualiser
+    </button>
     <button type="button" class="bo-btn" (click)="exportCsv()">↓ Exporter CSV</button>
   </div>
 </div>
 
+<!-- KPI Cards Dynamiques -->
 <div class="ma-kpis">
-  <div class="ma-kpi">
+  <div class="ma-kpi ma-kpi--dark">
+    <div class="ma-kpi-icon">💬</div>
     <span class="ma-kpi-label">Conversations</span>
-    <div class="ma-kpi-value">{{ stats().conversations }}</div>
-    <div class="ma-kpi-foot"><span class="ma-trend">+{{ stats().nouvellesConversationsSemaine }}</span><span>cette semaine</span></div>
-  </div>
-  <div class="ma-kpi">
-    <span class="ma-kpi-label">Groupes</span>
-    <div class="ma-kpi-value">{{ stats().groupes }}</div>
-    <div class="ma-kpi-foot"><span class="ma-trend">+{{ stats().nouveauxGroupesSemaine }}</span><span>cette semaine</span></div>
-  </div>
-  <div class="ma-kpi">
-    <span class="ma-kpi-label">Messages du jour</span>
-    <div class="ma-kpi-value">{{ stats().messagesAujourdhui }}</div>
-    <div class="ma-kpi-foot"><span>{{ stats().heurePicLibelle || 'Aucune activité' }}</span></div>
-  </div>
-  <div class="ma-kpi">
-    <span class="ma-kpi-label">Signalements à traiter</span>
-    <div class="ma-kpi-value">{{ stats().signalementsATraiter }}</div>
+    <div class="ma-kpi-value">{{ kpiConversations() }}</div>
     <div class="ma-kpi-foot">
-      <span class="ma-trend" [class.down]="stats().signalementsATraiter > 0">
-        {{ stats().signalementsATraiter > 0 ? 'À modérer' : 'À jour' }}
+      <span class="ma-trend">+{{ serverStats().nouvellesConversationsSemaine }}</span>
+      <span>cette semaine</span>
+    </div>
+  </div>
+  <div class="ma-kpi" (click)="setScope('GROUPES')" style="cursor: pointer" title="Filtrer les groupes">
+    <div class="ma-kpi-icon">👥</div>
+    <span class="ma-kpi-label">Groupes</span>
+    <div class="ma-kpi-value">{{ kpiGroupes() }}</div>
+    <div class="ma-kpi-foot">
+      <span class="ma-trend">+{{ serverStats().nouveauxGroupesSemaine }}</span>
+      <span>cette semaine</span>
+    </div>
+  </div>
+  <div class="ma-kpi">
+    <div class="ma-kpi-icon">📨</div>
+    <span class="ma-kpi-label">Messages du jour</span>
+    <div class="ma-kpi-value">{{ kpiMessages() }}</div>
+    <div class="ma-kpi-foot"><span>{{ serverStats().heurePicLibelle || 'Aucune activité' }}</span></div>
+  </div>
+  <div class="ma-kpi" [class.ma-kpi--alert]="kpiSignalements() > 0" (click)="setScope('SIGNALEES')" style="cursor: pointer" title="Filtrer les signalements">
+    <div class="ma-kpi-icon">🚨</div>
+    <span class="ma-kpi-label">Signalements à traiter</span>
+    <div class="ma-kpi-value">{{ kpiSignalements() }}</div>
+    <div class="ma-kpi-foot">
+      <span class="ma-trend" [class.down]="kpiSignalements() > 0">
+        {{ kpiSignalements() > 0 ? 'À modérer' : 'À jour' }}
       </span>
     </div>
   </div>
@@ -39,6 +53,7 @@
 
 <section class="ma-panel">
   <div class="ma-panel-head">
+    <!-- Onglets de filtrage -->
     <div class="ma-tabs" role="tablist" aria-label="Filtrer les conversations">
       @for (sc of scopes; track sc.key) {
         <button
@@ -49,9 +64,13 @@
           [attr.aria-selected]="scope() === sc.key"
           (click)="setScope(sc.key)">
           {{ sc.label }}
+          <span class="ma-tab-count" [class.red]="sc.key === 'SIGNALEES' && scopeCount(sc.key) > 0">
+            {{ scopeCount(sc.key) }}
+          </span>
         </button>
       }
     </div>
+    <!-- Recherche dynamique -->
     <label class="ma-search">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 5 5"/></svg>
       <input
@@ -59,15 +78,33 @@
         placeholder="Rechercher..."
         [value]="query()"
         (input)="onSearchChange($any($event.target).value)">
+      @if (query()) {
+        <button type="button" class="ma-search-clear" aria-label="Effacer la recherche" (click)="clearSearch()">×</button>
+      }
     </label>
   </div>
 
-  @if (error()) {
-    <p class="ma-error" role="alert">{{ error() }}</p>
-  }
+  <!-- Barre de statut dynamique -->
+  <div class="ma-status-bar">
+    @if (loading()) {
+      <div class="ma-loading-bar">
+        <div class="ma-loading-progress"></div>
+      </div>
+    }
+    @if (refreshing() && !loading()) {
+      <span class="ma-status-hint">🔄 Actualisation des données...</span>
+    }
+    @if (!loading() && !refreshing() && lastRefreshed()) {
+      <span class="ma-status-hint">✓ Mis à jour {{ formatTimeAgo(lastRefreshed()) }}</span>
+    }
+  </div>
 
-  @if (loading()) {
-    <p class="ma-muted">Chargement des conversations...</p>
+  @if (error()) {
+    <div class="ma-error-box" role="alert">
+      <span>⚠</span>
+      <p>{{ error() }}</p>
+      <button type="button" class="bo-btn ghost" (click)="loadSupervision()">Réessayer</button>
+    </div>
   }
 
   <div class="ma-table-wrap" [class.ma-menu-open]="openMenuId()">
@@ -86,35 +123,71 @@
         </tr>
       </thead>
       <tbody>
-        @for (row of rows(); track row.id) {
-          <tr (click)="openDetail(row)">
-            <td><b>{{ row.conversation }}</b></td>
+        @if (loading() && allRows().length === 0) {
+          @for (_ of [1,2,3,4,5]; track $index) {
+            <tr class="ma-skeleton-row">
+              <td><div class="ma-skeleton" style="width:140px"></div></td>
+              <td><div class="ma-skeleton" style="width:55px"></div></td>
+              <td><div class="ma-skeleton" style="width:30px"></div></td>
+              <td><div class="ma-skeleton" style="width:30px"></div></td>
+              <td><div class="ma-skeleton" style="width:30px"></div></td>
+              <td><div class="ma-skeleton" style="width:30px"></div></td>
+              <td><div class="ma-skeleton" style="width:110px"></div></td>
+              <td><div class="ma-skeleton" style="width:60px"></div></td>
+              <td><div class="ma-skeleton" style="width:28px"></div></td>
+            </tr>
+          }
+        }
+        @for (row of pagedRows(); track row.id) {
+          <tr (click)="openDetail(row)" [class.ma-row--flagged]="isSignalee(row)" [class.ma-row--archived]="isArchivee(row)">
             <td>
-              <span class="ma-badge" [ngClass]="row.type === 'groupe' ? 'blue' : 'gray'">
-                {{ row.type === 'groupe' ? 'Groupe' : 'Directe' }}
+              <div class="ma-conv-name">
+                <b>{{ row.conversation }}</b>
+                @if (row.dernierMessageContenu) {
+                  <small class="ma-last-msg">{{ row.dernierMessageContenu }}</small>
+                }
+              </div>
+            </td>
+            <td>
+              <span class="ma-badge" [ngClass]="isGroupe(row) ? 'blue' : 'gray'">
+                {{ isGroupe(row) ? 'Groupe' : 'Directe' }}
               </span>
             </td>
-            <td>{{ row.membres }}</td>
+            <td>
+              <b>{{ row.membres }}</b>
+            </td>
             <td>{{ row.messages }}</td>
-            <td>{{ row.nonLusCount }}</td>
+            <td>
+              @if (row.nonLusCount > 0) {
+                <span class="ma-badge amber">{{ row.nonLusCount }}</span>
+              } @else {
+                <span class="ma-muted">0</span>
+              }
+            </td>
             <td>
               @if ((row.signalementsCount ?? 0) > 0) {
-                <span class="ma-badge red">{{ row.signalementsCount }}</span>
+                <button type="button" class="ma-sig-btn" (click)="openSignalements(row, $event)">
+                  🚨 {{ row.signalementsCount }}
+                </button>
               } @else {
                 <span class="ma-muted">0</span>
               }
             </td>
             <td>{{ formatDateTime(row.derniereActivite) }}</td>
-            <td><span class="ma-badge" [ngClass]="statutTone(row.statut)">{{ statutLabel(row.statut) }}</span></td>
+            <td><span class="ma-badge" [ngClass]="statutTone(row)">{{ statutLabel(row) }}</span></td>
             <td class="ma-row-actions" (click)="$event.stopPropagation()">
               <div class="ma-menu">
-                <button type="button" class="ma-kebab" aria-label="Actions" aria-haspopup="menu" [attr.aria-expanded]="openMenuId() === row.id" (click)="toggleMenu(row.id, $event)">⋯</button>
+                <button type="button" class="ma-kebab" aria-label="Actions" aria-haspopup="menu"
+                  [attr.aria-expanded]="openMenuId() === row.id"
+                  (click)="toggleMenu(row.id, $event)">⋯</button>
                 @if (openMenuId() === row.id) {
                   <div class="ma-menu-panel" role="menu">
-                    <button type="button" role="menuitem" (click)="openDetail(row)">Voir les détails</button>
-                    <button type="button" role="menuitem" (click)="openSignalements(row, $event)">Signalements</button>
-                    <button type="button" role="menuitem" [disabled]="detailBusy()" (click)="toggleArchive(row, $event)">{{ row.archivee ? 'Désarchiver' : 'Archiver' }}</button>
-                    <button type="button" role="menuitem" (click)="exportSingleCsv(row.id, $event)">Exporter</button>
+                    <button type="button" role="menuitem" (click)="openDetail(row)">👁 Voir les détails</button>
+                    <button type="button" role="menuitem" (click)="openSignalements(row, $event)">🚨 Signalements</button>
+                    <button type="button" role="menuitem" [disabled]="detailBusy()" (click)="toggleArchive(row, $event)">
+                      {{ isArchivee(row) ? '📂 Désarchiver' : '📁 Archiver' }}
+                    </button>
+                    <button type="button" role="menuitem" (click)="exportSingleCsv(row.id, $event)">⬇ Exporter CSV</button>
                   </div>
                 }
               </div>
@@ -122,7 +195,20 @@
           </tr>
         } @empty {
           @if (!loading()) {
-            <tr><td colspan="9" class="ma-muted">Aucune conversation trouvée pour ce filtre.</td></tr>
+            <tr>
+              <td colspan="9">
+                <div class="ma-empty-state">
+                  <span class="ma-empty-icon">🔍</span>
+                  <p>Aucune conversation trouvée pour <b>{{ scopes[0].label === scope() ? 'ce critère' : scope() }}</b>.</p>
+                  @if (query()) {
+                    <button type="button" class="bo-btn ghost" (click)="clearSearch()">Effacer la recherche</button>
+                  }
+                  @if (scope() !== 'TOUTES') {
+                    <button type="button" class="bo-btn" (click)="setScope('TOUTES')">Afficher toutes les conversations</button>
+                  }
+                </div>
+              </td>
+            </tr>
           }
         }
       </tbody>
@@ -132,15 +218,32 @@
   <div class="ma-pager">
     <span>{{ rangeLabel() }}</span>
     <div>
+      <button type="button" class="ma-page-btn" [disabled]="page() <= 0" (click)="goToPage(0)" title="Première page">«</button>
       <button type="button" class="ma-page-btn" [disabled]="page() <= 0" (click)="goToPage(page() - 1)">←</button>
       @for (p of pages(); track p) {
-        <button type="button" class="ma-page-btn" [class.active]="page() === p" (click)="goToPage(p)">{{ p + 1 }}</button>
+        @if (p === 0 || p === totalPages() - 1 || (p >= page() - 1 && p <= page() + 1)) {
+          <button type="button" class="ma-page-btn" [class.active]="page() === p" (click)="goToPage(p)">{{ p + 1 }}</button>
+        } @else if (p === page() - 2 || p === page() + 2) {
+          <span class="ma-page-ellipsis">…</span>
+        }
       }
       <button type="button" class="ma-page-btn" [disabled]="page() >= totalPages() - 1" (click)="goToPage(page() + 1)">→</button>
+      <button type="button" class="ma-page-btn" [disabled]="page() >= totalPages() - 1" (click)="goToPage(totalPages() - 1)" title="Dernière page">»</button>
     </div>
   </div>
 </section>
 
+<!-- Modal de chargement du détail -->
+@if (detailLoading() && !selectedDetail()) {
+  <div class="ma-modal-overlay" role="presentation">
+    <div class="ma-loading-modal">
+      <div class="ma-spinner"></div>
+      <p>Chargement des détails...</p>
+    </div>
+  </div>
+}
+
+<!-- Modal détail conversation -->
 @if (selectedDetail(); as detail) {
   <div class="ma-modal-overlay" role="presentation" (click)="closeDetail()">
     <section
@@ -154,20 +257,20 @@
           <span class="ma-eyebrow">DÉTAIL CONVERSATION</span>
           <h2 id="ma-detail-title">{{ detail.conversation.conversation }}</h2>
           <div class="ma-detail-badges">
-            <span class="ma-badge" [ngClass]="detail.conversation.type === 'groupe' ? 'blue' : 'gray'">
-              {{ detail.conversation.type === 'groupe' ? 'Groupe' : 'Directe' }}
+            <span class="ma-badge" [ngClass]="isGroupe(detail.conversation) ? 'blue' : 'gray'">
+              {{ isGroupe(detail.conversation) ? 'Groupe' : 'Directe' }}
             </span>
-            <span class="ma-badge" [ngClass]="statutTone(detail.conversation.statut)">
-              {{ statutLabel(detail.conversation.statut) }}
+            <span class="ma-badge" [ngClass]="statutTone(detail.conversation)">
+              {{ statutLabel(detail.conversation) }}
             </span>
           </div>
         </div>
         <div class="ma-detail-head-actions">
           <button type="button" class="bo-btn ghost" [disabled]="detailBusy()" (click)="toggleArchive(detail.conversation)">
-            {{ detail.conversation.archivee ? 'Désarchiver' : 'Archiver' }}
+            {{ isArchivee(detail.conversation) ? '📂 Désarchiver' : '📁 Archiver' }}
           </button>
           <button type="button" class="bo-btn ghost" (click)="exportSingleCsv(detail.conversation.id)">↓ CSV</button>
-          <button type="button" class="bo-btn ghost" (click)="closeDetail()" aria-label="Fermer">×</button>
+          <button type="button" class="bo-btn ghost ma-close-btn" (click)="closeDetail()" aria-label="Fermer">×</button>
         </div>
       </header>
 
@@ -184,6 +287,7 @@
           <div class="ma-chips">
             @for (p of detail.conversation.participants; track p.id) {
               <span class="ma-chip">
+                <span class="ma-chip-avatar">{{ p.nom.charAt(0).toUpperCase() }}</span>
                 <b>{{ p.nom }}</b>
                 <small>{{ roleLabel(p.role) }}</small>
               </span>
@@ -200,7 +304,7 @@
                   <b>{{ sig.motif }}</b>
                   <small>Signalé par {{ sig.auteurSignalementNom }} · Message de {{ sig.auteurMessageNom }} · {{ formatDateTime(sig.dateSignalement) }}</small>
                 </div>
-                <span class="ma-badge" [ngClass]="statutTone(sig.statut)">{{ statutLabel(sig.statut) }}</span>
+                <span class="ma-badge" [ngClass]="sig.statut === 'EN_ATTENTE' ? 'red' : 'green'">{{ sig.statut }}</span>
               </div>
               @if (sig.commentaire) {
                 <p class="ma-sig-comment">« {{ sig.commentaire }} »</p>
@@ -214,7 +318,7 @@
                   </div>
                 } @else {
                   <button type="button" class="bo-btn ghost" [disabled]="detailBusy()" (click)="consulterSignalement(sig)">
-                    Voir le message (journalisé)
+                    👁 Voir le message (journalisé)
                   </button>
                 }
               </div>

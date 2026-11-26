@@ -95,7 +95,8 @@ public class Conversation {
     }
 
     public boolean estGroupe() {
-        return Type.GROUPE.name().equalsIgnoreCase(type);
+        return Type.GROUPE.name().equalsIgnoreCase(type)
+                || (participantIds != null && participantIds.size() > 2);
     }
 
     public String getId() { return id; }

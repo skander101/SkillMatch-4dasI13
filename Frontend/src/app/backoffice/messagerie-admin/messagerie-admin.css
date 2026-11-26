@@ -20,6 +20,7 @@
   cursor: pointer;
 }
 
+/* ─── Header ─────────────────────────────────────────────── */
 .ma-head {
   display: flex;
   justify-content: space-between;
@@ -54,6 +55,19 @@
   flex-wrap: wrap;
 }
 
+/* Spin animation for refresh icon */
+.ma-spin-icon {
+  display: inline-block;
+  transition: transform 0.3s ease;
+}
+.ma-spin-icon.spinning {
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ─── Buttons ─────────────────────────────────────────────── */
 .bo-btn {
   border: 0;
   border-radius: 9px;
@@ -63,6 +77,7 @@
   font-size: 12px;
   font-weight: 850;
   cursor: pointer;
+  transition: filter 0.15s;
 }
 
 .bo-btn.ghost {
@@ -72,7 +87,7 @@
 }
 
 .bo-btn:hover {
-  filter: brightness(1.06);
+  filter: brightness(1.08);
 }
 
 .bo-btn:disabled {
@@ -80,6 +95,7 @@
   cursor: not-allowed;
 }
 
+/* ─── KPI Cards ───────────────────────────────────────────── */
 .ma-kpis {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -93,13 +109,32 @@
   border-radius: 14px;
   padding: 18px;
   box-shadow: var(--shadow);
+  transition: transform 0.2s, box-shadow 0.2s;
+  position: relative;
+  overflow: hidden;
 }
 
-.ma-kpi:first-child {
+.ma-kpi:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+}
+
+.ma-kpi--dark {
   background: #082018;
   border-color: var(--sidebar-line, #123a29);
   box-shadow: none;
   color: #9fc2ae;
+}
+
+.ma-kpi--alert {
+  border-color: rgba(197, 61, 61, 0.4);
+  background: rgba(255, 107, 107, 0.04);
+}
+
+.ma-kpi-icon {
+  font-size: 20px;
+  margin-bottom: 8px;
+  line-height: 1;
 }
 
 .ma-kpi-label {
@@ -110,7 +145,7 @@
   color: var(--muted);
 }
 
-.ma-kpi:first-child .ma-kpi-label {
+.ma-kpi--dark .ma-kpi-label {
   color: #9fc2ae;
 }
 
@@ -121,8 +156,12 @@
   letter-spacing: -1px;
 }
 
-.ma-kpi:first-child .ma-kpi-value {
+.ma-kpi--dark .ma-kpi-value {
   color: #fff;
+}
+
+.ma-kpi--alert .ma-kpi-value {
+  color: var(--badge-red, #c53d3d);
 }
 
 .ma-kpi-foot {
@@ -142,6 +181,7 @@
   color: var(--badge-red, #c53d3d);
 }
 
+/* ─── Panel principal ─────────────────────────────────────── */
 .ma-panel {
   background: var(--panel);
   border: 1px solid var(--line);
@@ -157,9 +197,10 @@
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 10px;
 }
 
+/* ─── Tabs de filtrage ────────────────────────────────────── */
 .ma-tabs {
   display: flex;
   flex-wrap: wrap;
@@ -175,6 +216,15 @@
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.ma-tab:hover {
+  background: var(--panel2);
+  color: var(--text);
 }
 
 .ma-tab.active {
@@ -183,6 +233,36 @@
   color: #fff;
 }
 
+.ma-tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 800;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.08);
+  color: var(--text, #333);
+}
+
+.ma-tab.active .ma-tab-count {
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+
+.ma-tab-count.red {
+  background: rgba(197, 61, 61, 0.15);
+  color: var(--badge-red, #c53d3d);
+}
+
+.ma-tab.active .ma-tab-count.red {
+  background: var(--badge-red, #c53d3d);
+  color: #fff;
+}
+
+/* ─── Barre de recherche ──────────────────────────────────── */
 .ma-search {
   height: 36px;
   display: flex;
@@ -193,6 +273,12 @@
   border-radius: 8px;
   padding: 0 10px;
   color: var(--muted);
+  transition: border-color 0.15s;
+}
+
+.ma-search:focus-within {
+  border-color: var(--accent, #0f9d58);
+  box-shadow: 0 0 0 2px rgba(15, 157, 88, 0.12);
 }
 
 .ma-search svg {
@@ -202,6 +288,7 @@
   stroke: currentColor;
   stroke-width: 2;
   stroke-linecap: round;
+  flex-shrink: 0;
 }
 
 .ma-search input {
@@ -213,13 +300,81 @@
   width: 170px;
 }
 
-.ma-error {
-  margin: 0 0 12px;
-  color: var(--badge-red, #c53d3d);
-  font-size: 12px;
-  font-weight: 650;
+.ma-search-clear {
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 2px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
 }
 
+.ma-search-clear:hover {
+  background: var(--panel2);
+  color: var(--text);
+}
+
+/* ─── Barre de statut dynamique ──────────────────────────── */
+.ma-status-bar {
+  min-height: 20px;
+  margin-bottom: 8px;
+  position: relative;
+}
+
+.ma-loading-bar {
+  height: 2px;
+  background: var(--line);
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.ma-loading-progress {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent, #0f9d58), #16b767, var(--accent, #0f9d58));
+  background-size: 200% 100%;
+  animation: loading-slide 1.4s ease-in-out infinite;
+  border-radius: 1px;
+}
+
+@keyframes loading-slide {
+  0% { background-position: 200% 0; width: 30%; }
+  50% { width: 70%; background-position: 50% 0; }
+  100% { background-position: 0 0; width: 30%; }
+}
+
+.ma-status-hint {
+  font-size: 11px;
+  color: var(--muted);
+  display: block;
+  padding: 2px 0;
+}
+
+/* ─── Erreur ──────────────────────────────────────────────── */
+.ma-error-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  background: rgba(197, 61, 61, 0.08);
+  border: 1px solid rgba(197, 61, 61, 0.25);
+  border-radius: 8px;
+  color: var(--badge-red, #c53d3d);
+  font-size: 12.5px;
+}
+
+.ma-error-box p {
+  flex: 1;
+  margin: 0;
+}
+
+/* ─── Table ───────────────────────────────────────────────── */
 .ma-muted {
   color: var(--muted);
   font-size: 12px;
@@ -252,7 +407,7 @@
 }
 
 .ma-table td {
-  padding: 12px;
+  padding: 11px 12px;
   border-bottom: 1px solid var(--line);
   color: var(--text);
   white-space: nowrap;
@@ -260,18 +415,84 @@
 
 .ma-table tbody tr {
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.12s;
 }
 
 .ma-table tbody tr:hover {
   background: var(--panel2);
 }
 
+.ma-table tbody tr.ma-row--flagged {
+  background: rgba(255, 107, 107, 0.04);
+}
+
+.ma-table tbody tr.ma-row--flagged:hover {
+  background: rgba(255, 107, 107, 0.09);
+}
+
+.ma-table tbody tr.ma-row--archived {
+  opacity: 0.65;
+}
+
+/* Skeleton loading rows */
+.ma-skeleton-row td {
+  pointer-events: none;
+}
+
+.ma-skeleton {
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--line) 25%, var(--panel2) 50%, var(--line) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Colonne conversation */
+.ma-conv-name {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 200px;
+}
+
+.ma-last-msg {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 180px;
+}
+
+/* Bouton signalement inline */
+.ma-sig-btn {
+  border: 0;
+  background: rgba(197, 61, 61, 0.1);
+  color: var(--badge-red, #c53d3d);
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.ma-sig-btn:hover {
+  background: rgba(197, 61, 61, 0.2);
+}
+
+/* ─── Badges ──────────────────────────────────────────────── */
 .ma-badge {
   display: inline-block;
   font-size: 10px;
   font-weight: 800;
-  padding: 5px 9px;
+  padding: 4px 9px;
   border-radius: 20px;
   white-space: nowrap;
 }
@@ -301,6 +522,7 @@
   background: rgba(169, 196, 180, 0.2);
 }
 
+/* ─── Menu kebab ──────────────────────────────────────────── */
 .ma-row-actions {
   position: relative;
   width: 48px;
@@ -333,11 +555,11 @@
   right: 0;
   top: calc(100% + 4px);
   z-index: 6;
-  min-width: 188px;
+  min-width: 190px;
   background: var(--panel);
   border: 1px solid var(--line-strong);
   border-radius: 10px;
-  box-shadow: var(--shadow);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.14);
   padding: 6px;
   display: flex;
   flex-direction: column;
@@ -363,6 +585,27 @@
   cursor: not-allowed;
 }
 
+/* ─── Empty state ─────────────────────────────────────────── */
+.ma-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 36px 24px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.ma-empty-icon {
+  font-size: 32px;
+}
+
+.ma-empty-state p {
+  margin: 0;
+  font-size: 13px;
+}
+
+/* ─── Paginator ───────────────────────────────────────────── */
 .ma-pager {
   display: flex;
   align-items: center;
@@ -375,7 +618,8 @@
 
 .ma-pager > div {
   display: flex;
-  gap: 5px;
+  gap: 4px;
+  align-items: center;
 }
 
 .ma-page-btn {
@@ -388,6 +632,11 @@
   font-size: 11px;
   font-weight: 750;
   cursor: pointer;
+  transition: background 0.12s;
+}
+
+.ma-page-btn:hover:not(:disabled) {
+  background: var(--panel2);
 }
 
 .ma-page-btn.active {
@@ -397,10 +646,18 @@
 }
 
 .ma-page-btn:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
+.ma-page-ellipsis {
+  color: var(--muted);
+  font-size: 12px;
+  padding: 0 4px;
+  line-height: 29px;
+}
+
+/* ─── Modal overlay ───────────────────────────────────────── */
 .ma-modal-overlay {
   position: fixed;
   inset: 0;
@@ -409,19 +666,43 @@
   place-items: center;
   background: rgba(8, 32, 24, 0.62);
   padding: 18px;
-  backdrop-filter: blur(2px);
+  backdrop-filter: blur(3px);
 }
 
+/* Modal de chargement */
+.ma-loading-modal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  border-radius: 14px;
+  padding: 32px 40px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.ma-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--line);
+  border-top-color: var(--accent, #0f9d58);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+/* ─── Detail modal ────────────────────────────────────────── */
 .ma-detail-modal {
-  width: min(860px, 100%);
-  max-height: 88vh;
+  width: min(880px, 100%);
+  max-height: 90vh;
   display: flex;
   flex-direction: column;
   background: var(--panel);
   border: 1px solid var(--line-strong);
-  border-radius: 14px;
+  border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 24px 60px rgba(8, 32, 24, 0.35);
+  box-shadow: 0 24px 60px rgba(8, 32, 24, 0.4);
 }
 
 .ma-detail-head {
@@ -431,6 +712,7 @@
   gap: 16px;
   padding: 18px 22px;
   border-bottom: 1px solid var(--line);
+  background: var(--panel);
 }
 
 .ma-detail-head h2 {
@@ -448,6 +730,13 @@
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.ma-close-btn {
+  font-size: 20px;
+  line-height: 1;
+  padding: 6px 10px;
 }
 
 .ma-detail-body {
@@ -458,6 +747,7 @@
   gap: 18px;
 }
 
+/* ─── Meta grid ───────────────────────────────────────────── */
 .ma-meta-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -480,12 +770,17 @@
   color: var(--text);
 }
 
+/* ─── Sections du détail ──────────────────────────────────── */
 .ma-section h4 {
-  margin: 0 0 8px;
+  margin: 0 0 10px;
   font: 800 13.5px 'Manrope', sans-serif;
   color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
+/* ─── Participants ────────────────────────────────────────── */
 .ma-chips {
   display: flex;
   flex-wrap: wrap;
@@ -495,18 +790,33 @@
 .ma-chip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 11px;
+  gap: 8px;
+  padding: 6px 12px 6px 6px;
   border-radius: 999px;
   background: var(--panel2);
   border: 1px solid var(--line);
   font-size: 12px;
 }
 
+.ma-chip-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0b7c45, #16b767);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
 .ma-chip small {
   color: var(--muted);
 }
 
+/* ─── Signalement cards ───────────────────────────────────── */
 .ma-sig-card {
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -515,7 +825,7 @@
   background: var(--panel2);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .ma-sig-top {
@@ -534,6 +844,8 @@
 .ma-sig-top small {
   font-size: 11px;
   color: var(--muted);
+  margin-top: 2px;
+  display: block;
 }
 
 .ma-sig-comment {
@@ -541,6 +853,10 @@
   font-size: 12px;
   color: var(--text);
   font-style: italic;
+  padding: 6px 10px;
+  background: var(--panel);
+  border-radius: 6px;
+  border-left: 3px solid var(--accent, #0f9d58);
 }
 
 .ma-sig-message {
@@ -567,6 +883,7 @@
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  align-items: center;
 }
 
 .ma-sig-actions select,
@@ -578,6 +895,13 @@
   border-radius: 8px;
   padding: 0 10px;
   font-size: 12px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.ma-sig-actions select:focus,
+.ma-sig-actions input:focus {
+  border-color: var(--accent, #0f9d58);
 }
 
 .ma-sig-actions input {
@@ -585,13 +909,15 @@
   min-width: 160px;
 }
 
+/* ─── Messages & Audit lists ──────────────────────────────── */
 .ma-messages-list,
 .ma-audit-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 220px;
+  max-height: 240px;
   overflow-y: auto;
+  padding-right: 2px;
 }
 
 .ma-message-row {
@@ -599,11 +925,12 @@
   border-radius: 8px;
   padding: 9px 11px;
   background: var(--panel);
+  transition: background 0.12s;
 }
 
 .ma-message-row.flagged {
-  border-color: #e5a5a5;
-  background: #fff8f8;
+  border-color: rgba(197, 61, 61, 0.35);
+  background: rgba(255, 107, 107, 0.05);
 }
 
 .ma-message-meta {
@@ -656,8 +983,10 @@
   background: rgba(37, 214, 124, 0.14);
   border-radius: 4px;
   padding: 3px 6px;
+  white-space: nowrap;
 }
 
+/* ─── Responsive ──────────────────────────────────────────── */
 @media (max-width: 1180px) {
   .ma-kpis {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -673,5 +1002,14 @@
 
   .ma-meta-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ma-panel-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .ma-search input {
+    width: 130px;
   }
 }
