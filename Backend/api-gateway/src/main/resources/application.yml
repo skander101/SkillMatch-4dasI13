@@ -28,6 +28,14 @@ spring:
           uri: ${COMMUN_SERVICE_URL:http://localhost:8087}
           predicates:
             - Path=/skillmatch/utilisateurs/**
+        - id: profils
+          uri: ${PROFILS_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/skillmatch/profiles/**
+        - id: profils-cv
+          uri: ${PROFILS_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/skillmatch/cvs/**
 
 eureka:
   client:

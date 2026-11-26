@@ -49,9 +49,9 @@ public class Profil {
         this.userId = userId;
         this.titre = titre;
         this.localisation = localisation;
-        this.competences = competences == null ? new ArrayList<>() : competences;
-        this.experiences = experiences == null ? new ArrayList<>() : experiences;
-        this.badges = badges == null ? new ArrayList<>() : badges;
+        this.competences = competences == null ? new ArrayList<>() : new ArrayList<>(competences);
+        this.experiences = experiences == null ? new ArrayList<>() : new ArrayList<>(experiences);
+        this.badges = badges == null ? new ArrayList<>() : new ArrayList<>(badges);
     }
 
     public Long getId() {
@@ -91,7 +91,7 @@ public class Profil {
     }
 
     public void setCompetences(List<String> competences) {
-        this.competences = competences == null ? new ArrayList<>() : competences;
+        this.competences = competences == null ? new ArrayList<>() : new ArrayList<>(competences);
     }
 
     public List<String> getExperiences() {
@@ -99,7 +99,7 @@ public class Profil {
     }
 
     public void setExperiences(List<String> experiences) {
-        this.experiences = experiences == null ? new ArrayList<>() : experiences;
+        this.experiences = experiences == null ? new ArrayList<>() : new ArrayList<>(experiences);
     }
 
     public List<String> getBadges() {
@@ -107,7 +107,7 @@ public class Profil {
     }
 
     public void setBadges(List<String> badges) {
-        this.badges = badges == null ? new ArrayList<>() : badges;
+        this.badges = badges == null ? new ArrayList<>() : new ArrayList<>(badges);
     }
 
     public void ajouterBadge(String badge) {

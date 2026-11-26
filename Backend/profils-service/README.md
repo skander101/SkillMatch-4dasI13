@@ -78,3 +78,23 @@ mvn test
 ```
 
 Les tests unitaires couvrent le calcul de complétude, l'ajout de badge, le refus de doublon, la sérialisation JSON et la configuration RabbitMQ. Pour tester le flux asynchrone, démarrer RabbitMQ et publier un `TestPassed` dans `skillmatch.events` avec la clé `test.passed`.
+
+## Test manuel rapide
+
+Le service est démarré sur `http://localhost:8082`. En l'absence de gateway authentifié, générer un JWT de test avec la même clé que `JWT_SECRET` :
+
+```powershell
+$secret = 'skillmatch-local-development-secret-key-change-me'
+function B64($s) { [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($s)).TrimEnd('=').Replace('+','-').Replace('/','_') }
+$data = "$(B64 '{"alg":"HS256"}').$(B64 '{"sub":"test@skillmatch.tn","role":"CANDIDAT","userId":42,"exp":1895628000}')"
+$hmac = [Security.Cryptography.HMACSHA256]::new()
+$hmac.Key = [Text.Encoding]::UTF8.GetBytes($secret)
+$token = "$data.$([Convert]::ToBase64String($hmac.ComputeHash([Text.Encoding]::UTF8.GetBytes($data))).TrimEnd('=').Replace('+','-').Replace('/','_'))"
+$h = @{ Authorization = "Bearer $token" }
+$body = @{ userId = 42; titre = 'Dev'; localisation = 'Tunis'; competences = @('Java','SQL'); experiences = @('Stage'); badges = @() } | ConvertTo-Json -Compress
+Invoke-RestMethod -Uri 'http://localhost:8082/skillmatch/profiles' -Method Post -Headers $h -Body $body -ContentType 'application/json'
+Invoke-RestMethod -Uri 'http://localhost:8082/skillmatch/profiles/me' -Headers $h
+Invoke-RestMethod -Uri 'http://localhost:8082/skillmatch/profiles/me/completeness' -Headers $h
+```
+
+Résultat attendu : `201` à la création, puis `200` avec `completude: 85` (titre, localisation, compétences et expériences renseignés, aucun badge).
