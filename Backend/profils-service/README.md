@@ -37,6 +37,10 @@ Toutes les routes sont protégées par un JWT signé avec la même clé que `com
 | `GET` | `/skillmatch/profiles/me` | CANDIDAT | 200, 401, 404 |
 | `PUT` | `/skillmatch/profiles/me` | CANDIDAT | 200, 400, 401, 404 |
 | `GET` | `/skillmatch/profiles/me/completeness` | CANDIDAT | 200, 401, 404 |
+| `GET` | `/skillmatch/profiles` | ADMIN, RECRUTEUR | 200, 401, 403 |
+| `GET` | `/skillmatch/profiles/cvs` | ADMIN, RECRUTEUR | 200, 401, 403 |
+| `DELETE` | `/skillmatch/profiles/cv/{cvId}` | ADMIN | 204, 401, 403, 404 |
+| `DELETE` | `/skillmatch/profiles/{userId}` | ADMIN | 204, 401, 403, 404 |
 | `POST` | `/skillmatch/profiles/me/cv` | CANDIDAT | 201, 400, 401, 413 |
 | `GET` | `/skillmatch/profiles/me/cv` | CANDIDAT | 200, 401 |
 | `DELETE` | `/skillmatch/profiles/me/cv/{cvId}` | CANDIDAT | 204, 401, 403, 404 |

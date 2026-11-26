@@ -1,0 +1,150 @@
+<section class="profile-page">
+  <header class="profile-header">
+    <div class="brand">
+      <span class="brand-mark">SM</span>
+      <div>
+        <strong>SkillMatch</strong>
+        <small>Mon espace profil</small>
+      </div>
+    </div>
+    <button type="button" class="back-btn" (click)="exit()">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>
+      Retour au site
+    </button>
+  </header>
+
+  <main class="profile-main">
+    <div class="profile-intro">
+      <div>
+        <span class="eyebrow">Profil utilisateur</span>
+        <h1>Bonjour {{ nomAffiche() }}</h1>
+        <p>Complétez votre profil pour être mieux identifié par les recruteurs et les tests SkillMatch.</p>
+      </div>
+
+      <div class="completeness-card">
+        <div class="completeness-top">
+          <span>Complétude</span>
+          <strong>{{ completude() }}%</strong>
+        </div>
+        <div class="progress" role="progressbar" [attr.aria-valuenow]="completude()" aria-valuemin="0" aria-valuemax="100">
+          <div class="progress-bar" [style.width.%]="completude()"></div>
+        </div>
+        <small>Cet indicateur est calculé par le microservice Profils.</small>
+      </div>
+    </div>
+
+    @if (loading()) {
+      <div class="state-card">
+        <span class="loader"></span>
+        <p>Chargement de votre profil depuis <code>/skillmatch/profiles/me</code>…</p>
+      </div>
+    } @else {
+      @if (error()) {
+        <div class="alert alert-error" role="alert">{{ error() }}</div>
+      }
+      @if (success()) {
+        <div class="alert alert-success" role="status">{{ success() }}</div>
+      }
+
+      <form class="profile-form" (ngSubmit)="save()">
+        <fieldset [disabled]="saving()">
+          <legend>Informations générales</legend>
+
+          <div class="field-grid">
+            <label class="field">
+              <span>Titre professionnel</span>
+              <input
+                type="text"
+                name="titre"
+                maxlength="150"
+                placeholder="Ex. Développeur Full Stack Java / Angular"
+                [ngModel]="titre()"
+                (ngModelChange)="titre.set($event)" />
+              <small>Titre affiché en tête de votre profil.</small>
+            </label>
+
+            <label class="field">
+              <span>Localisation</span>
+              <input
+                type="text"
+                name="localisation"
+                maxlength="150"
+                placeholder="Ex. Tunis, Tunisie"
+                [ngModel]="localisation()"
+                (ngModelChange)="localisation.set($event)" />
+              <small>Ville, pays ou mode télétravail.</small>
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset [disabled]="saving()">
+          <legend>Compétences</legend>
+          <label class="field">
+            <span>Compétences <em>(séparées par des virgules)</em></span>
+            <input
+              type="text"
+              name="competences"
+              placeholder="Java, Spring Boot, Angular, SQL"
+              [ngModel]="competences()"
+              (ngModelChange)="competences.set($event)" />
+            <small>Exemples : Java, Spring Boot, Angular, Docker.</small>
+          </label>
+          <div class="chips">
+            @for (item of competencesList(); track item) {
+              <span class="chip chip-skill">{{ item }}</span>
+            } @empty {
+              <span class="chip-empty">Aucune compétence renseignée</span>
+            }
+          </div>
+        </fieldset>
+
+        <fieldset [disabled]="saving()">
+          <legend>Expériences</legend>
+          <label class="field">
+            <span>Expériences <em>(une expérience par ligne, séparées par des virgules)</em></span>
+            <textarea
+              name="experiences"
+              rows="4"
+              placeholder="Développeur Java chez X, Stage frontend chez Y"
+              [ngModel]="experiences()"
+              (ngModelChange)="experiences.set($event)"></textarea>
+            <small>Chaque expérience ne doit pas dépasser 250 caractères.</small>
+          </label>
+        </fieldset>
+
+        <fieldset [disabled]="saving()">
+          <legend>Badges</legend>
+          <label class="field">
+            <span>Badges <em>(séparés par des virgules)</em></span>
+            <input
+              type="text"
+              name="badges"
+              placeholder="Java Expert, Test Réussi, Profil Complet"
+              [ngModel]="badges()"
+              (ngModelChange)="badges.set($event)" />
+            <small>Les badges sont également fournis par le microservice Tests.</small>
+          </label>
+          <div class="chips">
+            @for (item of badgesList(); track item) {
+              <span class="chip chip-badge">{{ item }}</span>
+            } @empty {
+              <span class="chip-empty">Aucun badge renseigné</span>
+            }
+          </div>
+        </fieldset>
+
+        <div class="actions">
+          <button type="button" class="secondary-btn" (click)="load()" [disabled]="saving()">Annuler</button>
+          <button type="submit" class="primary-btn" [disabled]="saving()">
+            {{ saving() ? 'Enregistrement…' : (exists() ? 'Enregistrer les modifications' : 'Créer mon profil') }}
+          </button>
+        </div>
+
+        <p class="api-note">
+          Données lues via <code>GET /skillmatch/profiles/me</code> et enregistrées via
+          <code>PUT /skillmatch/profiles/me</code>.
+        </p>
+      </form>
+    }
+  </main>
+</section>

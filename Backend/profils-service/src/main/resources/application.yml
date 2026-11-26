@@ -37,7 +37,7 @@ jwt:
   expiration-ms: ${JWT_EXPIRATION_MS:86400000}
 
 commun-service:
-  url: ${COMMUN_SERVICE_URL:${GATEWAY_URL:http://localhost:8080}}
+  url: ${COMMUN_SERVICE_URL:${GATEWAY_URL:http://localhost:8088}}
 
 profils:
   cv:

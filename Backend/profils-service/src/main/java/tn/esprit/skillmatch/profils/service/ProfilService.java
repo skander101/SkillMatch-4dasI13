@@ -145,13 +145,42 @@ public class ProfilService {
         CV cv = cvRepository.findById(cvId)
                 .filter(value -> value.getProfil().getId().equals(profil.getId()))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "CV introuvable"));
+        supprimerFichier(cv);
+        cvRepository.delete(cv);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ProfilResponse> listerProfils() {
+        return profilRepository.findAll().stream().map(this::toResponse).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<CVResponse> listerCVs() {
+        return cvRepository.findAll().stream().map(this::toResponse).toList();
+    }
+
+    public void supprimerCVParAdmin(Long cvId) {
+        CV cv = cvRepository.findById(cvId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "CV introuvable"));
+        supprimerFichier(cv);
+        cvRepository.delete(cv);
+    }
+
+    public void supprimerProfilParAdmin(Long userId) {
+        Profil profil = exigerProfil(userId);
+        List<CV> cvs = cvRepository.findByProfilIdOrderByDateUploadDesc(profil.getId());
+        cvs.forEach(this::supprimerFichier);
+        cvRepository.deleteAll(cvs);
+        profilRepository.delete(profil);
+    }
+
+    private void supprimerFichier(CV cv) {
         try {
             Files.deleteIfExists(Path.of(cv.getFichierUri()));
         } catch (IOException exception) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
                     "Impossible de supprimer le fichier CV", exception);
         }
-        cvRepository.delete(cv);
     }
 
     private Profil exigerProfil(Long userId) {

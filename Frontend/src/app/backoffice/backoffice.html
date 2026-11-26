@@ -151,10 +151,16 @@
           @if (currentTable(); as table) {
             <div class="page-head">
               <div><span class="eyebrow">MODULE D'ADMINISTRATION</span><h1>{{ table.title }}</h1><p>{{ table.subtitle }}</p></div>
-              <div class="head-actions"><button type="button" class="bo-btn ghost" (click)="showMessage('Export CSV généré (démonstration).')">↓ Exporter</button><button type="button" class="bo-btn" (click)="showMessage('Nouvel élément créé (démonstration).')">＋ Ajouter</button></div>
+              <div class="head-actions">
+                @if (activeSection() === 'profils') {
+                  <button type="button" class="bo-btn ghost" (click)="loadProfils(users())">↻ Actualiser</button>
+                } @else {
+                  <button type="button" class="bo-btn ghost" (click)="showMessage('Export CSV généré (démonstration).')">↓ Exporter</button><button type="button" class="bo-btn" (click)="showMessage('Nouvel élément créé (démonstration).')">＋ Ajouter</button>
+                }
+              </div>
             </div>
             <section class="panel">
-              <div class="panel-head"><div><h3>{{ filteredRows().length }} résultat(s)</h3><p>Données fictives de démonstration</p></div><label class="top-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 5 5"/></svg><input aria-label="Filtrer" placeholder="Filtrer..." [value]="query()" (input)="query.set($any($event.target).value)"></label></div>
+              <div class="panel-head"><div><h3>{{ filteredRows().length }} résultat(s)</h3><p>{{ activeSection() === 'profils' ? 'Données réelles du microservice Profils · actions admin actives' : 'Données fictives de démonstration' }}</p></div><label class="top-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 5 5"/></svg><input aria-label="Filtrer" placeholder="Filtrer..." [value]="query()" (input)="query.set($any($event.target).value)"></label></div>
               <div class="table-wrap"><table>
                 <thead><tr>@for (column of table.columns; track column) {<th>{{ column }}</th>}</tr></thead>
                 <tbody>
@@ -162,7 +168,15 @@
                     <tr (click)="onRowClick(row)">
                       @for (cell of row.cells; track $index) {<td>{{ cell }}</td>}
                       <td><span class="badge" [ngClass]="row.tone">{{ row.status }}</span></td>
-                      <td><button type="button" class="row-action" (click)="$event.stopPropagation(); onRowClick(row)" aria-label="Actions">•••</button></td>
+                      <td class="crud-actions">
+                        @if (activeSection() === 'profils') {
+                          <button type="button" class="row-action" (click)="$event.stopPropagation(); viewProfile(row)" aria-label="Voir le profil">Voir</button>
+                          <button type="button" class="row-action" [disabled]="!row.cvIds?.length" (click)="$event.stopPropagation(); openCvManager(row)" aria-label="Gérer les CV">CV</button>
+                          <button type="button" class="row-action danger" (click)="$event.stopPropagation(); requestProfileDelete(row)" aria-label="Supprimer le profil">✕</button>
+                        } @else {
+                          <button type="button" class="row-action" (click)="$event.stopPropagation(); onRowClick(row)" aria-label="Actions">•••</button>
+                        }
+                      </td>
                     </tr>
                   }
                 </tbody>
@@ -183,6 +197,54 @@
         <div class="confirm-actions">
           <button type="button" class="bo-btn ghost" [disabled]="deleteLoading()" (click)="cancelDelete()">Annuler</button>
           <button type="button" class="bo-btn danger" [disabled]="deleteLoading()" (click)="confirmDelete()">{{ deleteLoading() ? 'Suppression...' : 'Supprimer' }}</button>
+        </div>
+      </section>
+    </div>
+  }
+  @if (selectedProfile() || profileLoading() || profileError()) {
+    <div class="bo-modal-overlay" role="presentation" (click)="closeProfileModal()">
+      <section class="bo-confirm bo-detail" role="dialog" aria-modal="true" aria-labelledby="profile-detail-title" (click)="$event.stopPropagation()">
+        <h2 id="profile-detail-title">Détail du profil</h2>
+        @if (profileLoading()) { <p class="muted">Chargement du profil...</p> }
+        @if (profileError()) { <p class="form-error">{{ profileError() }}</p> }
+        @if (selectedProfile(); as profil) {
+          <div class="detail-grid">
+            <span>Utilisateur</span><b>{{ profil.userId }}</b>
+            <span>Titre</span><b>{{ profil.titre || '—' }}</b>
+            <span>Localisation</span><b>{{ profil.localisation || '—' }}</b>
+            <span>Complétude</span><b>{{ profil.completude }} %</b>
+            <span>Badges</span><b>{{ profil.badges.length || '—' }}</b>
+          </div>
+          <div class="detail-block"><b>Compétences</b><p>{{ profil.competences.join(', ') || '—' }}</p></div>
+          <div class="detail-block"><b>Expériences</b><p>{{ profil.experiences.join(' · ') || '—' }}</p></div>
+        }
+        <div class="confirm-actions"><button type="button" class="bo-btn ghost" (click)="closeProfileModal()">Fermer</button></div>
+      </section>
+    </div>
+  }
+  @if (cvManagerRow(); as row) {
+    <div class="bo-modal-overlay" role="presentation" (click)="closeCvManager()">
+      <section class="bo-confirm bo-detail" role="dialog" aria-modal="true" aria-labelledby="cv-manager-title" (click)="$event.stopPropagation()">
+        <h2 id="cv-manager-title">CV de {{ row.cells[0] }}</h2>
+        <p>Suppression définitive du fichier PDF et de la fiche CV.</p>
+        @for (cv of managedCvs(); track cv.id) {
+          <div class="cv-row"><span>CV #{{ cv.id }}</span><small>{{ cv.dateUpload }}</small><button type="button" class="row-action danger" (click)="deleteCvAdmin(cv)">Supprimer</button></div>
+        } @empty {
+          <p class="muted">Aucun CV enregistré pour ce profil.</p>
+        }
+        <div class="confirm-actions"><button type="button" class="bo-btn ghost" (click)="closeCvManager()">Fermer</button></div>
+      </section>
+    </div>
+  }
+  @if (pendingProfileDelete(); as row) {
+    <div class="bo-modal-overlay" role="presentation" (click)="cancelProfileDelete()">
+      <section class="bo-confirm" role="alertdialog" aria-modal="true" aria-labelledby="confirm-profile-delete-title" (click)="$event.stopPropagation()">
+        <span class="confirm-icon">!</span>
+        <h2 id="confirm-profile-delete-title">Supprimer ce profil ?</h2>
+        <p>Le profil de <b>{{ row.cells[0] }}</b> et tous ses CV seront définitivement supprimés.</p>
+        <div class="confirm-actions">
+          <button type="button" class="bo-btn ghost" [disabled]="profileDeleteLoading()" (click)="cancelProfileDelete()">Annuler</button>
+          <button type="button" class="bo-btn danger" [disabled]="profileDeleteLoading()" (click)="confirmProfileDelete()">{{ profileDeleteLoading() ? 'Suppression...' : 'Supprimer' }}</button>
         </div>
       </section>
     </div>

@@ -1,10 +1,15 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, EventEmitter, HostListener, inject, OnInit, Output, signal } from '@angular/core';
+import { forkJoin } from 'rxjs';
 import { NAV_SERVICES, NOTIFICATIONS, AppNotification } from './nav.data';
 import { AuthService } from '../user/auth.service';
 import { CreateUserRequest, Role, UpdateUserRequest, User } from '../user/user.model';
 import { UserService } from '../user/user.service';
+import { Profil } from '../profil/profil.model';
+import { ProfilService } from '../profil/profil.service';
+import { Cv } from '../cv/cv.model';
+import { CvService } from '../cv/cv.service';
 
 interface SideItem {
   id: string;
@@ -22,6 +27,9 @@ interface AdminRow {
   cells: string[];
   status: string;
   tone: string;
+  profileId?: number;
+  userId?: number;
+  cvIds?: number[];
 }
 interface AdminTable {
   title: string;
@@ -41,6 +49,8 @@ export class BackOffice implements OnInit {
   @Output() exit = new EventEmitter<void>();
 
   private readonly userService = inject(UserService);
+  private readonly profilService = inject(ProfilService);
+  private readonly cvService = inject(CvService);
   private readonly auth = inject(AuthService);
 
   readonly navServices = NAV_SERVICES;
@@ -137,14 +147,9 @@ export class BackOffice implements OnInit {
     },
     profils: {
       title: 'Profils & CV',
-      subtitle: 'Complétude des profils et badges obtenus',
-      columns: ['Candidat', 'Compétences', 'Badges', 'Complétude', 'Mis à jour', 'Statut', 'Actions'],
-      rows: [
-        { cells: ['Lina Ben Ali', 'Angular, Java, SQL', '3', '92 %', '19/11/2026'], status: 'Complet', tone: 'green' },
-        { cells: ['Sami Trabelsi', 'Python, Power BI', '2', '78 %', '18/11/2026'], status: 'En cours', tone: 'blue' },
-        { cells: ['Ines Kallel', 'Figma, UX Research', '1', '61 %', '16/11/2026'], status: 'En cours', tone: 'blue' },
-        { cells: ['Karim Slimani', 'Spring Boot, API REST', '0', '35 %', '12/11/2026'], status: 'Incomplet', tone: 'amber' }
-      ]
+      subtitle: 'Profils et CV réels du microservice Profils',
+      columns: ['Candidat', 'Titre', 'Compétences', 'Badges', 'CV', 'Complétude', 'Statut', 'Actions'],
+      rows: []
     },
     entreprises: {
       title: 'Entreprises & Avis',
@@ -231,6 +236,13 @@ export class BackOffice implements OnInit {
   readonly userError = signal('');
   readonly pendingDelete = signal<User | null>(null);
   readonly deleteLoading = signal(false);
+  readonly selectedProfile = signal<Profil | null>(null);
+  readonly profileLoading = signal(false);
+  readonly profileError = signal('');
+  readonly cvManagerRow = signal<AdminRow | null>(null);
+  readonly adminCvs = signal<Cv[]>([]);
+  readonly pendingProfileDelete = signal<AdminRow | null>(null);
+  readonly profileDeleteLoading = signal(false);
   private navMessageTimer?: number;
   readonly currentTable = computed(() => this.tables[this.activeSection()] ?? null);
   readonly currentLabel = computed(() => {
@@ -250,6 +262,11 @@ export class BackOffice implements OnInit {
     const users = this.users();
     return q ? users.filter((user) => [user.nom, user.email, user.role].some((value) => value.toLowerCase().includes(q))) : users;
   });
+  readonly managedCvs = computed(() => {
+    const row = this.cvManagerRow();
+    if (!row?.profileId) return [];
+    return this.adminCvs().filter((cv) => cv.profilId === row.profileId);
+  });
   ngOnInit(): void { this.loadUsers(); }
 
   loadUsers(): void {
@@ -265,11 +282,127 @@ export class BackOffice implements OnInit {
           rows: users.map((user) => this.toUserRow(user))
         };
         this.userLoading.set(false);
+        this.loadProfils(users);
       },
       error: (error: HttpErrorResponse) => {
         this.userLoading.set(false);
         this.userError.set(this.readError(error));
         this.showMessage(`Impossible de charger les utilisateurs : ${this.userError()}`);
+        this.loadProfils(this.users());
+      }
+    });
+  }
+
+  loadProfils(users: User[]): void {
+    forkJoin({
+      profils: this.profilService.listAll(),
+      cvs: this.cvService.listAll()
+    }).subscribe({
+      next: ({ profils, cvs }) => {
+        this.adminCvs.set(cvs);
+        this.tables['profils'] = {
+          title: 'Profils & CV',
+          subtitle: 'Profils et CV réels du microservice Profils',
+          columns: ['Candidat', 'Titre', 'Compétences', 'Badges', 'CV', 'Complétude', 'Statut', 'Actions'],
+          rows: this.toProfileRows(profils, cvs, users)
+        };
+      },
+      error: (error: HttpErrorResponse) => {
+        this.showMessage(`Impossible de charger les profils et CV : ${this.readError(error)}`);
+      }
+    });
+  }
+
+  private toProfileRows(profils: Profil[], cvs: Cv[], users: User[]): AdminRow[] {
+    const names = new Map(users.map((user) => [user.id, user.nom]));
+    const cvCounts = new Map<number, number>();
+    cvs.forEach((cv) => cvCounts.set(cv.profilId, (cvCounts.get(cv.profilId) ?? 0) + 1));
+
+    return profils.map((profil) => {
+      const completude = profil.completude ?? 0;
+      const tone = completude >= 80 ? 'green' : completude >= 50 ? 'blue' : 'amber';
+      const status = completude >= 80 ? 'Complet' : completude >= 50 ? 'En cours' : 'Incomplet';
+      return {
+        cells: [
+          names.get(profil.userId) ?? `Utilisateur ${profil.userId}`,
+          profil.titre?.trim() || '—',
+          profil.competences?.join(', ') || '—',
+          String(profil.badges?.length ?? 0),
+          String(cvCounts.get(profil.id) ?? 0),
+          `${completude} %`
+        ],
+        status,
+        tone,
+        profileId: profil.id,
+        userId: profil.userId,
+        cvIds: cvs.filter((cv) => cv.profilId === profil.id).map((cv) => cv.id)
+      };
+    });
+  }
+
+  viewProfile(row: AdminRow): void {
+    if (!row.userId) return;
+    this.selectedProfile.set(null);
+    this.profileError.set('');
+    this.profileLoading.set(true);
+    this.profilService.getById(row.userId).subscribe({
+      next: (profil) => {
+        this.selectedProfile.set(profil);
+        this.profileLoading.set(false);
+      },
+      error: (error: HttpErrorResponse) => {
+        this.profileLoading.set(false);
+        this.profileError.set(this.readError(error));
+      }
+    });
+  }
+
+  closeProfileModal(): void {
+    this.selectedProfile.set(null);
+    this.profileError.set('');
+  }
+
+  openCvManager(row: AdminRow): void {
+    this.cvManagerRow.set(row);
+  }
+
+  closeCvManager(): void {
+    this.cvManagerRow.set(null);
+  }
+
+  deleteCvAdmin(cv: Cv): void {
+    this.cvService.deleteByAdmin(cv.id).subscribe({
+      next: () => {
+        this.showMessage('CV supprimé.');
+        this.closeCvManager();
+        this.loadProfils(this.users());
+      },
+      error: (error: HttpErrorResponse) => this.showMessage(`Impossible de supprimer le CV : ${this.readError(error)}`)
+    });
+  }
+
+  requestProfileDelete(row: AdminRow): void {
+    this.pendingProfileDelete.set(row);
+  }
+
+  cancelProfileDelete(): void {
+    this.pendingProfileDelete.set(null);
+  }
+
+  confirmProfileDelete(): void {
+    const row = this.pendingProfileDelete();
+    if (!row?.userId) return;
+    this.profileDeleteLoading.set(true);
+    this.profilService.deleteByAdmin(row.userId).subscribe({
+      next: () => {
+        this.profileDeleteLoading.set(false);
+        this.pendingProfileDelete.set(null);
+        this.showMessage('Profil et CV supprimés.');
+        this.loadProfils(this.users());
+      },
+      error: (error: HttpErrorResponse) => {
+        this.profileDeleteLoading.set(false);
+        this.showMessage(`Impossible de supprimer le profil : ${this.readError(error)}`);
       }
     });
   }

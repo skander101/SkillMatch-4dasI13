@@ -1,6 +1,11 @@
 @if (backOfficeOpen() && isAdmin()) {
   <app-back-office (exit)="closeBackOffice()" />
 } @else {
+  @if (profileOpen()) {
+    <app-profil (close)="closeProfile()" />
+  } @else if (cvOpen()) {
+    <app-cv (close)="closeCv()" (openProfile)="openProfile()" />
+  } @else {
 <header class="site-header">
   <div class="wrap nav-wrap">
     <a href="#accueil" class="brand" aria-label="SkillMatch Accueil">
@@ -28,8 +33,9 @@
     <div class="user-chip">
       <span class="user-avatar">{{ user.nom.charAt(0) }}</span>
        <span class="user-info"><b>{{ user.nom }}</b><small>{{ user.role }}</small></span>
-       @if (user.role === 'ADMIN') { <button type="button" class="admin-btn" (click)="openBackOffice()">Back office</button> }
-       <button type="button" class="logout-btn" (click)="logout()">Déconnexion</button>
+        @if (user.role === 'ADMIN') { <button type="button" class="admin-btn" (click)="openBackOffice()">Back office</button> }
+        <button type="button" class="logout-btn profile-shortcut-btn" (click)="openProfile()">Mon profil</button>
+        <button type="button" class="logout-btn" (click)="logout()">Déconnexion</button>
 
     </div>
     } @else {
@@ -127,4 +133,5 @@
     @if (authError()) { <p class="auth-error">{{ authError() }}</p> }
     @if (infoMessage()) { <p class="demo-notice">{{ infoMessage() }}</p> }<button class="text-link" (click)="openAuth(mode === 'connexion' ? 'inscription' : 'connexion')">{{mode === 'connexion' ? 'Pas de compte ? Inscrivez-vous' : 'Déjà un compte ? Connectez-vous'}}</button></section></div>
 }
+  }
 }

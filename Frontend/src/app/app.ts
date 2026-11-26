@@ -4,6 +4,8 @@ import { FormsModule } from '@angular/forms';
 import { AuthService } from './user/auth.service';
 import { Role } from './user/user.model';
 import { BackOffice } from './backoffice/backoffice';
+import { ProfilPage } from './profil/profil';
+import { CvPage } from './cv/cv';
 
 type Domain = 'Développement' | 'Data' | 'Ressources humaines' | 'Design' | 'Marketing';
 type Contract = 'CDI' | 'CDD' | 'Stage' | 'Freelance';
@@ -29,7 +31,7 @@ interface NavService {
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, FormsModule, BackOffice],
+  imports: [CommonModule, FormsModule, BackOffice, ProfilPage, CvPage],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
@@ -137,6 +139,8 @@ export class App {
   readonly isLoggedIn = this.auth.isLoggedIn;
   readonly isAdmin = this.auth.isAdmin;
   readonly backOfficeOpen = signal(this.auth.isAdmin());
+  readonly profileOpen = signal(false);
+  readonly cvOpen = signal(false);
   readonly authEmail = signal('');
   readonly authPassword = signal('');
   readonly authName = signal('');
@@ -169,6 +173,11 @@ export class App {
   }
   onNavAction(serviceId: string, label: string): void {
     this.closeNav();this.mobileNavOpen.set(false);this.notificationsOpen.set(false);
+    if (serviceId === 'profils') {
+      if (label === 'Créer mon CV') { this.openCv(); return; }
+      this.openProfile();
+      return;
+    }
     const service = this.navServices.find((item) => item.id === serviceId);
     this.showMessage(`${service?.full ?? serviceId} · ${label} — à brancher sur l'API Spring Boot.`);
     if (serviceId === 'offres') { document.getElementById('offres')?.scrollIntoView({ behavior: 'smooth' }); }
@@ -237,12 +246,48 @@ export class App {
   logout(): void {
     this.auth.logout();
     this.backOfficeOpen.set(false);
+    this.profileOpen.set(false);
+    this.cvOpen.set(false);
     this.showMessage('Vous êtes déconnecté.');
   }
 
-  openBackOffice(): void { this.backOfficeOpen.set(true); }
+  openBackOffice(): void { this.backOfficeOpen.set(true);this.profileOpen.set(false);this.cvOpen.set(false); }
 
   closeBackOffice(): void { this.backOfficeOpen.set(false); }
+
+  openProfile(): void {
+    this.closeNav();
+    this.mobileNavOpen.set(false);
+    this.notificationsOpen.set(false);
+    if (!this.isLoggedIn()) {
+      this.openAuth('connexion');
+      this.infoMessage.set('Connectez-vous pour consulter votre profil.');
+      return;
+    }
+    this.selectedJob.set(null);
+    this.backOfficeOpen.set(false);
+    this.cvOpen.set(false);
+    this.profileOpen.set(true);
+  }
+
+  closeProfile(): void { this.profileOpen.set(false); }
+
+  openCv(): void {
+    this.closeNav();
+    this.mobileNavOpen.set(false);
+    this.notificationsOpen.set(false);
+    if (!this.isLoggedIn()) {
+      this.openAuth('connexion');
+      this.infoMessage.set('Connectez-vous pour gérer votre CV.');
+      return;
+    }
+    this.selectedJob.set(null);
+    this.backOfficeOpen.set(false);
+    this.profileOpen.set(false);
+    this.cvOpen.set(true);
+  }
+
+  closeCv(): void { this.cvOpen.set(false); }
 
   apply(): void {
     if (!this.isLoggedIn()) {

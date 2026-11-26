@@ -1,0 +1,83 @@
+<section class="cv-page">
+  <header class="cv-header">
+    <div class="brand">
+      <span class="brand-mark">SM</span>
+      <div>
+        <strong>SkillMatch</strong>
+        <small>Mon CV</small>
+      </div>
+    </div>
+    <button type="button" class="back-btn" (click)="exit()">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>
+      Retour au site
+    </button>
+  </header>
+
+  <main class="cv-main">
+    <div class="cv-intro">
+      <span class="eyebrow">Profils &amp; CV</span>
+      <h1>Gérez mon CV</h1>
+      <p>Déposez un CV PDF pour le rattacher à votre profil SkillMatch.</p>
+    </div>
+
+    @if (loading()) {
+      <div class="state-card">
+        <span class="loader"></span>
+        <p>Chargement de vos CV depuis <code>/skillmatch/profiles/me/cv</code>…</p>
+      </div>
+    } @else {
+      @if (error()) {
+        <div class="alert alert-error" role="alert">
+          {{ error() }}
+          @if (cvs().length === 0) {
+            <button type="button" class="link-btn" (click)="goToProfile()">Créer mon profil</button>
+          }
+        </div>
+      }
+      @if (success()) {
+        <div class="alert alert-success" role="status">{{ success() }}</div>
+      }
+
+      <section class="cv-card">
+        <h2>Déposer un nouveau CV</h2>
+        <div class="upload-row">
+          <label class="file-input">
+            <input type="file" accept=".pdf,application/pdf" (change)="onFileChange($event)" />
+            <span>{{ selectedFile()?.name || 'Choisir un fichier PDF' }}</span>
+          </label>
+          <button type="button" class="primary-btn" (click)="upload()" [disabled]="!selectedFile() || uploading()">
+            {{ uploading() ? 'Envoi…' : 'Déposer le CV' }}
+          </button>
+        </div>
+        <small>Format PDF uniquement · 5 Mo maximum.</small>
+      </section>
+
+      <section class="cv-card">
+        <h2>Mes CV déposés</h2>
+        @if (cvs().length === 0) {
+          <p class="empty">Aucun CV déposé pour le moment.</p>
+        } @else {
+          <ul class="cv-list">
+            @for (cv of cvs(); track cv.id) {
+              <li>
+                <div class="cv-icon">PDF</div>
+                <div class="cv-info">
+                  <strong>{{ fileName(cv.fichierUri) }}</strong>
+                  <small>Ajouté le {{ formatDate(cv.dateUpload) }}</small>
+                </div>
+                <button type="button" class="delete-btn" (click)="remove(cv)" [disabled]="deletingId() !== null">
+                  {{ deletingId() === cv.id ? 'Suppression…' : 'Supprimer' }}
+                </button>
+              </li>
+            }
+          </ul>
+        }
+      </section>
+
+      <p class="api-note">
+        Liste via <code>GET /skillmatch/profiles/me/cv</code>, dépôt via
+        <code>POST</code> et suppression via <code>DELETE</code>. Le backend ne fournit pas encore d’URL de téléchargement.
+      </p>
+    }
+  </main>
+</section>
