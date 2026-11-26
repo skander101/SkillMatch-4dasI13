@@ -1,10 +1,14 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, EventEmitter, HostListener, inject, OnInit, Output, signal } from '@angular/core';
-import { NAV_SERVICES, NOTIFICATIONS, AppNotification } from './nav.data';
+import { forkJoin, of, switchMap } from 'rxjs';
+import { Avis, Entreprise, ModerationRequest } from '../entreprises/entreprise.model';
+import { EntrepriseService } from '../entreprises/entreprise.service';
+import { ConfirmDialog } from '../shared/confirm-dialog/confirm-dialog';
 import { AuthService } from '../user/auth.service';
 import { CreateUserRequest, Role, UpdateUserRequest, User } from '../user/user.model';
 import { UserService } from '../user/user.service';
+import { NAV_SERVICES, NOTIFICATIONS, AppNotification } from './nav.data';
 
 interface SideItem {
   id: string;
@@ -29,11 +33,14 @@ interface AdminTable {
   columns: string[];
   rows: AdminRow[];
 }
+type PendingDelete =
+  | { kind: 'user'; user: User }
+  | { kind: 'entreprise'; entreprise: Entreprise };
 
 @Component({
   selector: 'app-back-office',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, ConfirmDialog],
   templateUrl: './backoffice.html',
   styleUrl: './backoffice.css'
 })
@@ -41,6 +48,7 @@ export class BackOffice implements OnInit {
   @Output() exit = new EventEmitter<void>();
 
   private readonly userService = inject(UserService);
+  private readonly entrepriseService = inject(EntrepriseService);
   private readonly auth = inject(AuthService);
 
   readonly navServices = NAV_SERVICES;
@@ -72,7 +80,7 @@ export class BackOffice implements OnInit {
     ] },
     { id: 'entreprises', label: 'Entreprises & Avis', path: 'M4 21V5h10v16M14 10h6v11M7 9h2M7 13h2M7 17h2M17 14h1M17 18h1', children: [
       { id: 'entreprises', label: 'Entreprises' },
-      { id: 'entreprises', label: 'Avis à modérer' }
+      { id: 'avis-a-moderer', label: 'Avis à modérer' }
     ] },
     { id: 'tests', label: 'Tests & Compétences', path: 'M4 6l2 2 4-4M4 14l2 2 4-4M13 7h7M13 15h7', children: [
       { id: 'tests', label: 'Tests' },
@@ -144,17 +152,6 @@ export class BackOffice implements OnInit {
         { cells: ['Sami Trabelsi', 'Python, Power BI', '2', '78 %', '18/11/2026'], status: 'En cours', tone: 'blue' },
         { cells: ['Ines Kallel', 'Figma, UX Research', '1', '61 %', '16/11/2026'], status: 'En cours', tone: 'blue' },
         { cells: ['Karim Slimani', 'Spring Boot, API REST', '0', '35 %', '12/11/2026'], status: 'Incomplet', tone: 'amber' }
-      ]
-    },
-    entreprises: {
-      title: 'Entreprises & Avis',
-      subtitle: 'Annuaire, modération et évaluations',
-      columns: ['Entreprise', 'Secteur', 'Ville', 'Note moyenne', 'Avis', 'Statut', 'Actions'],
-      rows: [
-        { cells: ['TechNova', 'Informatique', 'Tunis', '4,6 / 5', '48'], status: 'Vérifiée', tone: 'green' },
-        { cells: ['DataPlus', 'Data & Analytics', 'Sfax', '4,2 / 5', '26'], status: 'Vérifiée', tone: 'green' },
-        { cells: ['PixelLab', 'Design', 'Tunis', '4,8 / 5', '19'], status: 'Vérifiée', tone: 'green' },
-        { cells: ['Nouvelle Entreprise', 'Conseil', 'Ariana', '-', '1'], status: 'À modérer', tone: 'amber' }
       ]
     },
     tests: {
@@ -229,7 +226,20 @@ export class BackOffice implements OnInit {
   readonly userLoading = signal(false);
   readonly userSaving = signal(false);
   readonly userError = signal('');
-  readonly pendingDelete = signal<User | null>(null);
+  readonly entreprises = signal<Entreprise[]>([]);
+  readonly selectedEntrepriseId = signal<number | null>(null);
+  readonly entrepriseNom = signal('');
+  readonly entrepriseSecteur = signal('');
+  readonly entrepriseVille = signal('');
+  readonly entrepriseDescription = signal('');
+  readonly entrepriseLoading = signal(false);
+  readonly entrepriseSaving = signal(false);
+  readonly entrepriseError = signal('');
+  readonly pendingAvis = signal<Avis[]>([]);
+  readonly avisLoading = signal(false);
+  readonly avisLoaded = signal(false);
+  readonly avisBusyId = signal<number | null>(null);
+  readonly pendingDelete = signal<PendingDelete | null>(null);
   readonly deleteLoading = signal(false);
   private navMessageTimer?: number;
   readonly currentTable = computed(() => this.tables[this.activeSection()] ?? null);
@@ -250,7 +260,34 @@ export class BackOffice implements OnInit {
     const users = this.users();
     return q ? users.filter((user) => [user.nom, user.email, user.role].some((value) => value.toLowerCase().includes(q))) : users;
   });
-  ngOnInit(): void { this.loadUsers(); }
+  readonly filteredEntreprises = computed(() => {
+    const q = this.query().trim().toLowerCase();
+    const entreprises = this.entreprises();
+    return q ? entreprises.filter((entreprise) => [entreprise.nom, entreprise.secteur, entreprise.ville].some((value) => value.toLowerCase().includes(q))) : entreprises;
+  });
+  readonly entrepriseNames = computed(() => new Map(this.entreprises().map((entreprise) => [entreprise.id, entreprise.nom] as const)));
+  readonly filteredAvis = computed(() => {
+    const q = this.query().trim().toLowerCase();
+    const avis = this.pendingAvis();
+    if (!q) return avis;
+    const names = this.entrepriseNames();
+    return avis.filter((item) => [item.nomUtilisateur, item.commentaire, names.get(item.entrepriseId) ?? ''].some((value) => value.toLowerCase().includes(q)));
+  });
+  readonly confirmTitle = computed(() => {
+    const pending = this.pendingDelete();
+    return pending?.kind === 'entreprise' ? 'Supprimer cette entreprise ?' : 'Supprimer cet utilisateur ?';
+  });
+  readonly confirmMessage = computed(() => {
+    const pending = this.pendingDelete();
+    if (pending?.kind === 'entreprise') {
+      return `L'entreprise ${pending.entreprise.nom} et ses avis associés seront définitivement supprimés.`;
+    }
+    return pending ? `Le compte de ${pending.user.nom} (${pending.user.email}) sera définitivement supprimé.` : '';
+  });
+  ngOnInit(): void {
+    this.loadUsers();
+    this.loadEntreprises();
+  }
 
   loadUsers(): void {
     this.userLoading.set(true);
@@ -329,8 +366,13 @@ export class BackOffice implements OnInit {
   }
 
   requestDelete(user: User): void {
-    this.pendingDelete.set(user);
+    this.pendingDelete.set({ kind: 'user', user });
     this.userError.set('');
+  }
+
+  requestDeleteEntreprise(entreprise: Entreprise): void {
+    this.pendingDelete.set({ kind: 'entreprise', entreprise });
+    this.entrepriseError.set('');
   }
 
   cancelDelete(): void {
@@ -340,11 +382,31 @@ export class BackOffice implements OnInit {
   }
 
   confirmDelete(): void {
-    const user = this.pendingDelete();
-    if (!user || this.deleteLoading()) {
+    const pending = this.pendingDelete();
+    if (!pending || this.deleteLoading()) {
       return;
     }
     this.deleteLoading.set(true);
+    if (pending.kind === 'entreprise') {
+      this.entrepriseService.delete(pending.entreprise.id).subscribe({
+        next: () => {
+          this.deleteLoading.set(false);
+          this.pendingDelete.set(null);
+          if (this.selectedEntrepriseId() === pending.entreprise.id) { this.resetEntrepriseForm(); }
+          this.avisLoaded.set(false);
+          this.loadEntreprises();
+          this.showMessage('Entreprise supprimée.');
+        },
+        error: (error: HttpErrorResponse) => {
+          this.deleteLoading.set(false);
+          this.pendingDelete.set(null);
+          this.entrepriseError.set(this.readError(error));
+          this.showMessage(this.readError(error));
+        }
+      });
+      return;
+    }
+    const user = pending.user;
     this.userService.delete(user.id).subscribe({
       next: () => {
         this.deleteLoading.set(false);
@@ -356,13 +418,129 @@ export class BackOffice implements OnInit {
       error: (error: HttpErrorResponse) => {
         this.deleteLoading.set(false);
         this.pendingDelete.set(null);
+        this.userError.set(this.readError(error));
         this.showMessage(this.readError(error));
       }
     });
   }
 
+  loadEntreprises(): void {
+    this.entrepriseLoading.set(true);
+    this.entrepriseError.set('');
+    this.entrepriseService.list().subscribe({
+      next: (entreprises) => {
+        this.entreprises.set(entreprises);
+        this.entrepriseLoading.set(false);
+      },
+      error: (error: HttpErrorResponse) => {
+        this.entrepriseLoading.set(false);
+        this.entrepriseError.set(this.readError(error));
+        this.showMessage(`Impossible de charger les entreprises : ${this.entrepriseError()}`);
+      }
+    });
+  }
+
+  loadPendingAvis(): void {
+    this.avisLoading.set(true);
+    this.entrepriseService.list().pipe(
+      switchMap((entreprises) => {
+        this.entreprises.set(entreprises);
+        return entreprises.length
+          ? forkJoin(entreprises.map((entreprise) => this.entrepriseService.listAvis(entreprise.id)))
+          : of([] as Avis[][]);
+      })
+    ).subscribe({
+      next: (grouped) => {
+        this.pendingAvis.set(grouped.flat().filter((avis) => avis.statut === 'EN_ATTENTE'));
+        this.avisLoaded.set(true);
+        this.avisLoading.set(false);
+      },
+      error: (error: HttpErrorResponse) => {
+        this.avisLoading.set(false);
+        this.showMessage(`Impossible de charger les avis : ${this.readError(error)}`);
+      }
+    });
+  }
+
+  openEntrepriseForm(entreprise?: Entreprise): void {
+    this.selectedEntrepriseId.set(entreprise?.id ?? null);
+    this.entrepriseNom.set(entreprise?.nom ?? '');
+    this.entrepriseSecteur.set(entreprise?.secteur ?? '');
+    this.entrepriseVille.set(entreprise?.ville ?? '');
+    this.entrepriseDescription.set(entreprise?.description ?? '');
+    this.entrepriseError.set('');
+  }
+
+  resetEntrepriseForm(): void { this.openEntrepriseForm(); }
+
+  saveEntreprise(): void {
+    const nom = this.entrepriseNom().trim();
+    const secteur = this.entrepriseSecteur().trim();
+    const ville = this.entrepriseVille().trim();
+    const description = this.entrepriseDescription().trim();
+
+    if (!nom || !secteur || !ville) {
+      this.entrepriseError.set('Le nom, le secteur et la ville sont obligatoires.');
+      return;
+    }
+
+    const request = { nom, secteur, ville, description };
+    this.entrepriseSaving.set(true);
+    this.entrepriseError.set('');
+    const id = this.selectedEntrepriseId();
+    const request$ = id
+      ? this.entrepriseService.update(id, request)
+      : this.entrepriseService.create(request);
+
+    request$.subscribe({
+      next: () => {
+        this.entrepriseSaving.set(false);
+        this.resetEntrepriseForm();
+        this.avisLoaded.set(false);
+        this.loadEntreprises();
+        this.showMessage(id ? 'Entreprise mise à jour.' : 'Entreprise créée.');
+      },
+      error: (error: HttpErrorResponse) => {
+        this.entrepriseSaving.set(false);
+        this.entrepriseError.set(this.readError(error));
+      }
+    });
+  }
+
+  editEntreprise(entreprise: Entreprise): void {
+    this.openEntrepriseForm(entreprise);
+    this.selectSection('entreprises');
+  }
+
+  moderateAvis(avis: Avis, statut: ModerationRequest['statut']): void {
+    if (this.avisBusyId() !== null) {
+      return;
+    }
+    this.avisBusyId.set(avis.id);
+    this.entrepriseService.moderateAvis(avis.id, { statut }).subscribe({
+      next: () => {
+        this.avisBusyId.set(null);
+        this.showMessage(statut === 'APPROUVE' ? 'Avis approuvé.' : 'Avis rejeté.');
+        this.loadPendingAvis();
+      },
+      error: (error: HttpErrorResponse) => {
+        this.avisBusyId.set(null);
+        this.showMessage(this.readError(error));
+      }
+    });
+  }
+
+  entrepriseName(id: number): string { return this.entrepriseNames().get(id) ?? `Entreprise #${id}`; }
+
+  formatNote(note: number): string { return note.toFixed(2).replace('.', ','); }
+
   toggleSidebar(): void { this.sidebarOpen.update((open) => !open); }
-  selectSection(id: string): void { this.activeSection.set(id);this.query.set('');this.closeNav(); }
+  selectSection(id: string): void {
+    this.activeSection.set(id);
+    this.query.set('');
+    this.closeNav();
+    if (id === 'avis-a-moderer' && !this.avisLoaded() && !this.avisLoading()) { this.loadPendingAvis(); }
+  }
   toggleNav(id: string): void { this.openNav.update((current) => current === id ? null : id); }
   isGroupActive(group: SideGroup): boolean { return group.children.some((child) => child.id === this.activeSection()) || this.openNav() === group.id; }
   closeNav(): void { this.openNav.set(null); }
@@ -386,7 +564,7 @@ export class BackOffice implements OnInit {
     return { cells: [user.nom, user.role, user.email], status: 'Actif', tone: 'green' };
   }
   private readError(error: HttpErrorResponse): string {
-    return error.error?.message ?? error.error?.detail ?? error.message ?? 'Service utilisateur indisponible pour le moment.';
+    return error.error?.message ?? error.error?.detail ?? error.message ?? 'Service indisponible pour le moment.';
   }
   showMessage(text: string): void {
     this.navMessage.set(text);

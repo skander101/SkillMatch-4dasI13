@@ -1,0 +1,11 @@
+<div class="bo-modal-overlay" role="presentation" (click)="cancel.emit()">
+  <section class="bo-confirm" role="alertdialog" aria-modal="true" aria-labelledby="confirm-dialog-title" (click)="$event.stopPropagation()">
+    <span [class]="'confirm-icon ' + tone()">{{ tone() === 'primary' ? 'i' : '!' }}</span>
+    <h2 id="confirm-dialog-title">{{ title() }}</h2>
+    <p>{{ message() }}</p>
+    <div class="confirm-actions">
+      <button type="button" class="bo-btn ghost" [disabled]="loading()" (click)="cancel.emit()">{{ cancelLabel() }}</button>
+      <button type="button" [class]="'bo-btn ' + tone()" [disabled]="loading()" (click)="confirm.emit()">{{ loading() ? 'Traitement...' : confirmLabel() }}</button>
+    </div>
+  </section>
+</div>

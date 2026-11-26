@@ -2,7 +2,7 @@
 
 Interface web Angular de SkillMatch pour les candidats, les recruteurs et les administrateurs.
 
-Le template Angular 21 choisi par l'équipe est intégré directement dans ce dossier. Le thème vert foncé/blanc, la recherche d'offres, les favoris et les modales ont été conservés. Un back office Angular est également intégré : il s'ouvre automatiquement après la connexion d'un utilisateur `ADMIN`. Le backend [`entreprises-service`](../Backend/entreprises-service/README.md) fournit déjà le CRUD des entreprises et Swagger, mais le frontend n'y est pas encore connecté.
+Le template Angular 21 choisi par l'équipe est intégré directement dans ce dossier. Le thème vert foncé/blanc, la recherche d'offres, les favoris et les modales ont été conservés. Un back office Angular est également intégré : il s'ouvre automatiquement après la connexion d'un utilisateur `ADMIN`. Le back office est connecté au service commun pour les utilisateurs et à [`entreprises-service`](../Backend/entreprises-service/README.md) pour le CRUD des entreprises et la modération des avis.
 
 ## Prérequis
 
@@ -43,10 +43,15 @@ src/
 │   ├── app.html                interface publique + conteneur back office
 │   ├── app.css                 thème vert foncé et responsive
 │   ├── backoffice/
-│   │   ├── backoffice.ts       panneau admin et CRUD utilisateurs
+│   │   ├── backoffice.ts       panneau admin, CRUD utilisateurs/entreprises et modération
 │   │   ├── backoffice.html     interface du back office
 │   │   ├── backoffice.css      thème du back office
 │   │   └── nav.data.ts         navigation et notifications de démonstration
+│   ├── entreprises/
+│   │   ├── entreprise.model.ts Entreprise, Avis et requêtes associées
+│   │   └── entreprise.service.ts appels HTTP entreprises et avis via la gateway
+│   ├── shared/
+│   │   └── confirm-dialog/     modale de confirmation réutilisable et thémée
 │   └── user/
 │       ├── auth.service.ts     login, register, logout et session
 │       ├── auth.interceptor.ts ajout automatique du JWT
@@ -132,6 +137,28 @@ La rubrique « Utilisateurs & rôles » est connectée au service commun :
 
 Toutes ces requêtes passent par l'API Gateway et portent l'en-tête `Authorization: Bearer <jwt>` ajouté par l'intercepteur. Le backend vérifie le rôle `ADMIN` et répond `401` ou `403` si nécessaire.
 
+La rubrique « Entreprises » affiche les entreprises renvoyées par l'API et permet de créer, modifier et supprimer une fiche. La suppression passe par la modale de confirmation partagée `shared/confirm-dialog`.
+
+| Action | Endpoint | Méthode |
+|---|---|---|
+| Lister | `/skillmatch/entreprises` | `GET` |
+| Récupérer | `/skillmatch/entreprises/{id}` | `GET` |
+| Créer | `/skillmatch/entreprises` | `POST` |
+| Modifier | `/skillmatch/entreprises/{id}` | `PUT` |
+| Supprimer | `/skillmatch/entreprises/{id}` | `DELETE` |
+
+Le corps de création/modification contient `nom`, `secteur`, `ville` et `description`. La réponse contient aussi `id` et `noteMoyenne`.
+
+La rubrique « Avis à modérer » liste les avis `EN_ATTENTE` de toutes les entreprises (un `GET /skillmatch/entreprises/{id}/avis` par entreprise) et propose Approuver / Rejeter. Après chaque décision, la liste des avis et celle des entreprises sont rafraîchies pour afficher la `noteMoyenne` recalculée.
+
+| Action | Endpoint | Méthode |
+|---|---|---|
+| Avis d'une entreprise | `/skillmatch/entreprises/{id}/avis` | `GET` |
+| Modérer un avis | `/skillmatch/avis/{id}/moderation` | `PUT` |
+| Supprimer un avis | `/skillmatch/avis/{id}` | `DELETE` |
+
+Le corps de modération est `{"statut":"APPROUVE"}` ou `{"statut":"REJETE"}`. Le service expose aussi `POST /skillmatch/entreprises/{id}/avis` avec `{"note":5,"commentaire":"..."}` pour la publication, qui sera utilisée par l'interface publique au commit 7.
+
 Pour essayer le panneau :
 
 ```bash
@@ -159,7 +186,7 @@ En développement, l'API Gateway autorise toutes les origines (`allowedOriginPat
 - Liste des offres, favoris et détails d'offre : démonstration locale.
 - Authentification et inscription : connectées à l'API.
 - Profils, tests, alertes et messagerie : à brancher progressivement sur les microservices.
-- Entreprises & avis : backend CRUD, publication/modération des avis, moyenne calculée et routes sécurisées disponibles via la gateway sur `http://localhost:8080`, mais affichage public, annuaire, écran de modération du back office et publication d'avis depuis l'UI encore à brancher dans le frontend (commits 6 et 7 du plan).
+- Entreprises & avis : CRUD entreprises et modération des avis connectés dans le back office via la gateway sur `http://localhost:8080`. L'annuaire public, l'affichage des avis approuvés et la publication d'un avis depuis l'UI restent à brancher dans le frontend (commit 7 du plan).
 
 Les offres affichées restent fictives tant que `GET /skillmatch/offres/all` n'est pas branché.
 

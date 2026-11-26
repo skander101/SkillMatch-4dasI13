@@ -147,6 +147,70 @@
             </table></div>
           </section>
         }
+        @case ('entreprises') {
+          <div class="page-head">
+            <div><span class="eyebrow">GESTION</span><h1>Entreprises</h1><p>{{ entreprises().length }} entreprise(s) enregistrée(s) via entreprises-service.</p></div>
+            <div class="head-actions"><button type="button" class="bo-btn ghost" (click)="loadEntreprises()">↻ Actualiser</button><button type="button" class="bo-btn" (click)="openEntrepriseForm()">＋ Nouvelle entreprise</button></div>
+          </div>
+          <section class="panel crud-panel">
+            <div class="panel-head"><div><h3>{{ selectedEntrepriseId() ? 'Modifier une entreprise' : 'Créer une entreprise' }}</h3><p>Fiche entreprise gérée par le back office ADMIN.</p></div></div>
+            <div class="user-form-grid">
+              <label>Nom<input type="text" [value]="entrepriseNom()" (input)="entrepriseNom.set($any($event.target).value)"></label>
+              <label>Secteur<input type="text" [value]="entrepriseSecteur()" (input)="entrepriseSecteur.set($any($event.target).value)"></label>
+              <label>Ville<input type="text" [value]="entrepriseVille()" (input)="entrepriseVille.set($any($event.target).value)"></label>
+              <label class="full-width">Description<textarea rows="3" [value]="entrepriseDescription()" (input)="entrepriseDescription.set($any($event.target).value)"></textarea></label>
+              <div class="form-actions"><button type="button" class="bo-btn" [disabled]="entrepriseSaving()" (click)="saveEntreprise()">{{ entrepriseSaving() ? 'Enregistrement...' : (selectedEntrepriseId() ? 'Mettre à jour' : 'Créer') }}</button><button type="button" class="bo-btn ghost" (click)="resetEntrepriseForm()">Annuler</button></div>
+            </div>
+            @if (entrepriseError()) { <p class="form-error">{{ entrepriseError() }}</p> }
+          </section>
+          <section class="panel">
+            <div class="panel-head"><div><h3>{{ filteredEntreprises().length }} entreprise(s)</h3><p>Données du service entreprises · CRUD connecté</p></div><label class="top-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 5 5"/></svg><input aria-label="Filtrer les entreprises" placeholder="Filtrer..." [value]="query()" (input)="query.set($any($event.target).value)"></label></div>
+            @if (entrepriseLoading()) { <p class="muted">Chargement des entreprises...</p> }
+            <div class="table-wrap"><table>
+              <thead><tr><th>Entreprise</th><th>Secteur</th><th>Ville</th><th>Note moyenne</th><th>Actions</th></tr></thead>
+              <tbody>
+                @for (entreprise of filteredEntreprises(); track entreprise.id) {
+                  <tr>
+                    <td><b>{{ entreprise.nom }}</b></td>
+                    <td>{{ entreprise.secteur }}</td>
+                    <td>{{ entreprise.ville }}</td>
+                    <td><span class="badge green">{{ formatNote(entreprise.noteMoyenne) }} / 5</span></td>
+                    <td class="crud-actions"><button type="button" class="row-action" (click)="editEntreprise(entreprise)" aria-label="Modifier">✎</button><button type="button" class="row-action danger" (click)="requestDeleteEntreprise(entreprise)" aria-label="Supprimer">✕</button></td>
+                  </tr>
+                } @empty {
+                  <tr><td colspan="5" class="muted">Aucune entreprise trouvée.</td></tr>
+                }
+              </tbody>
+            </table></div>
+          </section>
+        }
+        @case ('avis-a-moderer') {
+          <div class="page-head">
+            <div><span class="eyebrow">GESTION</span><h1>Avis à modérer</h1><p>{{ pendingAvis().length }} avis en attente de validation.</p></div>
+            <div class="head-actions"><button type="button" class="bo-btn ghost" (click)="loadPendingAvis()">↻ Actualiser</button></div>
+          </div>
+          <section class="panel">
+            <div class="panel-head"><div><h3>Modération des avis</h3><p>La note moyenne est recalculée après chaque décision.</p></div><label class="top-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 5 5"/></svg><input aria-label="Filtrer les avis" placeholder="Filtrer..." [value]="query()" (input)="query.set($any($event.target).value)"></label></div>
+            @if (avisLoading()) { <p class="muted">Chargement des avis...</p> }
+            <div class="table-wrap"><table>
+              <thead><tr><th>Avis</th><th>Entreprise</th><th>Note</th><th>Date</th><th>Statut</th><th>Actions</th></tr></thead>
+              <tbody>
+                @for (avis of filteredAvis(); track avis.id) {
+                  <tr>
+                    <td><b>{{ avis.nomUtilisateur }}</b><br><span>{{ avis.commentaire }}</span></td>
+                    <td>{{ entrepriseName(avis.entrepriseId) }}</td>
+                    <td>{{ avis.note }} / 5</td>
+                    <td>{{ avis.dateCreation }}</td>
+                    <td><span class="badge amber">En attente</span></td>
+                    <td class="crud-actions"><button type="button" class="row-action approve" [disabled]="avisBusyId() !== null" (click)="moderateAvis(avis, 'APPROUVE')">✓ Approuver</button><button type="button" class="row-action danger" [disabled]="avisBusyId() !== null" (click)="moderateAvis(avis, 'REJETE')">✕ Rejeter</button></td>
+                  </tr>
+                } @empty {
+                  <tr><td colspan="6" class="muted">Aucun avis en attente de modération.</td></tr>
+                }
+              </tbody>
+            </table></div>
+          </section>
+        }
         @default {
           @if (currentTable(); as table) {
             <div class="page-head">
@@ -174,18 +238,15 @@
       }
     </main>
   </div>
-  @if (pendingDelete(); as user) {
-    <div class="bo-modal-overlay" role="presentation" (click)="cancelDelete()">
-      <section class="bo-confirm" role="alertdialog" aria-modal="true" aria-labelledby="confirm-delete-title" (click)="$event.stopPropagation()">
-        <span class="confirm-icon">!</span>
-        <h2 id="confirm-delete-title">Supprimer cet utilisateur ?</h2>
-        <p>Le compte de <b>{{ user.nom }}</b> ({{ user.email }}) sera définitivement supprimé.</p>
-        <div class="confirm-actions">
-          <button type="button" class="bo-btn ghost" [disabled]="deleteLoading()" (click)="cancelDelete()">Annuler</button>
-          <button type="button" class="bo-btn danger" [disabled]="deleteLoading()" (click)="confirmDelete()">{{ deleteLoading() ? 'Suppression...' : 'Supprimer' }}</button>
-        </div>
-      </section>
-    </div>
+  @if (pendingDelete()) {
+    <app-confirm-dialog
+      [title]="confirmTitle()"
+      [message]="confirmMessage()"
+      confirmLabel="Supprimer"
+      [loading]="deleteLoading()"
+      tone="danger"
+      (cancel)="cancelDelete()"
+      (confirm)="confirmDelete()" />
   }
   @if (navMessage()) {<div class="bo-toast" role="status">{{ navMessage() }}<button type="button" (click)="navMessage.set('')">Fermer</button></div>}
 </div>
