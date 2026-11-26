@@ -1,11 +1,12 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, computed, EventEmitter, HostListener, inject, OnInit, Output, signal } from '@angular/core';
+import { Component, computed, EventEmitter, HostListener, inject, input, OnInit, Output, signal } from '@angular/core';
 import { NAV_SERVICES, NOTIFICATIONS, AppNotification } from './nav.data';
 import { AuthService } from '../user/auth.service';
 import { CreateUserRequest, Role, UpdateUserRequest, User } from '../user/user.model';
 import { UserService } from '../user/user.service';
 import { BackofficeAlertes } from '../alertes/backoffice-alertes';
+import { OffreResume } from '../alertes/frontoffice-alertes';
 
 interface SideItem {
   id: string;
@@ -39,6 +40,8 @@ interface AdminTable {
   styleUrl: './backoffice.css'
 })
 export class BackOffice implements OnInit {
+  /** Offres affichées sur le site, pour montrer le titre d'une offre au lieu de son id. */
+  readonly offres = input<OffreResume[]>([]);
   @Output() exit = new EventEmitter<void>();
 
   private readonly userService = inject(UserService);

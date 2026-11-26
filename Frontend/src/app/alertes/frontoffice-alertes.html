@@ -118,7 +118,7 @@
               <article class="card favori">
                 <span class="heart" aria-hidden="true">♥</span>
                 <div>
-                  <h3>{{ detail?.title ?? 'Offre n° ' + favori.offerId }}</h3>
+                  <h3>{{ detail?.title ?? 'Offre externe' }}</h3>
                   @if (detail) {<p>{{ detail.company }} · {{ detail.location }} · {{ detail.contract }}</p>}
                   <small>Sauvegardée le {{ dateCourte(favori.date) }}</small>
                 </div>

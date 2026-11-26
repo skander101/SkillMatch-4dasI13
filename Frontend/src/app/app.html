@@ -1,5 +1,5 @@
 @if (backOfficeOpen() && isAdmin()) {
-  <app-back-office (exit)="closeBackOffice()" />
+  <app-back-office [offres]="jobs" (exit)="closeBackOffice()" />
 } @else {
 <header class="site-header">
   <div class="wrap nav-wrap">

@@ -45,7 +45,7 @@
   <div class="bo-main">
     <main class="bo-content">
       @if (activeSection() === 'alertes' || activeSection() === 'alertes-favoris') {
-        <app-alertes-backoffice [view]="activeSection() === 'alertes' ? 'alertes' : 'favoris'" [utilisateurs]="users()" />
+        <app-alertes-backoffice [view]="activeSection() === 'alertes' ? 'alertes' : 'favoris'" [utilisateurs]="users()" [offres]="offres()" />
       } @else {
       @switch (activeSection()) {
         @case ('dashboard') {

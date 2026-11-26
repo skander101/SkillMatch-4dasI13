@@ -2,6 +2,7 @@ import { Component, computed, effect, inject, input, signal, untracked } from '@
 import { User } from '../user/user.model';
 import { Alerte, Favori, Frequence } from './alertes.model';
 import { AlertesService, alertesErrorMessage } from './alertes.service';
+import { OffreResume } from './frontoffice-alertes';
 
 export type AlertesBackofficeView = 'alertes' | 'favoris';
 
@@ -18,6 +19,8 @@ export class BackofficeAlertes {
   readonly view = input.required<AlertesBackofficeView>();
   /** Utilisateurs déjà chargés par le back office (commun-service), pour afficher le nom du candidat. */
   readonly utilisateurs = input<User[]>([]);
+  /** Offres connues du site (titre, entreprise) ; l'id n'est jamais affiché. */
+  readonly offres = input<OffreResume[]>([]);
 
   readonly alertes = signal<Alerte[]>([]);
   readonly favoris = signal<Favori[]>([]);
@@ -61,7 +64,7 @@ export class BackofficeAlertes {
     const q = this.filtre().trim().toLowerCase();
     if (!q) return this.favoris();
     return this.favoris().filter((favori) =>
-      [this.candidat(favori.userId), String(favori.offerId)].some((valeur) => valeur.toLowerCase().includes(q)));
+      [this.candidat(favori.userId), this.titreOffre(favori.offerId), this.entrepriseOffre(favori.offerId)].some((valeur) => valeur.toLowerCase().includes(q)));
   });
 
   private feedbackTimer?: number;
@@ -98,7 +101,7 @@ export class BackofficeAlertes {
     this.api.adminChangerActive(alerte.id, !alerte.active).subscribe({
       next: (maj) => {
         this.alertes.update((liste) => liste.map((item) => item.id === maj.id ? maj : item));
-        this.afficherFeedback(maj.active ? `Alerte n° ${maj.id} activée.` : `Alerte n° ${maj.id} désactivée.`);
+        this.afficherFeedback(maj.active ? 'Alerte activée.' : 'Alerte désactivée.');
       },
       error: (error) => this.erreur.set(alertesErrorMessage(error, 'Changement de statut impossible.'))
     });
@@ -110,7 +113,7 @@ export class BackofficeAlertes {
       next: () => {
         this.alertes.update((liste) => liste.filter((item) => item.id !== id));
         this.aSupprimer.set(null);
-        this.afficherFeedback(`Alerte n° ${id} supprimée.`);
+        this.afficherFeedback('Alerte supprimée.');
       },
       error: (error) => {
         this.aSupprimer.set(null);
@@ -125,7 +128,7 @@ export class BackofficeAlertes {
       next: () => {
         this.favoris.update((liste) => liste.filter((item) => item.id !== id));
         this.aSupprimer.set(null);
-        this.afficherFeedback(`Favori n° ${id} supprimé.`);
+        this.afficherFeedback('Favori supprimé.');
       },
       error: (error) => {
         this.aSupprimer.set(null);
@@ -136,7 +139,16 @@ export class BackofficeAlertes {
 
   candidat(userId: number): string {
     const user = this.utilisateurs().find((item) => item.id === userId);
-    return user ? user.nom : `Utilisateur n° ${userId}`;
+    return user ? user.nom : 'Utilisateur inconnu';
+  }
+
+  titreOffre(offerId: number): string {
+    return this.offres().find((offre) => offre.id === offerId)?.title ?? 'Offre externe';
+  }
+
+  entrepriseOffre(offerId: number): string {
+    const offre = this.offres().find((item) => item.id === offerId);
+    return offre ? `${offre.company} · ${offre.location}` : '';
   }
 
   email(userId: number): string {
