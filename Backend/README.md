@@ -70,9 +70,7 @@ Implémentation actuelle (commits 1 à 5 sur `skander_entreprise+avis`) :
 - Erreurs JSON au format `{"status":404,"message":"Entreprise introuvable"}`.
 - Détails complets : [`entreprises-service/README.md`](entreprises-service/README.md).
 
-À venir dans les prochains commits du plan :
-
-- branchement du back office admin et du frontend public sur les routes entreprises.
+Intégration frontend : le back office `ADMIN` gère les utilisateurs, le CRUD des entreprises et la modération des avis ; le site public affiche l'annuaire et les avis `APPROUVE`, et permet à un `CANDIDAT` ou `RECRUTEUR` connecté de publier un avis. Ces deux flux passent par les routes décrites ci-dessus via la gateway. Voir [`Frontend/README.md`](../Frontend/README.md) et le scénario de vérification complet ci-dessous.
 
 ### Tests & Compétences
 
@@ -122,6 +120,56 @@ Endpoints implémentés :
 - Routes `/skillmatch/entreprises/**` et `/skillmatch/avis/**` vers `entreprises-service` sur `http://localhost:8083`.
 - La gateway transmet l'en-tête `Authorization` ; les microservices valident le JWT et les rôles.
 - CORS autorisé en développement ; à restreindre en production.
+
+## Scénario de vérification complet (curl)
+
+Le scénario couvre `register` / `login`, la création d'entreprise, la publication d'avis, la modération et la moyenne recalculée. Il suppose `commun-service` (8087), `entreprises-service` (8083) et la gateway démarrés, avec MySQL accessible. Les emails sont uniques grâce à un suffixe temporel.
+
+```bash
+GATEWAY="${GATEWAY:-http://localhost:8080}"
+SUFFIX="$(date +%s)"
+ADMIN_EMAIL="admin.verif.${SUFFIX}@example.com"
+CANDIDAT_EMAIL="candidat.verif.${SUFFIX}@example.com"
+
+curl -sS -o /tmp/admin-register.json -w 'register ADMIN: %{http_code}\n' -X POST "$GATEWAY/skillmatch/auth/register" \
+  -H 'Content-Type: application/json' \
+  -d "{\"nom\":\"Admin Verification\",\"email\":\"$ADMIN_EMAIL\",\"password\":\"123456\",\"role\":\"ADMIN\"}"
+curl -sS -o /tmp/admin-login.json -w 'login ADMIN: %{http_code}\n' -X POST "$GATEWAY/skillmatch/auth/login" \
+  -H 'Content-Type: application/json' -d "{\"email\":\"$ADMIN_EMAIL\",\"password\":\"123456\"}"
+ADMIN_TOKEN=$(python3 -c 'import json; print(json.load(open("/tmp/admin-login.json"))["token"])')
+
+curl -sS -o /tmp/candidat-register.json -w 'register CANDIDAT: %{http_code}\n' -X POST "$GATEWAY/skillmatch/auth/register" \
+  -H 'Content-Type: application/json' \
+  -d "{\"nom\":\"Candidat Verification\",\"email\":\"$CANDIDAT_EMAIL\",\"password\":\"123456\",\"role\":\"CANDIDAT\"}"
+curl -sS -o /tmp/candidat-login.json -w 'login CANDIDAT: %{http_code}\n' -X POST "$GATEWAY/skillmatch/auth/login" \
+  -H 'Content-Type: application/json' -d "{\"email\":\"$CANDIDAT_EMAIL\",\"password\":\"123456\"}"
+CANDIDAT_TOKEN=$(python3 -c 'import json; print(json.load(open("/tmp/candidat-login.json"))["token"])')
+
+curl -sS -o /tmp/entreprise.json -w 'create entreprise: %{http_code}\n' -X POST "$GATEWAY/skillmatch/entreprises" \
+  -H 'Content-Type: application/json' -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -d '{"nom":"Annuaire Verification","secteur":"Informatique","ville":"Tunis","description":"Entreprise de test curl"}'
+ID_ENTREPRISE=$(python3 -c 'import json; print(json.load(open("/tmp/entreprise.json"))["id"])')
+
+curl -sS -o /tmp/entreprises.json -w 'list entreprises (public): %{http_code}\n' "$GATEWAY/skillmatch/entreprises"
+curl -sS -o /tmp/avis.json -w 'publish avis: %{http_code}\n' -X POST "$GATEWAY/skillmatch/entreprises/$ID_ENTREPRISE/avis" \
+  -H 'Content-Type: application/json' -H "Authorization: Bearer $CANDIDAT_TOKEN" \
+  -d '{"note":4,"commentaire":"Bonne equipe et entretien clair"}'
+ID_AVIS=$(python3 -c 'import json; print(json.load(open("/tmp/avis.json"))["id"])')
+
+curl -sS -o /tmp/entreprise-avant.json -w 'note avant moderation: %{http_code}\n' "$GATEWAY/skillmatch/entreprises/$ID_ENTREPRISE"
+python3 -c 'import json; print("noteMoyenne avant:", json.load(open("/tmp/entreprise-avant.json"))["noteMoyenne"])'
+
+curl -sS -o /tmp/moderation.json -w 'moderation APPROUVE: %{http_code}\n' -X PUT "$GATEWAY/skillmatch/avis/$ID_AVIS/moderation" \
+  -H 'Content-Type: application/json' -H "Authorization: Bearer $ADMIN_TOKEN" -d '{"statut":"APPROUVE"}'
+curl -sS -o /tmp/entreprise-apres.json -w 'note apres moderation: %{http_code}\n' "$GATEWAY/skillmatch/entreprises/$ID_ENTREPRISE"
+python3 -c 'import json; print("noteMoyenne apres:", json.load(open("/tmp/entreprise-apres.json"))["noteMoyenne"])'
+curl -sS -o /tmp/avis-list.json -w 'avis publics: %{http_code}\n' "$GATEWAY/skillmatch/entreprises/$ID_ENTREPRISE/avis"
+python3 -c 'import json; print("statuts:", [a["statut"] for a in json.load(open("/tmp/avis-list.json"))])'
+```
+
+Résultat attendu : `201`, `200`, `201`, `200`, `201`, `200`, `201`, `200`, `200`, `200`, `200` ; `noteMoyenne` passe de `0.0` à `4.0` et l'avis est `APPROUVE`. Un second `POST` avec le même candidat répond `409`, un `POST` avec le JWT `ADMIN` répond `403` et un `POST` sans JWT répond `401`.
+
+Si le port `8080` est occupé (par exemple par Apache), démarrer la gateway avec `SERVER_PORT=8090 mvn spring-boot:run` puis lancer le scénario avec `GATEWAY=http://localhost:8090`. La validation réelle a d'ailleurs été effectuée sur `http://localhost:8090` dans cet environnement.
 
 ## Créer un microservice
 

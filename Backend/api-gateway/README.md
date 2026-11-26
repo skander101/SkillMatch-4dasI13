@@ -20,6 +20,8 @@ Passerelle Spring Cloud Gateway de SkillMatch.
 
 Les routes entreprises et avis sont disponibles via la gateway depuis le commit 4 du plan. Les endpoints protégés exigent un JWT ; la gateway ne valide pas les tokens elle-même, elle transmet l'en-tête `Authorization` aux services.
 
+Le frontend consomme ces routes pour ses deux flux : le back office `ADMIN` utilise `GET`/`POST`/`PUT`/`DELETE /skillmatch/entreprises/**` et `PUT`/`DELETE /skillmatch/avis/**` pour la modération, tandis que le site public utilise `GET /skillmatch/entreprises` et `GET /skillmatch/entreprises/{id}/avis` sans token et `POST /skillmatch/entreprises/{id}/avis` avec le JWT d'un `CANDIDAT` ou `RECRUTEUR`. Le corps de publication est uniquement `{"note":4,"commentaire":"..."}` : l'auteur est déduit du JWT. Le scénario complet `register` / `login` / création / avis / modération / moyenne est dans [`Backend/README.md`](../README.md#scénario-de-vérification-complet-curl) ; il s'exécute avec `GATEWAY=http://localhost:8090` si le port `8080` est occupé.
+
 ## Configuration
 
 - Port : `8080`

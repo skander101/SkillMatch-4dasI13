@@ -106,6 +106,35 @@
       }
     </div>
   </section>
+  <section class="entreprises-section" id="entreprises">
+    <div class="wrap">
+      <div class="section-heading">
+        <div><span class="section-overline">ENTREPRISES & AVIS</span><h2>L'annuaire des entreprises</h2><p>Découvrez les entreprises et consultez les avis approuvés par l'administration.</p></div>
+        <div class="entreprise-filters">
+          <label><span>Secteur</span><select aria-label="Filtrer par secteur" [value]="entrepriseSecteur()" (change)="entrepriseSecteur.set($any($event.target).value)"><option value="">Tous les secteurs</option>@for (secteur of secteurs(); track secteur) {<option [value]="secteur">{{ secteur }}</option>}</select></label>
+          <label><span>Ville</span><select aria-label="Filtrer par ville" [value]="entrepriseVille()" (change)="entrepriseVille.set($any($event.target).value)"><option value="">Toutes les villes</option>@for (ville of villes(); track ville) {<option [value]="ville">{{ ville }}</option>}</select></label>
+        </div>
+      </div>
+      @if (entreprisesError()) {
+      <div class="no-results"><b>Impossible de charger l'annuaire.</b><span>{{ entreprisesError() }}</span><button class="btn btn-solid" (click)="loadEntreprises()">Réessayer</button></div>
+      } @else if (entreprisesLoading()) {
+      <div class="no-results"><b>Chargement des entreprises...</b><span>Veuillez patienter.</span></div>
+      } @else if (filteredEntreprises().length) {
+      <div class="job-grid entreprise-grid">
+        @for (entreprise of filteredEntreprises(); track entreprise.id) {
+          <article class="job-card entreprise-card">
+            <div class="job-head"><span class="job-icon entreprise-icon">◆</span><div class="job-title"><h3>{{ entreprise.nom }}</h3><span>{{ entreprise.secteur }} · {{ entreprise.ville }}</span></div></div>
+            <div class="entreprise-rating"><span class="rating-badge">★ {{ formatNote(entreprise.noteMoyenne) }}/5</span><small>{{ entreprise.noteMoyenne > 0 ? 'note moyenne' : 'aucun avis approuvé' }}</small></div>
+            <p class="entreprise-description">{{ entreprise.description }}</p>
+            <div class="entreprise-actions"><button class="see-job" (click)="showAvis(entreprise)">Voir les avis <span>→</span></button><button class="btn btn-solid avis-btn" (click)="openAvisForm(entreprise)">Publier un avis</button></div>
+          </article>
+        }
+      </div>
+      } @else {
+      <div class="no-results"><b>Aucune entreprise trouvée.</b><span>Essaie un autre secteur ou une autre ville.</span><button class="btn btn-solid" (click)="resetEntrepriseFilters()">Effacer les filtres</button></div>
+      }
+    </div>
+  </section>
   <section class="how-section" id="comment-ca-marche"><div class="wrap how-inner"><div><span class="section-overline">UN RECRUTEMENT PLUS JUSTE</span><h2>Les compétences passent en premier.</h2><p>SkillMatch rapproche candidats et recruteurs grâce aux profils, aux tests techniques et aux offres adaptées.</p></div><div class="how-items"><div><b>01</b><span>Créez votre profil</span></div><div><b>02</b><span>Validez vos compétences</span></div><div><b>03</b><span>Postulez aux bonnes offres</span></div></div></div></section>
 </main>
 <footer class="footer" id="apropos"><div class="wrap footer-content"><div class="brand footer-brand"><span class="brand-dot">●</span> Skill<span>Match</span></div><p>On recrute sur les compétences, pas sur le CV.</p><small>Frontend de démonstration • Angular 21 • Données fictives</small></div></footer>
@@ -126,5 +155,34 @@
     </form>
     @if (authError()) { <p class="auth-error">{{ authError() }}</p> }
     @if (infoMessage()) { <p class="demo-notice">{{ infoMessage() }}</p> }<button class="text-link" (click)="openAuth(mode === 'connexion' ? 'inscription' : 'connexion')">{{mode === 'connexion' ? 'Pas de compte ? Inscrivez-vous' : 'Déjà un compte ? Connectez-vous'}}</button></section></div>
+}
+@if (avisModal(); as modal) {
+  <div class="overlay" role="presentation" (click)="closeModal()">
+    @if (modal.mode === 'list') {
+      <section class="modal avis-modal" role="dialog" aria-modal="true" [attr.aria-label]="'Avis de ' + modal.entreprise.nom" (click)="$event.stopPropagation()"><button class="close" (click)="closeModal()" aria-label="Fermer">×</button><span class="section-overline">ÉVALUATIONS APPROUVÉES</span><h2>{{ modal.entreprise.nom }}</h2><p class="modal-company">{{ modal.entreprise.secteur }} · {{ modal.entreprise.ville }} · Note moyenne {{ formatNote(modal.entreprise.noteMoyenne) }}/5</p>
+        @if (avisLoading()) { <p class="avis-empty">Chargement des avis...</p> }
+        @else if (avisError()) { <p class="auth-error">{{ avisError() }}</p> }
+        @else if (approvedAvis().length) {
+          <div class="avis-list">
+            @for (avis of approvedAvis(); track avis.id) {
+              <article class="avis-item"><div class="avis-head"><b>{{ avis.nomUtilisateur }}</b><span class="avis-note">★ {{ avis.note }}/5</span></div><p>{{ avis.commentaire }}</p><small>{{ avis.dateCreation | date:'dd/MM/yyyy' }}</small></article>
+            }
+          </div>
+        } @else { <p class="avis-empty">Aucun avis approuvé pour le moment.</p> }
+        <button class="btn btn-outline modal-cta" (click)="openAvisForm(modal.entreprise)">Publier un avis</button>
+      </section>
+    } @else {
+      <section class="modal auth-modal avis-form-modal" role="dialog" aria-modal="true" [attr.aria-label]="'Publier un avis sur ' + modal.entreprise.nom" (click)="$event.stopPropagation()"><button class="close" (click)="closeModal()" aria-label="Fermer">×</button><span class="section-overline">VOTRE EXPÉRIENCE</span><h2>Publier un avis</h2><p>{{ modal.entreprise.nom }} · {{ modal.entreprise.ville }}</p>
+        <form (submit)="$event.preventDefault(); submitAvis()">
+          <label>Note<select name="note" [value]="avisNote()" (change)="setAvisNote($any($event.target).value)"><option [value]="1">1 — Très décevant</option><option [value]="2">2 — Décevant</option><option [value]="3">3 — Correct</option><option [value]="4">4 — Bon</option><option [value]="5">5 — Excellent</option></select></label>
+          <label>Commentaire<textarea name="commentaire" rows="4" placeholder="Partagez votre expérience..." [ngModel]="avisCommentaire()" (ngModelChange)="avisCommentaire.set($event)"></textarea></label>
+          <button type="submit" class="btn btn-solid modal-cta" [disabled]="avisSaving()">{{ avisSaving() ? 'Envoi...' : 'Envoyer mon avis' }}</button>
+        </form>
+        @if (avisError()) { <p class="auth-error">{{ avisError() }}</p> }
+        @if (avisSuccess()) { <p class="demo-notice">{{ avisSuccess() }}</p> }
+        <button class="text-link" (click)="showAvis(modal.entreprise)">Voir les évaluations approuvées</button>
+      </section>
+    }
+  </div>
 }
 }
