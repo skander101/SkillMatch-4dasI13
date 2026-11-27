@@ -15,7 +15,7 @@
             @if (openNav() === group.id) {
               <div class="side-submenu">
                 @for (entity of group.children; track entity.label) {
-                  <button type="button" class="side-subbtn" [class.active]="activeSection() === entity.id" (click)="selectSection(entity.id)">{{ entity.label }}</button>
+                  <button type="button" class="side-subbtn" [class.active]="activeSection() === entity.id" (click)="selectSection(entity.id, entity.label)">{{ entity.label }}</button>
                 }
               </div>
             }
@@ -30,7 +30,7 @@
             @if (openNav() === group.id) {
               <div class="side-submenu">
                 @for (entity of group.children; track entity.label) {
-                  <button type="button" class="side-subbtn" [class.active]="activeSection() === entity.id" (click)="selectSection(entity.id)">{{ entity.label }}</button>
+                  <button type="button" class="side-subbtn" [class.active]="activeSection() === entity.id" (click)="selectSection(entity.id, entity.label)">{{ entity.label }}</button>
                 }
               </div>
             }
@@ -38,7 +38,10 @@
         }
       </nav>
     </div>
-    <div class="side-foot"><b>●</b> Angular 21 · 6 microservices<br>Environnement de démonstration<button type="button" (click)="exit.emit()">← Retour au site</button></div>
+    <div class="side-foot">
+      <b>●</b> Angular 21 · 6 microservices<br>Environnement de démonstration
+      <button type="button" (click)="exit.emit()">← Retour au site</button>
+    </div>
   </aside>
   @if (sidebarOpen()) { <div class="backdrop" (click)="toggleSidebar()"></div> }
 
@@ -146,6 +149,9 @@
               </tbody>
             </table></div>
           </section>
+        }
+        @case ('messagerie') {
+          <app-messagerie-admin [initialScope]="messagerieScope()" [navTick]="messagerieNav()" (toast)="showMessage($event)" />
         }
         @default {
           @if (currentTable(); as table) {

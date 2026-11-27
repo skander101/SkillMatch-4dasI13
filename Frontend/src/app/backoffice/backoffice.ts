@@ -5,6 +5,8 @@ import { NAV_SERVICES, NOTIFICATIONS, AppNotification } from './nav.data';
 import { AuthService } from '../user/auth.service';
 import { CreateUserRequest, Role, UpdateUserRequest, User } from '../user/user.model';
 import { UserService } from '../user/user.service';
+import { SupervisionScope } from '../messagerie/messagerie.models';
+import { MessagerieAdmin } from './messagerie-admin/messagerie-admin';
 
 interface SideItem {
   id: string;
@@ -33,7 +35,7 @@ interface AdminTable {
 @Component({
   selector: 'app-back-office',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, MessagerieAdmin],
   templateUrl: './backoffice.html',
   styleUrl: './backoffice.css'
 })
@@ -211,6 +213,8 @@ export class BackOffice implements OnInit {
     }
   };
   readonly activeSection = signal('dashboard');
+  readonly messagerieScope = signal<SupervisionScope>('TOUTES');
+  readonly messagerieNav = signal(0);
   readonly sidebarOpen = signal(typeof window === 'undefined' ? true : window.innerWidth > 1180);
   readonly openNav = signal<string | null>(null);
   readonly notificationsOpen = signal(false);
@@ -362,7 +366,15 @@ export class BackOffice implements OnInit {
   }
 
   toggleSidebar(): void { this.sidebarOpen.update((open) => !open); }
-  selectSection(id: string): void { this.activeSection.set(id);this.query.set('');this.closeNav(); }
+  selectSection(id: string, label?: string): void {
+    this.activeSection.set(id);
+    this.query.set('');
+    this.closeNav();
+    if (id === 'messagerie') {
+      this.messagerieScope.set(label === 'Messages signalés' ? 'SIGNALEES' : 'TOUTES');
+      this.messagerieNav.update((tick) => tick + 1);
+    }
+  }
   toggleNav(id: string): void { this.openNav.update((current) => current === id ? null : id); }
   isGroupActive(group: SideGroup): boolean { return group.children.some((child) => child.id === this.activeSection()) || this.openNav() === group.id; }
   closeNav(): void { this.openNav.set(null); }

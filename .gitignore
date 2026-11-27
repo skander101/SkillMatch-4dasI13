@@ -63,3 +63,6 @@ Thumbs.db
 *.tmp
 *.bak
 context.txt
+
+# Sauvegarde locale de la base messagerie (ne pas versionner)
+messagerie_db_backup.sql

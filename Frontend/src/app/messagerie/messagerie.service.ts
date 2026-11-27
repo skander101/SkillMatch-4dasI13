@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { map, Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { messagerieConfig } from './messagerie.config';
 import {
   AdminConversationDetail,
   AdminConversationSummary,
@@ -11,6 +12,9 @@ import {
   Message,
   MessageType,
   MessagerieAdminDashboard,
+  SignalementActionAdmin,
+  SignalementItem,
+  SignalementMotif,
   SupervisionScope,
   UserSummary
 } from './messagerie.models';
@@ -18,9 +22,10 @@ import {
 @Injectable({ providedIn: 'root' })
 export class MessagerieService {
   private readonly http = inject(HttpClient);
-  // messagerie-service écoute sur le port 8086 (l'API Gateway 8080/8090 route /auth, /utilisateurs et /annuaire)
+  // Annuaire, auth et utilisateurs : passerelle (environment.apiUrl, port 8080).
+  // Conversations et messages : messagerie-service (messagerie.config.ts, port 8086).
   private readonly apiUrl = environment.apiUrl;
-  private readonly messagerieOrigin = 'http://localhost:8086';
+  private readonly messagerieOrigin = messagerieConfig.apiUrl;
   private readonly messagerieApi = `${this.messagerieOrigin}/skillmatch/messagerie`;
 
   /** Liste les conversations de l'utilisateur connecté */
@@ -129,11 +134,23 @@ export class MessagerieService {
       .pipe(map((item) => this.normalizeMessage(item)));
   }
 
-  /** Recherche les utilisateurs dans l'annuaire en lecture seule via la Gateway. */
+  /** Recherche les utilisateurs par nom via messagerie-service (qui s'appuie sur UserClient). */
   searchDirectory(query: string, role: string | null = null): Observable<UserSummary[]> {
-    const params: Record<string, string> = { q: query, limit: '10' };
+    const params: Record<string, string> = { q: query };
     if (role) params['role'] = role;
-    return this.http.get<UserSummary[]>(`${this.apiUrl}/skillmatch/annuaire/utilisateurs`, { params });
+    return this.http.get<UserSummary[]>(`${this.messagerieApi}/utilisateurs/recherche`, { params });
+  }
+
+  /** Signale un message avec un motif et un commentaire facultatif. */
+  signalerMessage(
+    messageId: string,
+    motif: SignalementMotif,
+    commentaire?: string
+  ): Observable<SignalementItem> {
+    return this.http.post<SignalementItem>(`${this.messagerieApi}/messages/${messageId}/signalements`, {
+      motif,
+      commentaire: commentaire?.trim() ? commentaire.trim() : null
+    });
   }
 
   /** Résout un utilisateur via l'annuaire de la Gateway. */
@@ -159,11 +176,18 @@ export class MessagerieService {
     return this.http.get(absoluteUrl, { responseType: 'blob' });
   }
 
-  /** Supervision admin : KPI + liste filtrable des conversations. */
-  getAdminSupervision(scope: SupervisionScope = 'TOUTES', query = ''): Observable<MessagerieAdminDashboard> {
+  /** Supervision admin : KPI + liste filtrable et paginée des conversations. */
+  getAdminSupervision(
+    scope: SupervisionScope = 'TOUTES',
+    query = '',
+    page?: number,
+    size?: number
+  ): Observable<MessagerieAdminDashboard> {
     const params: Record<string, string> = {};
     if (scope) params['scope'] = scope;
     if (query.trim()) params['query'] = query.trim();
+    if (page !== undefined) params['page'] = String(page);
+    if (size !== undefined) params['size'] = String(size);
     return this.http.get<MessagerieAdminDashboard>(`${this.messagerieApi}/admin/supervision`, { params });
   }
 
@@ -178,12 +202,19 @@ export class MessagerieService {
     });
   }
 
-  /** Supervision admin : détail d'une conversation et historique des messages. */
+  /** Supervision admin : export CSV d'une conversation. */
+  exportAdminConversationCsv(id: string): Observable<Blob> {
+    return this.http.get(`${this.messagerieApi}/admin/conversations/${id}/export`, {
+      responseType: 'blob'
+    });
+  }
+
+  /** Supervision admin : détail d'une conversation et journal d'audit. */
   getAdminConversationDetail(id: string): Observable<AdminConversationDetail> {
     return this.http.get<AdminConversationDetail>(`${this.messagerieApi}/admin/conversations/${id}`);
   }
 
-  /** Supervision admin : mise à jour du statut de modération (signaler/archiver). */
+  /** Supervision admin : mise à jour du statut de modération (archiver/désarchiver). */
   updateAdminConversationModeration(
     id: string,
     payload: { signalee?: boolean; archivee?: boolean }
@@ -191,6 +222,26 @@ export class MessagerieService {
     return this.http.patch<AdminConversationSummary>(
       `${this.messagerieApi}/admin/conversations/${id}/moderation`,
       payload
+    );
+  }
+
+  /** Supervision admin : consulter le contenu d'un message signalé (journalisé en audit). */
+  consulterSignalement(signalementId: string): Observable<SignalementItem> {
+    return this.http.post<SignalementItem>(
+      `${this.messagerieApi}/admin/signalements/${signalementId}/consulter`,
+      {}
+    );
+  }
+
+  /** Supervision admin : traiter un signalement (Ignorer, Avertir, Masquer, Suspendre). */
+  traiterSignalement(
+    signalementId: string,
+    action: SignalementActionAdmin,
+    noteAdmin?: string
+  ): Observable<SignalementItem> {
+    return this.http.patch<SignalementItem>(
+      `${this.messagerieApi}/admin/signalements/${signalementId}/traiter`,
+      { action, noteAdmin: noteAdmin?.trim() || null }
     );
   }
 

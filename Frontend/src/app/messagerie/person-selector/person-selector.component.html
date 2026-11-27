@@ -97,7 +97,7 @@
                 {{ initiales(u.nom) }}
               </span>
               <span class="ps-suggestion-info">
-                <strong class="ps-suggestion-nom">{{ nomCourt(u.nom) }}</strong>
+                <strong class="ps-suggestion-nom">{{ u.fullName || u.nom }}</strong>
                 <span class="ps-suggestion-role">{{ libelleRole(u.role) }}</span>
               </span>
               @if (aDejaConversation(u.id)) {

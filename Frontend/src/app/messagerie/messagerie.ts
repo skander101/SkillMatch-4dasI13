@@ -21,6 +21,7 @@ import {
   Message,
   ParticipantSummary,
   PucePalette,
+  SignalementMotif,
   UserSummary,
   couleurPourUtilisateur,
   extrairePrenom,
@@ -30,7 +31,6 @@ import {
 } from './messagerie.models';
 import { MessagerieService } from './messagerie.service';
 import { PersonSelectorComponent } from './person-selector/person-selector.component';
-import { SupervisionComponent } from './supervision/supervision.component';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const ALLOWED_UPLOAD_EXTENSIONS = new Set(['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx']);
@@ -48,6 +48,7 @@ export class MessagerieComponent implements OnDestroy {
   @ViewChild('groupModalEl') private groupModalEl?: ElementRef<HTMLElement>;
   @ViewChild('newModalEl') private newModalEl?: ElementRef<HTMLElement>;
   @ViewChild('confirmModalEl') private confirmModalEl?: ElementRef<HTMLElement>;
+  @ViewChild('signalementModalEl') private signalementModalEl?: ElementRef<HTMLElement>;
   @ViewChild('newConvSelector') private newConvSelector?: PersonSelectorComponent;
 
   private readonly api = inject(MessagerieService);
@@ -71,7 +72,6 @@ export class MessagerieComponent implements OnDestroy {
 
   readonly currentUser = this.auth.currentUser;
   readonly isAdmin = this.auth.isAdmin;
-  readonly adminView = signal<'supervision' | 'discussions'>('supervision');
   readonly conversations = signal<Conversation[]>([]);
   readonly messages = signal<Message[]>([]);
   readonly selected = signal<Conversation | null>(null);
@@ -130,6 +130,20 @@ export class MessagerieComponent implements OnDestroy {
   // === Dialogue de confirmation ===
   readonly confirmDeleteDialog = signal<ConfirmDialogData | null>(null);
   readonly showConvertDirectPrompt = signal(false);
+
+  // === Signalement de message ===
+  readonly signalementMotifs: readonly SignalementMotif[] = [
+    'Langage inapproprié',
+    'Spam',
+    'Harcèlement',
+    'Autre'
+  ];
+  readonly signalementTarget = signal<Message | null>(null);
+  readonly signalementMotif = signal<SignalementMotif>('Langage inapproprié');
+  readonly signalementCommentaire = signal('');
+  readonly signalementSending = signal(false);
+  readonly signalementError = signal('');
+  readonly signalementModalClosing = signal(false);
 
   // Validation dynamique nom de groupe
   readonly groupNameError = computed(() => {
@@ -193,6 +207,9 @@ export class MessagerieComponent implements OnDestroy {
       if (mode === 'unread' && !(conversation.nonLusCount && conversation.nonLusCount > 0)) {
         return false;
       }
+      if (mode === 'recent' && !this.isRecentConversation(conversation)) {
+        return false;
+      }
       if (!term) return true;
 
       const resolvedName = normaliserTexte(this.displayName(conversation));
@@ -219,9 +236,11 @@ export class MessagerieComponent implements OnDestroy {
   });
 
   readonly counts = computed(() => {
-    const all = this.conversations().length;
-    const unread = this.conversations().filter((c) => (c.nonLusCount ?? 0) > 0).length;
-    return { all, unread };
+    const items = this.conversations();
+    const all = items.length;
+    const unread = items.filter((c) => (c.nonLusCount ?? 0) > 0).length;
+    const recent = items.filter((c) => this.isRecentConversation(c)).length;
+    return { all, unread, recent };
   });
 
   constructor() {
@@ -251,6 +270,11 @@ export class MessagerieComponent implements OnDestroy {
     if (this.confirmDeleteDialog()) {
       event.preventDefault();
       this.cancelDelete();
+      return;
+    }
+    if (this.signalementTarget()) {
+      event.preventDefault();
+      this.closeSignalementModal();
       return;
     }
     if (this.showGroupModal()) {
@@ -1009,6 +1033,66 @@ export class MessagerieComponent implements OnDestroy {
       confirmLabel: 'Supprimer',
       danger: true
     });
+  }
+
+  openSignalementModal(message: Message): void {
+    this.rememberFocus();
+    this.signalementModalClosing.set(false);
+    this.signalementTarget.set(message);
+    this.signalementMotif.set('Langage inapproprié');
+    this.signalementCommentaire.set('');
+    this.signalementError.set('');
+    window.setTimeout(() => this.focusFirstInModal(this.signalementModalEl?.nativeElement), 20);
+  }
+
+  closeSignalementModal(): void {
+    if (this.signalementSending() || this.signalementModalClosing()) return;
+    this.signalementModalClosing.set(true);
+    window.clearTimeout(this.modalCloseTimer);
+    this.modalCloseTimer = window.setTimeout(() => {
+      this.signalementTarget.set(null);
+      this.signalementModalClosing.set(false);
+      this.signalementCommentaire.set('');
+      this.signalementError.set('');
+      this.restoreFocus();
+    }, 150);
+  }
+
+  submitSignalement(): void {
+    const target = this.signalementTarget();
+    if (!target || this.signalementSending()) return;
+
+    this.signalementSending.set(true);
+    this.signalementError.set('');
+
+    this.api
+      .signalerMessage(target.id, this.signalementMotif(), this.signalementCommentaire())
+      .subscribe({
+        next: () => {
+          this.signalementSending.set(false);
+          this.messages.update((items) =>
+            items.map((item) => (item.id === target.id ? { ...item, signalee: true } : item))
+          );
+          this.signalementTarget.set(null);
+          this.signalementModalClosing.set(false);
+          this.signalementCommentaire.set('');
+          this.flash('Signalement envoyé');
+          this.restoreFocus();
+        },
+        error: (err) => {
+          this.signalementSending.set(false);
+          this.signalementError.set(
+            this.formatErrorMessage(err, "Impossible d'envoyer le signalement.")
+          );
+        }
+      });
+  }
+
+  private isRecentConversation(conversation: Conversation): boolean {
+    if (!conversation.dernierMessageAt) return false;
+    const timestamp = new Date(conversation.dernierMessageAt).getTime();
+    if (Number.isNaN(timestamp)) return false;
+    return Date.now() - timestamp <= 7 * 24 * 60 * 60 * 1000;
   }
 
   cancelDelete(): void {

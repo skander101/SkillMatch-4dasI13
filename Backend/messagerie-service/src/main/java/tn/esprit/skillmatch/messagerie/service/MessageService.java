@@ -1,5 +1,6 @@
 package tn.esprit.skillmatch.messagerie.service;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tn.esprit.skillmatch.messagerie.config.AuthenticatedUser;
@@ -13,6 +14,7 @@ import tn.esprit.skillmatch.messagerie.exception.AccessForbiddenException;
 import tn.esprit.skillmatch.messagerie.exception.BadRequestException;
 import tn.esprit.skillmatch.messagerie.exception.ResourceNotFoundException;
 import tn.esprit.skillmatch.messagerie.repository.MessageRepository;
+import tn.esprit.skillmatch.messagerie.repository.SuspensionEnvoiRepository;
 
 import java.time.LocalDateTime;
 import java.util.LinkedHashSet;
@@ -29,15 +31,26 @@ public class MessageService {
     private final ConversationService conversationService;
     private final MessageEventPublisher eventPublisher;
     private final UserClient userClient;
+    private final SuspensionEnvoiRepository suspensionEnvoiRepository;
 
     public MessageService(MessageRepository messageRepository,
                           ConversationService conversationService,
                           MessageEventPublisher eventPublisher,
                           UserClient userClient) {
+        this(messageRepository, conversationService, eventPublisher, userClient, null);
+    }
+
+    @Autowired
+    public MessageService(MessageRepository messageRepository,
+                          ConversationService conversationService,
+                          MessageEventPublisher eventPublisher,
+                          UserClient userClient,
+                          SuspensionEnvoiRepository suspensionEnvoiRepository) {
         this.messageRepository = messageRepository;
         this.conversationService = conversationService;
         this.eventPublisher = eventPublisher;
         this.userClient = userClient;
+        this.suspensionEnvoiRepository = suspensionEnvoiRepository;
     }
 
     /**
@@ -50,6 +63,10 @@ public class MessageService {
     public MessageResponse send(String conversationId, SendMessageRequest request, AuthenticatedUser user) {
         Conversation conversation = conversationService.getEntityById(conversationId);
         checkParticipant(conversation, user);
+
+        if (suspensionEnvoiRepository != null && suspensionEnvoiRepository.existsByUserIdAndActiveTrue(user.id())) {
+            throw new AccessForbiddenException("Votre droit d'envoi de messages a été suspendu par un administrateur.");
+        }
 
         if (!user.isAdmin() && userClient != null) {
             for (Long participantId : conversation.getParticipantIds()) {
@@ -221,18 +238,23 @@ public class MessageService {
                 senderNom = profile.nom();
             }
         }
+        boolean masque = Boolean.TRUE.equals(m.getMasque());
+        boolean signalee = Boolean.TRUE.equals(m.getSignalee());
+        String contenu = masque ? "[Message masqué par la modération]" : m.getContenu();
         return new MessageResponse(
                 m.getId(),
-                m.getContenu(),
+                contenu,
                 m.getType() != null ? m.getType() : Message.TYPE_TEXTE,
                 m.getDate(),
                 m.getLu(),
                 m.getConversation().getId(),
                 m.getSenderId(),
                 senderNom,
-                m.getFichierNom(),
-                m.getFichierUrl(),
-                m.getFichierTaille()
+                masque ? null : m.getFichierNom(),
+                masque ? null : m.getFichierUrl(),
+                masque ? null : m.getFichierTaille(),
+                signalee,
+                masque
         );
     }
 }

@@ -91,6 +91,15 @@
             (click)="filter.set('unread')">
             Non lues {{ counts().unread }}
           </button>
+          <button
+            type="button"
+            role="tab"
+            class="filter-tab"
+            [class.active]="filter() === 'recent'"
+            [attr.aria-selected]="filter() === 'recent'"
+            (click)="filter.set('recent')">
+            Récentes {{ counts().recent }}
+          </button>
         </div>
 
         <div class="sort-wrapper">
@@ -469,10 +478,10 @@
                         </div>
                       </div>
                     } @else {
-                      <div class="message-bubble" [class.mine]="isMine(message)">
+                      <div class="message-bubble" [class.mine]="isMine(message)" [class.masque]="message.masque">
                         <p class="bubble-text">{{ message.contenu }}</p>
 
-                        @if (message.fichierNom) {
+                        @if (message.fichierNom && !message.masque) {
                           <div class="message-fichier">
                             @if (message.fichierUrl && isImageFile(message.fichierNom) && filePreviewUrls()[message.fichierUrl]; as imgSrc) {
                               <img
@@ -495,6 +504,9 @@
                         }
 
                         <footer class="bubble-footer">
+                          @if (message.signalee) {
+                            <span class="message-flagged-tag" title="Message signalé">Signalé</span>
+                          }
                           <time class="message-timestamp">{{ formatMessageTime(message.date) }}</time>
                           @if (isMine(message)) {
                             <span
@@ -509,10 +521,20 @@
 
                       @if (isMine(message)) {
                         <div class="message-quick-actions">
-                          @if (message.type !== 'fichier') {
+                          @if (message.type !== 'fichier' && !message.masque) {
                             <button type="button" class="quick-action-btn" (click)="startEdit(message)">Modifier</button>
                           }
                           <button type="button" class="quick-action-btn danger" (click)="requestDeleteMessage(message)">Supprimer</button>
+                        </div>
+                      } @else if (!message.masque) {
+                        <div class="message-quick-actions">
+                          <button
+                            type="button"
+                            class="quick-action-btn danger"
+                            [disabled]="message.signalee"
+                            (click)="openSignalementModal(message)">
+                            {{ message.signalee ? 'Signalé' : 'Signaler' }}
+                          </button>
                         </div>
                       }
                     }
@@ -825,6 +847,101 @@
                 class="btn-modal-submit"
                 [disabled]="groupCreating()">
                 {{ groupCreating() ? 'Création…' : 'Créer le groupe' }}
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+
+  <!-- MODALE SIGNALER UN MESSAGE -->
+  @if (signalementTarget(); as sigMsg) {
+    <div
+      class="modal-backdrop"
+      [class.closing]="signalementModalClosing()"
+      (click)="closeSignalementModal()">
+      <div
+        #signalementModalEl
+        class="modal-card"
+        [class.closing]="signalementModalClosing()"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="signalementTitle"
+        (keydown)="onModalKeydown($event, signalementModalEl)"
+        (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <div>
+            <h3 id="signalementTitle">Signaler ce message</h3>
+            <p class="modal-sous-titre">Indiquez le motif de votre signalement.</p>
+          </div>
+          <button
+            type="button"
+            class="modal-close-btn"
+            (click)="closeSignalementModal()"
+            [disabled]="signalementSending()"
+            aria-label="Fermer">
+            ×
+          </button>
+        </div>
+
+        <form (ngSubmit)="submitSignalement()" class="modal-form">
+          <div class="signalement-extrait">
+            <small>Message concerné</small>
+            <p>{{ sigMsg.contenu }}</p>
+          </div>
+
+          <div class="groupe-participants">
+            <label class="field-label">Motif</label>
+            <div class="signalement-motifs" role="radiogroup" aria-label="Motif du signalement">
+              @for (motif of signalementMotifs; track motif) {
+                <button
+                  type="button"
+                  role="radio"
+                  class="signalement-motif-btn"
+                  [class.active]="signalementMotif() === motif"
+                  [attr.aria-checked]="signalementMotif() === motif"
+                  (click)="signalementMotif.set(motif)">
+                  {{ motif }}
+                </button>
+              }
+            </div>
+          </div>
+
+          <div class="groupe-participants">
+            <label class="field-label" for="signalementCommentaireInput">Commentaire (facultatif)</label>
+            <textarea
+              id="signalementCommentaireInput"
+              name="signalementCommentaire"
+              rows="3"
+              maxlength="500"
+              class="signalement-textarea"
+              placeholder="Ajoutez des précisions si besoin…"
+              [ngModel]="signalementCommentaire()"
+              (ngModelChange)="signalementCommentaire.set($event)"></textarea>
+          </div>
+
+          @if (signalementError()) {
+            <div class="lookup-feedback error" role="alert">
+              <span>{{ signalementError() }}</span>
+            </div>
+          }
+
+          <div class="modal-footer-bar">
+            <span class="modal-counter">Examiné par l'équipe d'administration</span>
+            <div class="modal-actions-right">
+              <button
+                type="button"
+                class="btn-modal-cancel"
+                (click)="closeSignalementModal()"
+                [disabled]="signalementSending()">
+                Annuler
+              </button>
+              <button
+                type="submit"
+                class="btn-modal-submit danger"
+                [disabled]="signalementSending()">
+                {{ signalementSending() ? 'Envoi…' : 'Envoyer le signalement' }}
               </button>
             </div>
           </div>

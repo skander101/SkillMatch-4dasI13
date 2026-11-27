@@ -10,9 +10,11 @@ import org.springframework.stereotype.Component;
 import tn.esprit.skillmatch.messagerie.exception.ServiceUnavailableException;
 
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -175,6 +177,51 @@ public class UserClient {
         }
 
         return resolved;
+    }
+
+    /**
+     * Recherche des utilisateurs par nom via l'annuaire existant (10 résultats max).
+     */
+    public List<UserProfile> searchUsers(String query, String role, String token) {
+        if (query == null || query.trim().length() < 2) {
+            return List.of();
+        }
+        try {
+            StringBuilder url = new StringBuilder(communServiceUrl)
+                    .append("/skillmatch/annuaire/utilisateurs?q=")
+                    .append(URLEncoder.encode(query.trim(), StandardCharsets.UTF_8))
+                    .append("&limit=10");
+            if (role != null && !role.isBlank() && !"ALL".equalsIgnoreCase(role)) {
+                url.append("&role=").append(URLEncoder.encode(role.trim(), StandardCharsets.UTF_8));
+            }
+            HttpRequest.Builder reqBuilder = HttpRequest.newBuilder()
+                    .uri(URI.create(url.toString()))
+                    .timeout(Duration.ofSeconds(CONNECT_TIMEOUT_SECONDS))
+                    .GET();
+            if (token != null && !token.isBlank()) {
+                reqBuilder.header("Authorization", "Bearer " + token);
+            }
+            HttpResponse<String> response = httpClient.send(reqBuilder.build(), HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() != 200 || response.body() == null) {
+                throw new ServiceUnavailableException("Annuaire indisponible (HTTP " + response.statusCode() + ")");
+            }
+            List<AnnuaireUser> users = objectMapper.readValue(
+                    response.body(), new TypeReference<List<AnnuaireUser>>() {});
+            long now = System.currentTimeMillis();
+            List<UserProfile> result = new ArrayList<>();
+            for (AnnuaireUser u : users) {
+                if (u != null && u.id() != null) {
+                    UserProfile profile = toProfile(u);
+                    cache.put(u.id(), new CacheEntry(profile, now));
+                    result.add(profile);
+                }
+            }
+            return result;
+        } catch (ServiceUnavailableException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new ServiceUnavailableException("Impossible de rechercher dans l'annuaire : " + e.getMessage());
+        }
     }
 
     /** Vide le cache (utile pour les tests). */

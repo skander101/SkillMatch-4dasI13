@@ -1,0 +1,286 @@
+<div class="ma-head">
+  <div>
+    <span class="ma-eyebrow">SUPERVISION · GESTION</span>
+    <h1>Messagerie</h1>
+    <p>Supervision des discussions, signalements et journal d'audit.</p>
+  </div>
+  <div class="ma-head-actions">
+    <button type="button" class="bo-btn ghost" (click)="loadSupervision()" [disabled]="loading()">↻ Actualiser</button>
+    <button type="button" class="bo-btn" (click)="exportCsv()">↓ Exporter CSV</button>
+  </div>
+</div>
+
+<div class="ma-kpis">
+  <div class="ma-kpi">
+    <span class="ma-kpi-label">Conversations</span>
+    <div class="ma-kpi-value">{{ stats().conversations }}</div>
+    <div class="ma-kpi-foot"><span class="ma-trend">+{{ stats().nouvellesConversationsSemaine }}</span><span>cette semaine</span></div>
+  </div>
+  <div class="ma-kpi">
+    <span class="ma-kpi-label">Groupes</span>
+    <div class="ma-kpi-value">{{ stats().groupes }}</div>
+    <div class="ma-kpi-foot"><span class="ma-trend">+{{ stats().nouveauxGroupesSemaine }}</span><span>cette semaine</span></div>
+  </div>
+  <div class="ma-kpi">
+    <span class="ma-kpi-label">Messages du jour</span>
+    <div class="ma-kpi-value">{{ stats().messagesAujourdhui }}</div>
+    <div class="ma-kpi-foot"><span>{{ stats().heurePicLibelle || 'Aucune activité' }}</span></div>
+  </div>
+  <div class="ma-kpi">
+    <span class="ma-kpi-label">Signalements à traiter</span>
+    <div class="ma-kpi-value">{{ stats().signalementsATraiter }}</div>
+    <div class="ma-kpi-foot">
+      <span class="ma-trend" [class.down]="stats().signalementsATraiter > 0">
+        {{ stats().signalementsATraiter > 0 ? 'À modérer' : 'À jour' }}
+      </span>
+    </div>
+  </div>
+</div>
+
+<section class="ma-panel">
+  <div class="ma-panel-head">
+    <div class="ma-tabs" role="tablist" aria-label="Filtrer les conversations">
+      @for (sc of scopes; track sc.key) {
+        <button
+          type="button"
+          role="tab"
+          class="ma-tab"
+          [class.active]="scope() === sc.key"
+          [attr.aria-selected]="scope() === sc.key"
+          (click)="setScope(sc.key)">
+          {{ sc.label }}
+        </button>
+      }
+    </div>
+    <label class="ma-search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 5 5"/></svg>
+      <input
+        aria-label="Rechercher une conversation ou un participant"
+        placeholder="Rechercher..."
+        [value]="query()"
+        (input)="onSearchChange($any($event.target).value)">
+    </label>
+  </div>
+
+  @if (error()) {
+    <p class="ma-error" role="alert">{{ error() }}</p>
+  }
+
+  @if (loading()) {
+    <p class="ma-muted">Chargement des conversations...</p>
+  }
+
+  <div class="ma-table-wrap" [class.ma-menu-open]="openMenuId()">
+    <table class="ma-table">
+      <thead>
+        <tr>
+          <th>Conversation</th>
+          <th>Type</th>
+          <th>Membres</th>
+          <th>Messages</th>
+          <th>Non lus</th>
+          <th>Signalements</th>
+          <th>Dernière activité</th>
+          <th>Statut</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of rows(); track row.id) {
+          <tr (click)="openDetail(row)">
+            <td><b>{{ row.conversation }}</b></td>
+            <td>
+              <span class="ma-badge" [ngClass]="row.type === 'groupe' ? 'blue' : 'gray'">
+                {{ row.type === 'groupe' ? 'Groupe' : 'Directe' }}
+              </span>
+            </td>
+            <td>{{ row.membres }}</td>
+            <td>{{ row.messages }}</td>
+            <td>{{ row.nonLusCount }}</td>
+            <td>
+              @if ((row.signalementsCount ?? 0) > 0) {
+                <span class="ma-badge red">{{ row.signalementsCount }}</span>
+              } @else {
+                <span class="ma-muted">0</span>
+              }
+            </td>
+            <td>{{ formatDateTime(row.derniereActivite) }}</td>
+            <td><span class="ma-badge" [ngClass]="statutTone(row.statut)">{{ statutLabel(row.statut) }}</span></td>
+            <td class="ma-row-actions" (click)="$event.stopPropagation()">
+              <div class="ma-menu">
+                <button type="button" class="ma-kebab" aria-label="Actions" aria-haspopup="menu" [attr.aria-expanded]="openMenuId() === row.id" (click)="toggleMenu(row.id, $event)">⋯</button>
+                @if (openMenuId() === row.id) {
+                  <div class="ma-menu-panel" role="menu">
+                    <button type="button" role="menuitem" (click)="openDetail(row)">Voir les détails</button>
+                    <button type="button" role="menuitem" (click)="openSignalements(row, $event)">Signalements</button>
+                    <button type="button" role="menuitem" [disabled]="detailBusy()" (click)="toggleArchive(row, $event)">{{ row.archivee ? 'Désarchiver' : 'Archiver' }}</button>
+                    <button type="button" role="menuitem" (click)="exportSingleCsv(row.id, $event)">Exporter</button>
+                  </div>
+                }
+              </div>
+            </td>
+          </tr>
+        } @empty {
+          @if (!loading()) {
+            <tr><td colspan="9" class="ma-muted">Aucune conversation trouvée pour ce filtre.</td></tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <div class="ma-pager">
+    <span>{{ rangeLabel() }}</span>
+    <div>
+      <button type="button" class="ma-page-btn" [disabled]="page() <= 0" (click)="goToPage(page() - 1)">←</button>
+      @for (p of pages(); track p) {
+        <button type="button" class="ma-page-btn" [class.active]="page() === p" (click)="goToPage(p)">{{ p + 1 }}</button>
+      }
+      <button type="button" class="ma-page-btn" [disabled]="page() >= totalPages() - 1" (click)="goToPage(page() + 1)">→</button>
+    </div>
+  </div>
+</section>
+
+@if (selectedDetail(); as detail) {
+  <div class="ma-modal-overlay" role="presentation" (click)="closeDetail()">
+    <section
+      class="ma-detail-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="ma-detail-title"
+      (click)="$event.stopPropagation()">
+      <header class="ma-detail-head">
+        <div>
+          <span class="ma-eyebrow">DÉTAIL CONVERSATION</span>
+          <h2 id="ma-detail-title">{{ detail.conversation.conversation }}</h2>
+          <div class="ma-detail-badges">
+            <span class="ma-badge" [ngClass]="detail.conversation.type === 'groupe' ? 'blue' : 'gray'">
+              {{ detail.conversation.type === 'groupe' ? 'Groupe' : 'Directe' }}
+            </span>
+            <span class="ma-badge" [ngClass]="statutTone(detail.conversation.statut)">
+              {{ statutLabel(detail.conversation.statut) }}
+            </span>
+          </div>
+        </div>
+        <div class="ma-detail-head-actions">
+          <button type="button" class="bo-btn ghost" [disabled]="detailBusy()" (click)="toggleArchive(detail.conversation)">
+            {{ detail.conversation.archivee ? 'Désarchiver' : 'Archiver' }}
+          </button>
+          <button type="button" class="bo-btn ghost" (click)="exportSingleCsv(detail.conversation.id)">↓ CSV</button>
+          <button type="button" class="bo-btn ghost" (click)="closeDetail()" aria-label="Fermer">×</button>
+        </div>
+      </header>
+
+      <div class="ma-detail-body">
+        <div class="ma-meta-grid">
+          <div><small>Créateur</small><b>{{ detail.createurNom || 'Membre' }}</b></div>
+          <div><small>Créée le</small><b>{{ formatDateTime(detail.dateCreation) }}</b></div>
+          <div><small>Total messages</small><b>{{ detail.totalMessages ?? detail.conversation.messages }}</b></div>
+          <div><small>Non lus</small><b>{{ detail.nonLusCount ?? detail.conversation.nonLusCount }}</b></div>
+        </div>
+
+        <section class="ma-section">
+          <h4>Participants ({{ detail.conversation.participants.length }})</h4>
+          <div class="ma-chips">
+            @for (p of detail.conversation.participants; track p.id) {
+              <span class="ma-chip">
+                <b>{{ p.nom }}</b>
+                <small>{{ roleLabel(p.role) }}</small>
+              </span>
+            }
+          </div>
+        </section>
+
+        <section class="ma-section" id="ma-signalements">
+          <h4>Signalements ({{ detail.signalements?.length ?? 0 }})</h4>
+          @for (sig of detail.signalements ?? []; track sig.id) {
+            <article class="ma-sig-card">
+              <div class="ma-sig-top">
+                <div>
+                  <b>{{ sig.motif }}</b>
+                  <small>Signalé par {{ sig.auteurSignalementNom }} · Message de {{ sig.auteurMessageNom }} · {{ formatDateTime(sig.dateSignalement) }}</small>
+                </div>
+                <span class="ma-badge" [ngClass]="statutTone(sig.statut)">{{ statutLabel(sig.statut) }}</span>
+              </div>
+              @if (sig.commentaire) {
+                <p class="ma-sig-comment">« {{ sig.commentaire }} »</p>
+              }
+
+              <div>
+                @if (sig.messageContenu) {
+                  <div class="ma-sig-message">
+                    <small>Contenu du message signalé :</small>
+                    <p>{{ sig.messageContenu }}</p>
+                  </div>
+                } @else {
+                  <button type="button" class="bo-btn ghost" [disabled]="detailBusy()" (click)="consulterSignalement(sig)">
+                    Voir le message (journalisé)
+                  </button>
+                }
+              </div>
+
+              <div class="ma-sig-actions">
+                <select
+                  [ngModel]="signalementActionMap()[sig.id] || 'IGNORER'"
+                  (ngModelChange)="setSignalementAction(sig.id, $event)"
+                  aria-label="Décision sur le signalement">
+                  @for (act of actions; track act.value) {
+                    <option [value]="act.value">{{ act.label }}</option>
+                  }
+                </select>
+                <input
+                  type="text"
+                  placeholder="Note admin (facultatif)..."
+                  [ngModel]="signalementNoteMap()[sig.id] || ''"
+                  (ngModelChange)="setSignalementNote(sig.id, $event)" />
+                <button type="button" class="bo-btn" [disabled]="detailBusy()" (click)="traiterSignalement(sig)">
+                  Appliquer
+                </button>
+              </div>
+            </article>
+          } @empty {
+            <p class="ma-muted">Aucun signalement pour cette conversation.</p>
+          }
+        </section>
+
+        <section class="ma-section">
+          <h4>Messages ({{ detail.messages.length }})</h4>
+          <p class="ma-muted">Seuls les messages signalés ou système sont visibles en clair.</p>
+          <div class="ma-messages-list">
+            @for (m of detail.messages; track m.id) {
+              <div class="ma-message-row" [class.flagged]="m.signalee">
+                <div class="ma-message-meta">
+                  <b>{{ m.type === 'systeme' ? 'Système' : (m.senderNom || 'Membre') }}</b>
+                  <small>{{ formatDateTime(m.date) }}</small>
+                  @if (m.signalee) { <span class="ma-badge red">Signalé</span> }
+                  @if (m.masque) { <span class="ma-badge amber">Masqué</span> }
+                </div>
+                <p>{{ m.contenu }}</p>
+              </div>
+            } @empty {
+              <p class="ma-muted">Aucun message.</p>
+            }
+          </div>
+        </section>
+
+        <section class="ma-section">
+          <h4>Journal d'audit ({{ detail.auditLog?.length ?? 0 }})</h4>
+          <div class="ma-audit-list">
+            @for (entry of detail.auditLog ?? []; track entry.id) {
+              <div class="ma-audit-row">
+                <span class="ma-event-tag">{{ entry.action }}</span>
+                <div>
+                  <b>{{ entry.acteurNom || 'Système' }}</b>
+                  <span>{{ entry.details || entry.action }}</span>
+                </div>
+                <small>{{ formatDateTime(entry.dateAction) }}</small>
+              </div>
+            } @empty {
+              <p class="ma-muted">Aucune entrée d'audit enregistrée.</p>
+            }
+          </div>
+        </section>
+      </div>
+    </section>
+  </div>
+}

@@ -22,5 +22,7 @@ public interface MessageRepository extends JpaRepository<Message, String> {
 
     List<Message> findByDateGreaterThanEqualAndDateLessThan(LocalDateTime startInclusive, LocalDateTime endExclusive);
 
+    long countByConversationIdAndSignaleeTrue(String conversationId);
+
     void deleteByConversationId(String conversationId);
 }

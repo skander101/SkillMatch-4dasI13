@@ -48,9 +48,44 @@ export interface Message {
   fichierNom?: string | null;
   fichierUrl?: string | null;
   fichierTaille?: number | null;
+  signalee?: boolean;
+  masque?: boolean;
 }
 
-export type ConversationFilterKey = 'all' | 'unread';
+export type ConversationFilterKey = 'all' | 'unread' | 'recent';
+
+export type SignalementMotif = 'Langage inapproprié' | 'Spam' | 'Harcèlement' | 'Autre';
+
+export type SignalementActionAdmin = 'IGNORER' | 'AVERTIR' | 'MASQUER_MESSAGE' | 'SUSPENDRE_ENVOI';
+
+export interface SignalementItem {
+  id: string;
+  conversationId: string;
+  messageId: string;
+  auteurSignalementNom: string;
+  auteurSignalementRole: string | null;
+  auteurMessageNom: string;
+  auteurMessageRole: string | null;
+  motif: string;
+  commentaire: string | null;
+  statut: string;
+  actionAdmin: string | null;
+  adminNom: string | null;
+  dateSignalement: string;
+  dateTraitement: string | null;
+  messageContenu: string | null;
+  messageMasque: boolean;
+}
+
+export interface AuditEntry {
+  id: string;
+  conversationId: string | null;
+  action: string;
+  acteurNom: string | null;
+  acteurRole: string | null;
+  details: string | null;
+  dateAction: string;
+}
 
 export interface ConfirmDialogData {
   type: 'conversation' | 'message' | 'quitter' | 'retirer_participant';
@@ -68,7 +103,7 @@ export interface FichierUploadResult {
   taille: number;
 }
 
-export type SupervisionScope = 'TOUTES' | 'GROUPES' | 'ARCHIVEES';
+export type SupervisionScope = 'TOUTES' | 'GROUPES' | 'SIGNALEES' | 'ARCHIVEES';
 
 export interface MessagerieAdminStats {
   conversations: number;
@@ -95,11 +130,16 @@ export interface AdminConversationSummary {
   dernierMessageSenderNom: string | null;
   nonLusCount: number;
   participants: ParticipantSummary[];
+  signalementsCount?: number;
 }
 
 export interface MessagerieAdminDashboard {
   stats: MessagerieAdminStats;
   conversations: AdminConversationSummary[];
+  totalElements?: number;
+  totalPages?: number;
+  page?: number;
+  size?: number;
 }
 
 export interface AdminConversationDetail {
@@ -107,8 +147,13 @@ export interface AdminConversationDetail {
   dateCreation: string | null;
   dateArchivage: string | null;
   dateSignalement: string | null;
-  createurId: number | null;
+  createurId?: number | null;
+  createurNom?: string | null;
+  totalMessages?: number;
+  nonLusCount?: number;
   messages: Message[];
+  signalements?: SignalementItem[];
+  auditLog?: AuditEntry[];
 }
 
 export interface PucePalette {

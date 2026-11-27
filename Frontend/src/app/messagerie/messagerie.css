@@ -1949,6 +1949,115 @@
   background: var(--sm-rouge);
 }
 
+/* ---------- Signalements & messages masqués ---------- */
+.message-bubble.masque {
+  background: var(--sm-gris-clair);
+  color: var(--sm-gris);
+  border-style: dashed;
+}
+
+.message-bubble.masque .bubble-text {
+  font-style: italic;
+}
+
+.message-bubble.mine.masque {
+  background: #1B4E40;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.message-flagged-tag {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #FDF3F2;
+  color: var(--sm-rouge);
+  border: 0.5px solid #F2D7D5;
+}
+
+.quick-action-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.signalement-extrait {
+  background: var(--sm-surface-legere);
+  border: 0.5px solid var(--sm-bordure);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.signalement-extrait small {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--sm-gris);
+  margin-bottom: 4px;
+}
+
+.signalement-extrait p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--sm-gris-fonce);
+  word-break: break-word;
+}
+
+.signalement-motifs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.signalement-motif-btn {
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 0.5px solid var(--sm-bordure);
+  background: var(--sm-blanc);
+  color: var(--sm-gris-fonce);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: center;
+  transition: background var(--transition), border-color var(--transition), color var(--transition);
+}
+
+.signalement-motif-btn:hover {
+  background: var(--sm-surface-hover);
+}
+
+.signalement-motif-btn.active {
+  background: var(--sm-vert-clair);
+  border-color: var(--sm-vert);
+  color: var(--sm-vert-fonce);
+  font-weight: 600;
+}
+
+.signalement-textarea {
+  width: 100%;
+  border: 1px solid var(--sm-bordure);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  background: var(--sm-blanc);
+  color: var(--sm-gris-fonce);
+  resize: vertical;
+  outline: none;
+}
+
+.signalement-textarea:focus {
+  border-color: var(--sm-vert);
+}
+
+.btn-modal-submit.danger {
+  background: var(--sm-rouge);
+}
+
+.btn-modal-submit.danger:not(:disabled):hover {
+  background: #A93226;
+}
+
 /* ---------- Responsive (< 768px) ---------- */
 @media (max-width: 768px) {
   .messagerie-page {

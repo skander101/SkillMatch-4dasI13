@@ -35,17 +35,22 @@ public class ConversationAdminController {
 
     @GetMapping("/supervision")
     @Operation(summary = "Tableau de supervision de la messagerie",
-            description = "Retourne les KPI et la liste filtrable des conversations pour l'interface d'administration.")
+            description = "Retourne les KPI et la liste filtrable et paginée des conversations pour l'interface d'administration.")
     public ResponseEntity<MessagerieAdminDashboardResponse> getDashboard(
             @RequestParam(required = false) String scope,
             @RequestParam(required = false) String query,
             @RequestParam(required = false) String type,
             @RequestParam(required = false) String statut,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
             @Parameter(hidden = true) AuthenticatedUser user) {
-        if (type == null && statut == null) {
+        if (type == null && statut == null && page == null && size == null) {
             return ResponseEntity.ok(conversationService.getAdminDashboard(scope, query, user));
         }
-        return ResponseEntity.ok(conversationService.getAdminDashboard(scope, query, type, statut, user));
+        if (page == null && size == null) {
+            return ResponseEntity.ok(conversationService.getAdminDashboard(scope, query, type, statut, user));
+        }
+        return ResponseEntity.ok(conversationService.getAdminDashboard(scope, query, type, statut, page, size, user));
     }
 
     @GetMapping(value = "/supervision/export", produces = "text/csv")
@@ -73,6 +78,19 @@ public class ConversationAdminController {
             @PathVariable String id,
             @Parameter(hidden = true) AuthenticatedUser user) {
         return ResponseEntity.ok(conversationService.getAdminConversationDetail(id, user));
+    }
+
+    @GetMapping(value = "/conversations/{id}/export", produces = "text/csv")
+    @Operation(summary = "Exporter une conversation en CSV",
+            description = "Exporte les informations d'une conversation au format CSV et journalise l'export.")
+    public ResponseEntity<String> exportSingleConversation(
+            @PathVariable String id,
+            @Parameter(hidden = true) AuthenticatedUser user) {
+        String csv = conversationService.exportSingleConversationCsv(id, user);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"conversation-" + id + ".csv\"")
+                .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
+                .body(csv);
     }
 
     @PatchMapping("/conversations/{id}/moderation")

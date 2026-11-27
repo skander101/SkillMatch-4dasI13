@@ -15,12 +15,15 @@ import tn.esprit.skillmatch.messagerie.dto.AdminConversationDetailResponse;
 import tn.esprit.skillmatch.messagerie.dto.AdminConversationSummaryResponse;
 import tn.esprit.skillmatch.messagerie.dto.ConversationModerationRequest;
 import tn.esprit.skillmatch.messagerie.dto.MessagerieAdminDashboardResponse;
+import tn.esprit.skillmatch.messagerie.entity.AuditLog;
 import tn.esprit.skillmatch.messagerie.entity.Conversation;
 import tn.esprit.skillmatch.messagerie.entity.Message;
 import tn.esprit.skillmatch.messagerie.exception.AccessForbiddenException;
 import tn.esprit.skillmatch.messagerie.exception.ResourceNotFoundException;
+import tn.esprit.skillmatch.messagerie.repository.AuditLogRepository;
 import tn.esprit.skillmatch.messagerie.repository.ConversationRepository;
 import tn.esprit.skillmatch.messagerie.repository.MessageRepository;
+import tn.esprit.skillmatch.messagerie.repository.SignalementRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -49,6 +52,12 @@ class ConversationAdminDashboardServiceTest {
 
     @Mock
     private UserClient userClient;
+
+    @Mock
+    private SignalementRepository signalementRepository;
+
+    @Mock
+    private AuditLogRepository auditLogRepository;
 
     @Spy
     private ObjectMapper objectMapper = new ObjectMapper();
@@ -188,29 +197,65 @@ class ConversationAdminDashboardServiceTest {
     }
 
     @Test
-    @DisplayName("Détail admin conversation — retourne métadonnées, participants et messages")
+    @DisplayName("Détail admin conversation — masque messages non signalés, expose message signalé et journalise l'audit")
     void getAdminConversationDetail_returnsDetailAndMessages() {
         Conversation conv = new Conversation("c-detail", List.of(1L, 2L), 1L);
         conv.setOrdreParticipants(List.of(1L, 2L));
-        Message msg = new Message("m1", "Voici mon CV", LocalDateTime.of(2026, 11, 25, 10, 15), conv, 1L);
+        Message msgNormal = new Message("m1", "Voici mon CV", LocalDateTime.of(2026, 11, 25, 10, 15), conv, 1L);
+        Message msgSignale = new Message("m2", "Message inapproprié", LocalDateTime.of(2026, 11, 25, 10, 20), conv, 2L);
+        msgSignale.setSignalee(true);
 
         when(conversationRepository.findById("c-detail")).thenReturn(Optional.of(conv));
-        when(messageRepository.findByConversationIdOrderByDateAsc("c-detail")).thenReturn(List.of(msg));
-        when(messageRepository.findFirstByConversationIdOrderByDateDesc("c-detail")).thenReturn(Optional.of(msg));
-        when(messageRepository.countByConversationId("c-detail")).thenReturn(1L);
+        when(messageRepository.findByConversationIdOrderByDateAsc("c-detail")).thenReturn(List.of(msgNormal, msgSignale));
+        when(messageRepository.findFirstByConversationIdOrderByDateDesc("c-detail")).thenReturn(Optional.of(msgSignale));
+        when(messageRepository.countByConversationId("c-detail")).thenReturn(2L);
         when(messageRepository.countByConversationIdAndLuFalseAndSenderIdNot("c-detail", 99L)).thenReturn(0L);
+        when(auditLogRepository.save(any(AuditLog.class))).thenAnswer(inv -> inv.getArgument(0));
         when(userClient.resolveUsers(anyCollection(), anyString())).thenReturn(Map.of(
                 1L, new UserClient.UserProfile(1L, "Meriem", "CANDIDAT"),
-                2L, new UserClient.UserProfile(2L, "Yassine", "RECRUTEUR")
+                2L, new UserClient.UserProfile(2L, "Yassine", "RECRUTEUR"),
+                99L, new UserClient.UserProfile(99L, "Admin", "ADMIN")
         ));
 
         AdminConversationDetailResponse detail = conversationService.getAdminConversationDetail("c-detail", admin);
 
         assertEquals("c-detail", detail.conversation().id());
         assertEquals(2, detail.conversation().participants().size());
-        assertEquals(1, detail.messages().size());
+        assertEquals(2, detail.messages().size());
         assertEquals("Meriem", detail.messages().get(0).senderNom());
-        assertEquals("Voici mon CV", detail.messages().get(0).contenu());
+        assertEquals("[Contenu masqué]", detail.messages().get(0).contenu());
+        assertEquals("Message inapproprié", detail.messages().get(1).contenu());
+        assertTrue(detail.auditLog().stream().anyMatch(a -> "CONSULTATION_MESSAGE_SIGNALE".equals(a.action())));
+    }
+
+    @Test
+    @DisplayName("Recherche utilisateurs — masque les administrateurs pour Candidat et Recruteur")
+    void searchUsers_hidesAdminsForNonAdmin() {
+        AuthenticatedUser recruteur = new AuthenticatedUser(2L, "rec@test.com", "RECRUTEUR", "tok-r");
+        when(userClient.searchUsers("ali", null, "tok-c")).thenReturn(List.of(
+                new UserClient.UserProfile(5L, "Ali Ben", "CANDIDAT"),
+                new UserClient.UserProfile(99L, "Ali Admin", "ADMIN")
+        ));
+        when(userClient.searchUsers("ali", null, "tok-r")).thenReturn(List.of(
+                new UserClient.UserProfile(5L, "Ali Ben", "CANDIDAT"),
+                new UserClient.UserProfile(99L, "Ali Admin", "ADMIN")
+        ));
+        when(userClient.searchUsers("ali", null, "tok-admin")).thenReturn(List.of(
+                new UserClient.UserProfile(5L, "Ali Ben", "CANDIDAT"),
+                new UserClient.UserProfile(99L, "Ali Admin", "ADMIN")
+        ));
+        AuthenticatedUser candWithTok = new AuthenticatedUser(1L, "c@test.com", "CANDIDAT", "tok-c");
+
+        var resCand = conversationService.searchUsers("ali", null, candWithTok);
+        var resRec = conversationService.searchUsers("ali", null, recruteur);
+        var resAdmin = conversationService.searchUsers("ali", null, admin);
+
+        assertEquals(1, resCand.size());
+        assertEquals("Ali Ben", resCand.get(0).nom());
+        assertEquals(1, resRec.size());
+        assertTrue(resCand.stream().noneMatch(p -> "ADMIN".equalsIgnoreCase(p.role())));
+        assertEquals(1, resAdmin.size()); // admin himself (99L) excluded from self-search
+        assertTrue(conversationService.searchUsers("ali", "ADMIN", candWithTok).isEmpty());
     }
 
     @Test

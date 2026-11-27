@@ -2,6 +2,7 @@ package tn.esprit.skillmatch.messagerie.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
@@ -12,6 +13,7 @@ import tn.esprit.skillmatch.messagerie.config.AuthenticatedUser;
 import tn.esprit.skillmatch.messagerie.config.UserClient;
 import tn.esprit.skillmatch.messagerie.dto.AdminConversationDetailResponse;
 import tn.esprit.skillmatch.messagerie.dto.AdminConversationSummaryResponse;
+import tn.esprit.skillmatch.messagerie.dto.AuditEntryResponse;
 import tn.esprit.skillmatch.messagerie.dto.ConversationResponse;
 import tn.esprit.skillmatch.messagerie.dto.ConversationModerationRequest;
 import tn.esprit.skillmatch.messagerie.dto.CreateConversationRequest;
@@ -20,14 +22,19 @@ import tn.esprit.skillmatch.messagerie.dto.MessageResponse;
 import tn.esprit.skillmatch.messagerie.dto.MessagerieAdminDashboardResponse;
 import tn.esprit.skillmatch.messagerie.dto.MessagerieAdminStatsResponse;
 import tn.esprit.skillmatch.messagerie.dto.ParticipantSummary;
+import tn.esprit.skillmatch.messagerie.dto.SignalementResponse;
+import tn.esprit.skillmatch.messagerie.entity.AuditLog;
 import tn.esprit.skillmatch.messagerie.entity.Conversation;
 import tn.esprit.skillmatch.messagerie.entity.Message;
+import tn.esprit.skillmatch.messagerie.entity.Signalement;
 import tn.esprit.skillmatch.messagerie.exception.AccessForbiddenException;
 import tn.esprit.skillmatch.messagerie.exception.BadRequestException;
 import tn.esprit.skillmatch.messagerie.exception.ConflictException;
 import tn.esprit.skillmatch.messagerie.exception.ResourceNotFoundException;
+import tn.esprit.skillmatch.messagerie.repository.AuditLogRepository;
 import tn.esprit.skillmatch.messagerie.repository.ConversationRepository;
 import tn.esprit.skillmatch.messagerie.repository.MessageRepository;
+import tn.esprit.skillmatch.messagerie.repository.SignalementRepository;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -35,6 +42,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.text.Normalizer;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -64,6 +72,8 @@ public class ConversationService {
     private final ObjectMapper objectMapper;
     private final MessageRepository messageRepository;
     private final UserClient userClient;
+    private final SignalementRepository signalementRepository;
+    private final AuditLogRepository auditLogRepository;
     @Value("${messagerie.fichiers.dir:./uploads}")
     private String fichiersDir = "./uploads";
 
@@ -71,10 +81,22 @@ public class ConversationService {
                                ObjectMapper objectMapper,
                                MessageRepository messageRepository,
                                UserClient userClient) {
+        this(conversationRepository, objectMapper, messageRepository, userClient, null, null);
+    }
+
+    @Autowired
+    public ConversationService(ConversationRepository conversationRepository,
+                               ObjectMapper objectMapper,
+                               MessageRepository messageRepository,
+                               UserClient userClient,
+                               SignalementRepository signalementRepository,
+                               AuditLogRepository auditLogRepository) {
         this.conversationRepository = conversationRepository;
         this.objectMapper = objectMapper;
         this.messageRepository = messageRepository;
         this.userClient = userClient;
+        this.signalementRepository = signalementRepository;
+        this.auditLogRepository = auditLogRepository;
     }
 
     /**
@@ -183,9 +205,66 @@ public class ConversationService {
         return toResponse(conversation, user, usersMap);
     }
 
+    /**
+     * Recherche de personnes par nom (10 résultats max) via l'annuaire existant (UserClient),
+     * sans exposer d'e-mail. Masque les administrateurs aux rôles CANDIDAT et RECRUTEUR.
+     * Retourne les contacts récents lorsque la recherche est vide.
+     */
+    @Transactional(readOnly = true)
+    public List<ParticipantSummary> searchUsers(String query, String role, AuthenticatedUser user) {
+        if (user == null || user.id() == null) {
+            throw new AccessForbiddenException("Authentification requise.");
+        }
+        String normalizedRole = (role != null && !role.isBlank() && !"ALL".equalsIgnoreCase(role))
+                ? role.trim().toUpperCase(Locale.ROOT)
+                : null;
+        if (!user.isAdmin() && "ADMIN".equals(normalizedRole)) {
+            return List.of();
+        }
+
+        String trimmedQuery = query != null ? query.trim() : "";
+        if (trimmedQuery.length() < 2) {
+            List<Conversation> convs = conversationRepository.findByParticipantId(user.id().toString());
+            Set<Long> recentIds = new LinkedHashSet<>();
+            for (Conversation c : convs) {
+                if (c.getParticipantIds() != null) {
+                    for (Long pid : c.getParticipantIds()) {
+                        if (pid != null && !pid.equals(user.id())) {
+                            recentIds.add(pid);
+                        }
+                    }
+                }
+            }
+            Map<Long, UserClient.UserProfile> usersMap = resolveUsersMap(recentIds, user);
+            String normFilter = normalizeAccentFree(trimmedQuery);
+            return recentIds.stream()
+                    .map(usersMap::get)
+                    .filter(Objects::nonNull)
+                    .filter(p -> user.isAdmin() || !"ADMIN".equalsIgnoreCase(p.role()))
+                    .filter(p -> normalizedRole == null || normalizedRole.equalsIgnoreCase(p.role()))
+                    .filter(p -> normFilter.isEmpty() || normalizeAccentFree(p.nom()).contains(normFilter))
+                    .limit(10)
+                    .map(p -> new ParticipantSummary(p.id(), p.nom(), p.role()))
+                    .toList();
+        }
+
+        if (userClient == null) {
+            return List.of();
+        }
+        List<UserClient.UserProfile> found = userClient.searchUsers(trimmedQuery, normalizedRole, user.token());
+        return found.stream()
+                .filter(p -> p.id() != null && !p.id().equals(user.id()))
+                .filter(p -> user.isAdmin() || !"ADMIN".equalsIgnoreCase(p.role()))
+                .filter(p -> normalizedRole == null || normalizedRole.equalsIgnoreCase(p.role()))
+                .sorted(Comparator.comparing(p -> normalizeAccentFree(p.nom())))
+                .limit(10)
+                .map(p -> new ParticipantSummary(p.id(), p.nom(), p.role()))
+                .toList();
+    }
+
     @Transactional(readOnly = true)
     public MessagerieAdminDashboardResponse getAdminDashboard(String scope, String query, AuthenticatedUser user) {
-        return getAdminDashboard(scope, query, null, null, user);
+        return getAdminDashboard(scope, query, null, null, null, null, user);
     }
 
     @Transactional(readOnly = true)
@@ -194,12 +273,23 @@ public class ConversationService {
                                                               String type,
                                                               String statut,
                                                               AuthenticatedUser user) {
+        return getAdminDashboard(scope, query, type, statut, null, null, user);
+    }
+
+    @Transactional(readOnly = true)
+    public MessagerieAdminDashboardResponse getAdminDashboard(String scope,
+                                                              String query,
+                                                              String type,
+                                                              String statut,
+                                                              Integer page,
+                                                              Integer size,
+                                                              AuthenticatedUser user) {
         ensureAdmin(user);
 
         List<Conversation> conversations = conversationRepository.findAllByOrderByDernierMessageAtDescDateCreationDesc();
         MessagerieAdminStatsResponse stats = buildAdminStats(conversations);
         if (conversations.isEmpty()) {
-            return new MessagerieAdminDashboardResponse(stats, List.of());
+            return new MessagerieAdminDashboardResponse(stats, List.of(), 0L, 0, 0, size != null && size > 0 ? size : 10);
         }
 
         Set<Long> participantIds = new LinkedHashSet<>();
@@ -218,10 +308,22 @@ public class ConversationService {
                 .filter(row -> matchesQuery(row, query))
                 .toList();
 
-        return new MessagerieAdminDashboardResponse(stats, rows);
+        if (page == null && size == null) {
+            return new MessagerieAdminDashboardResponse(stats, rows);
+        }
+
+        int safeSize = size != null && size > 0 ? Math.min(size, 100) : 10;
+        int safePage = page != null && page >= 0 ? page : 0;
+        long totalElements = rows.size();
+        int totalPages = totalElements == 0 ? 0 : (int) Math.ceil((double) totalElements / safeSize);
+        int fromIndex = Math.min(safePage * safeSize, rows.size());
+        int toIndex = Math.min(fromIndex + safeSize, rows.size());
+        List<AdminConversationSummaryResponse> pagedRows = rows.subList(fromIndex, toIndex);
+
+        return new MessagerieAdminDashboardResponse(stats, pagedRows, totalElements, totalPages, safePage, safeSize);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public AdminConversationDetailResponse getAdminConversationDetail(String id, AuthenticatedUser user) {
         ensureAdmin(user);
 
@@ -229,22 +331,91 @@ public class ConversationService {
         List<Message> messages = messageRepository != null
                 ? messageRepository.findByConversationIdOrderByDateAsc(conversation.getId())
                 : List.of();
+        List<Signalement> signalements = signalementRepository != null
+                ? signalementRepository.findByConversationIdOrderByDateSignalementDesc(conversation.getId())
+                : List.of();
+        List<AuditLog> existingAudits = auditLogRepository != null
+                ? auditLogRepository.findByConversationIdOrderByDateActionDesc(conversation.getId())
+                : List.of();
 
         Set<Long> userIds = new LinkedHashSet<>();
         if (conversation.getParticipantIds() != null) {
             userIds.addAll(conversation.getParticipantIds());
+        }
+        if (conversation.getCandidatUserId() != null) {
+            userIds.add(conversation.getCandidatUserId());
+        }
+        if (user.id() != null) {
+            userIds.add(user.id());
         }
         for (Message message : messages) {
             if (!message.estSysteme() && message.getSenderId() != null && message.getSenderId() > 0) {
                 userIds.add(message.getSenderId());
             }
         }
+        for (Signalement s : signalements) {
+            if (s.getAuteurSignalementId() != null) userIds.add(s.getAuteurSignalementId());
+            if (s.getAuteurMessageId() != null) userIds.add(s.getAuteurMessageId());
+            if (s.getAdminId() != null) userIds.add(s.getAdminId());
+        }
         Map<Long, UserClient.UserProfile> usersMap = resolveUsersMap(userIds, user);
+
+        List<AuditLog> newAudits = new ArrayList<>();
+        LocalDateTime now = LocalDateTime.now();
+        UserClient.UserProfile adminProfile = usersMap.get(user.id());
+        String adminName = adminProfile != null ? adminProfile.nom() : "Administrateur";
+
+        newAudits.add(recordAudit(
+                conversation.getId(),
+                null,
+                null,
+                user.id(),
+                adminName,
+                "ADMIN",
+                "CONSULTATION_DETAILS",
+                "Consultation de la fiche conversation",
+                now
+        ));
+
+        Map<String, Message> messageById = messages.stream()
+                .collect(Collectors.toMap(Message::getId, m -> m, (a, b) -> a));
+
+        for (Message m : messages) {
+            if (Boolean.TRUE.equals(m.getSignalee())) {
+                newAudits.add(recordAudit(
+                        conversation.getId(),
+                        m.getId(),
+                        null,
+                        user.id(),
+                        adminName,
+                        "ADMIN",
+                        "CONSULTATION_MESSAGE_SIGNALE",
+                        "Consultation du contenu d'un message signalé",
+                        now
+                ));
+            }
+        }
 
         AdminConversationSummaryResponse summary = toAdminSummary(conversation, user, usersMap);
         List<MessageResponse> messageResponses = messages.stream()
                 .map(message -> toAdminMessageResponse(message, usersMap))
                 .toList();
+
+        List<SignalementResponse> signalementResponses = signalements.stream()
+                .map(s -> toSignalementResponse(s, messageById.get(s.getMessageId()), usersMap, true))
+                .toList();
+
+        List<AuditLog> combinedAudits = new ArrayList<>();
+        for (AuditLog a : newAudits) {
+            if (a != null) combinedAudits.add(a);
+        }
+        combinedAudits.addAll(existingAudits);
+        List<AuditEntryResponse> auditResponses = combinedAudits.stream()
+                .map(this::toAuditEntryResponse)
+                .toList();
+
+        UserClient.UserProfile creatorProfile = usersMap.get(conversation.getCandidatUserId());
+        String createurNom = creatorProfile != null ? creatorProfile.nom() : "Membre";
 
         return new AdminConversationDetailResponse(
                 summary,
@@ -252,7 +423,12 @@ public class ConversationService {
                 conversation.getDateArchivage(),
                 conversation.getDateSignalement(),
                 conversation.getCandidatUserId(),
-                messageResponses
+                messageResponses,
+                createurNom,
+                summary.messages(),
+                summary.nonLusCount(),
+                signalementResponses,
+                auditResponses
         );
     }
 
@@ -278,8 +454,66 @@ public class ConversationService {
         }
 
         Conversation saved = conversationRepository.save(conversation);
-        Map<Long, UserClient.UserProfile> usersMap = resolveUsersMap(saved.getParticipantIds(), user);
+        Set<Long> idsToResolve = new LinkedHashSet<>(saved.getParticipantIds());
+        if (user.id() != null) idsToResolve.add(user.id());
+        Map<Long, UserClient.UserProfile> usersMap = resolveUsersMap(idsToResolve, user);
+        UserClient.UserProfile adminProfile = usersMap.get(user.id());
+        String actionName = request.archivee() != null
+                ? (Boolean.TRUE.equals(request.archivee()) ? "ARCHIVAGE" : "DESARCHIVAGE")
+                : "MODERATION";
+        recordAudit(
+                saved.getId(),
+                null,
+                null,
+                user.id(),
+                adminProfile != null ? adminProfile.nom() : "Administrateur",
+                "ADMIN",
+                actionName,
+                Boolean.TRUE.equals(request.archivee()) ? "Conversation archivée" : "Statut de modération mis à jour",
+                now
+        );
+
         return toAdminSummary(saved, user, usersMap);
+    }
+
+    @Transactional
+    public String exportSingleConversationCsv(String id, AuthenticatedUser user) {
+        ensureAdmin(user);
+        Conversation conversation = getConversationOrThrow(id);
+        Set<Long> userIds = new LinkedHashSet<>(conversation.getParticipantIds());
+        if (user.id() != null) userIds.add(user.id());
+        Map<Long, UserClient.UserProfile> usersMap = resolveUsersMap(userIds, user);
+        AdminConversationSummaryResponse row = toAdminSummary(conversation, user, usersMap);
+
+        UserClient.UserProfile adminProfile = usersMap.get(user.id());
+        recordAudit(
+                conversation.getId(),
+                null,
+                null,
+                user.id(),
+                adminProfile != null ? adminProfile.nom() : "Administrateur",
+                "ADMIN",
+                "EXPORT_CSV",
+                "Export CSV de la conversation",
+                LocalDateTime.now()
+        );
+
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        String participantsLabels = row.participants() == null ? "" : row.participants().stream()
+                .map(p -> p.nom() + (p.role() != null ? " (" + p.role() + ")" : ""))
+                .collect(Collectors.joining(", "));
+        String formattedDate = row.derniereActivite() != null ? row.derniereActivite().format(formatter) : "";
+
+        return "\uFEFFConversation;Type;Participants;Messages;Non lus;Derniere activite;Statut;Signalements\r\n"
+                + csvValue(row.conversation()) + ';'
+                + csvValue(row.type()) + ';'
+                + csvValue(participantsLabels) + ';'
+                + row.messages() + ';'
+                + row.nonLusCount() + ';'
+                + csvValue(formattedDate) + ';'
+                + csvValue(row.statut()) + ';'
+                + row.signalementsCount()
+                + "\r\n";
     }
 
     @Transactional(readOnly = true)
@@ -507,6 +741,12 @@ public class ConversationService {
     public void delete(String id, AuthenticatedUser user) {
         Conversation conversation = getConversationOrThrow(id);
         checkManager(conversation, user);
+        if (signalementRepository != null) {
+            signalementRepository.deleteByConversationId(id);
+        }
+        if (auditLogRepository != null) {
+            auditLogRepository.deleteByConversationId(id);
+        }
         messageRepository.deleteByConversationId(id);
         conversationRepository.delete(conversation);
     }
@@ -683,10 +923,13 @@ public class ConversationService {
     private MessagerieAdminStatsResponse buildAdminStats(List<Conversation> conversations) {
         long directCount = conversations.stream().filter(conversation -> !conversation.estGroupe()).count();
         long groupCount = conversations.stream().filter(Conversation::estGroupe).count();
-        long pendingFlags = conversations.stream()
+        long pendingFlagsFromConvs = conversations.stream()
                 .filter(conversation -> Boolean.TRUE.equals(conversation.getSignalee()))
                 .filter(conversation -> !Boolean.TRUE.equals(conversation.getArchivee()))
                 .count();
+        long pendingFlags = (signalementRepository != null && signalementRepository.count() > 0)
+                ? signalementRepository.countByStatut(Signalement.STATUT_EN_ATTENTE)
+                : pendingFlagsFromConvs;
 
         LocalDate today = LocalDate.now();
         LocalDateTime startOfWeek = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).atStartOfDay();
@@ -744,20 +987,26 @@ public class ConversationService {
         String senderNom = null;
         if (!message.estSysteme() && message.getSenderId() != null && message.getSenderId() > 0) {
             UserClient.UserProfile profile = usersMap.get(message.getSenderId());
-            senderNom = profile != null ? profile.nom() : "Utilisateur " + message.getSenderId();
+            senderNom = profile != null ? profile.nom() : "Membre";
         }
+        boolean signalee = Boolean.TRUE.equals(message.getSignalee());
+        boolean masque = Boolean.TRUE.equals(message.getMasque());
+        boolean visibleContent = signalee || message.estSysteme();
+        String content = visibleContent ? message.getContenu() : "[Contenu masqué]";
         return new MessageResponse(
                 message.getId(),
-                message.getContenu(),
+                content,
                 message.getType(),
                 message.getDate(),
                 message.getLu(),
                 message.getConversation() != null ? message.getConversation().getId() : null,
                 message.getSenderId(),
                 senderNom,
-                message.getFichierNom(),
-                message.getFichierUrl(),
-                message.getFichierTaille()
+                visibleContent ? message.getFichierNom() : null,
+                visibleContent ? message.getFichierUrl() : null,
+                visibleContent ? message.getFichierTaille() : null,
+                signalee,
+                masque
         );
     }
 
@@ -771,6 +1020,18 @@ public class ConversationService {
         LocalDateTime activityAt = conversation.getDernierMessageAt() != null
                 ? conversation.getDernierMessageAt()
                 : conversation.getDateCreation();
+        long sigCount = signalementRepository != null
+                ? signalementRepository.countByConversationId(conversation.getId())
+                : 0L;
+        if (sigCount == 0L && Boolean.TRUE.equals(conversation.getSignalee())) {
+            sigCount = 1L;
+        }
+        String lastPreview = latest.map(msg -> {
+            if (msg.estSysteme() || Boolean.TRUE.equals(msg.getSignalee())) {
+                return msg.getContenu();
+            }
+            return "[Contenu masqué]";
+        }).orElse(null);
 
         return new AdminConversationSummaryResponse(
                 conversation.getId(),
@@ -782,13 +1043,14 @@ public class ConversationService {
                 resolveModerationStatus(conversation),
                 Boolean.TRUE.equals(conversation.getArchivee()),
                 Boolean.TRUE.equals(conversation.getSignalee()),
-                latest.map(Message::getContenu).orElse(null),
+                lastPreview,
                 latest.filter(message -> !message.estSysteme())
                         .map(Message::getSenderId)
                         .map(senderId -> firstNameFor(senderId, usersMap))
                         .orElse(null),
                 unreadCount(conversation, user),
-                participants
+                participants,
+                sigCount
         );
     }
 
@@ -821,6 +1083,9 @@ public class ConversationService {
         }
         if ("GROUPES".equals(normalizedScope)) {
             return "groupe".equalsIgnoreCase(row.type());
+        }
+        if ("SIGNALEES".equals(normalizedScope) || "SIGNALEE".equals(normalizedScope)) {
+            return row.signalee() || row.signalementsCount() > 0;
         }
         if ("DIRECTES".equals(normalizedScope)) {
             return "directe".equalsIgnoreCase(row.type());
@@ -980,6 +1245,84 @@ public class ConversationService {
                     return new ParticipantSummary(participantId, "Membre", null);
                 })
                 .toList();
+    }
+
+    private AuditLog recordAudit(String conversationId,
+                                 String messageId,
+                                 String signalementId,
+                                 Long acteurId,
+                                 String acteurNom,
+                                 String acteurRole,
+                                 String action,
+                                 String details,
+                                 LocalDateTime when) {
+        AuditLog entry = new AuditLog(
+                UUID.randomUUID().toString(),
+                conversationId,
+                messageId,
+                signalementId,
+                acteurId != null ? acteurId : 0L,
+                acteurNom,
+                acteurRole,
+                action,
+                details,
+                when
+        );
+        if (auditLogRepository != null) {
+            return auditLogRepository.save(entry);
+        }
+        return entry;
+    }
+
+    private AuditEntryResponse toAuditEntryResponse(AuditLog log) {
+        return new AuditEntryResponse(
+                log.getId(),
+                log.getConversationId(),
+                log.getAction(),
+                log.getActeurNom(),
+                log.getActeurRole(),
+                log.getDetails(),
+                log.getDateAction()
+        );
+    }
+
+    private SignalementResponse toSignalementResponse(Signalement s,
+                                                      Message msg,
+                                                      Map<Long, UserClient.UserProfile> usersMap,
+                                                      boolean includeContent) {
+        UserClient.UserProfile reporter = usersMap.get(s.getAuteurSignalementId());
+        UserClient.UserProfile sender = usersMap.get(s.getAuteurMessageId());
+        UserClient.UserProfile admin = s.getAdminId() != null ? usersMap.get(s.getAdminId()) : null;
+        boolean masque = msg != null && Boolean.TRUE.equals(msg.getMasque());
+        String content = (includeContent && msg != null) ? msg.getContenu() : null;
+        return new SignalementResponse(
+                s.getId(),
+                s.getConversationId(),
+                s.getMessageId(),
+                reporter != null ? reporter.nom() : "Membre",
+                reporter != null ? reporter.role() : null,
+                sender != null ? sender.nom() : "Membre",
+                sender != null ? sender.role() : null,
+                s.getMotif(),
+                s.getCommentaire(),
+                s.getStatut(),
+                s.getActionAdmin(),
+                admin != null ? admin.nom() : (s.getAdminId() != null ? "Administrateur" : null),
+                s.getDateSignalement(),
+                s.getDateTraitement(),
+                content,
+                masque
+        );
+    }
+
+    private String normalizeAccentFree(String value) {
+        if (value == null) {
+            return "";
+        }
+        return Normalizer.normalize(value, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}+", "")
+                .toLowerCase(Locale.ROOT)
+                .trim();
     }
 
     private String toJson(List<Long> ids) {

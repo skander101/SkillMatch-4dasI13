@@ -57,6 +57,12 @@ public class Message {
     @Column(name = "fichier_taille")
     private Long fichierTaille;
 
+    @Column(name = "signalee", nullable = false)
+    private Boolean signalee = false;
+
+    @Column(name = "masque", nullable = false)
+    private Boolean masque = false;
+
     public Message() {}
 
     public Message(String id, String contenu, LocalDateTime date, Conversation conversation, Long senderId) {
@@ -129,4 +135,10 @@ public class Message {
 
     public Long getFichierTaille() { return fichierTaille; }
     public void setFichierTaille(Long fichierTaille) { this.fichierTaille = fichierTaille; }
+
+    public Boolean getSignalee() { return signalee; }
+    public void setSignalee(Boolean signalee) { this.signalee = signalee; }
+
+    public Boolean getMasque() { return masque; }
+    public void setMasque(Boolean masque) { this.masque = masque; }
 }

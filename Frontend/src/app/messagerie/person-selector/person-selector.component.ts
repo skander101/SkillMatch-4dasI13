@@ -15,7 +15,7 @@ import {
   signal
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Subject, Subscription, catchError, debounce, forkJoin, map, of, switchMap, tap, timer } from 'rxjs';
+import { Subject, Subscription, catchError, debounce, map, of, switchMap, tap, timer } from 'rxjs';
 import { AuthService } from '../../user/auth.service';
 import {
   PucePalette,
@@ -312,15 +312,8 @@ export class PersonSelectorComponent implements OnInit, OnDestroy {
       return of({ terme, users: this.filtrerLocalement(terme), error: '' });
     }
 
-    const isAdmin = this.auth.isAdmin();
     const roleSel = this.roleFilter();
-
-    const requete$ = !isAdmin && roleSel === 'ALL'
-      ? forkJoin([
-          this.api.searchDirectory(terme, 'CANDIDAT'),
-          this.api.searchDirectory(terme, 'RECRUTEUR')
-        ]).pipe(map(([candidats, recruteurs]) => [...(candidats ?? []), ...(recruteurs ?? [])]))
-      : this.api.searchDirectory(terme, roleSel === 'ALL' ? null : roleSel);
+    const requete$ = this.api.searchDirectory(terme, roleSel === 'ALL' ? null : roleSel);
 
     return requete$.pipe(
       map((users) => {
